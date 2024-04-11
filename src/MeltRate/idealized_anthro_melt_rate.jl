@@ -1,6 +1,6 @@
 using Statistics
 
-struct IdealizedAnthroMeltRate{T <: Real, N <: Integer, TR} <: AbstractMeltRate
+struct IdealizedAnthroMeltRate{T <: Real, N <: Integer, ST} <: AbstractMeltRate
     bump_width :: T               #lengthscale of the quadratic bump in forcing
     bump_time  :: T               #time of the center of the bump
     bump_amplitude :: T           #amplitude of the bump
@@ -21,7 +21,7 @@ struct IdealizedAnthroMeltRate{T <: Real, N <: Integer, TR} <: AbstractMeltRate
     Tl :: T                       #temperature of the upper layer
     Tu :: T                       #temperature of the lower layer
     pw :: T                       #width of the pycnocline
-    tround_digits :: TR            #number of digits to round the time in the forcing to
+    smooth_timescale :: ST         #timescale to smooth the random forcing component over 
 end
 
 
@@ -52,7 +52,7 @@ Keyword arguments
 - Tl                            #temperature of the upper layer
 - Tu                            #temperature of the lower layer
 - pw                            #width of the pycnocline
-- tround_digits                 #number of digits to round the time in the forcing to (set to nothing for no rounding)
+- smooth_timescale :: T         #timescale to smooth the random forcing component over 
 """
 
 function IdealizedAnthroMeltRate(;
@@ -76,11 +76,11 @@ function IdealizedAnthroMeltRate(;
                                 Tl = 1.0, 
                                 Tu = -1.2,
                                 pw = 400.0, 
-                                tround_digits = nothing)
+                                smooth_timescale = nothing)
 
     return IdealizedAnthroMeltRate(bump_width, bump_time, bump_amplitude, per_century_trend, trend_onset,
                     pc_max, pc_min, M, λ1, λ2,λ3, melt_partial_cell, random_seed,rf_threshold, r ,
-                    Sl, Su, Tl, Tu, pw, tround_digits)
+                    Sl, Su, Tl, Tu, pw, smooth_timescale)
 end
 
 
@@ -132,7 +132,7 @@ function set_idealized_anthro_melt_rate!(basal_melt,
                 idealized_anthro_melt_rate.bump_width, 
                 idealized_anthro_melt_rate.bump_amplitude, 
                 idealized_anthro_melt_rate.bump_time,
-                idealized_anthro_melt_rate.tround_digits) 
+                idealized_anthro_melt_rate.smooth_timescale) 
         
     #compute the salinity and temperature
     Sa_shelf = get_Sa.(zb,
@@ -166,10 +166,10 @@ end
 Generate values of the random forcing as an AR1 process with autocorrelation r at time point t
 
 """
-function generate_random_forcing_anomaly(t, r, random_seed, tround_digits)
+function generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale)
     N = 1000  # number of timeseries in the series to be sampled(can be big)
     dt = 1    # script assumes this is 1, no guarantees it is robust if changed!
-    td = 0:dt:(N-1)*dt
+    td = 0:dt:(N-1)*dt 
 
     # frequency domain
     df = 1 / (dt * N)
@@ -207,11 +207,12 @@ function generate_random_forcing_anomaly(t, r, random_seed, tround_digits)
 
     # interpolate to target value
     linterp = Interpolations.LinearInterpolation(td, ar1)
-    if tround_digits === nothing #no rounding
+    if smooth_timescale === nothing #no smoothing
         rf = linterp(t)
     else
-        t_rounded = round.(t,digits = tround_digits) #round t to digits
-        rf = linterp(t_rounded)
+        t = LinRange(max((t -smooth_timescale/2), 0),t+smooth_timescale/2,50) #50 points over the time period
+        rf = linterp(t)
+        rf = sum(rf)/length(rf)        
     end
     return rf
 end
