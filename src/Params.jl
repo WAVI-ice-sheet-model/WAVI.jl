@@ -22,6 +22,8 @@ glen_a_activation_energy :: T
        minimum_thickness :: T 
            evolveShelves :: Bool
                 smallHAF :: T
+      effective_pressure :: T
+   calcAcousticImpedance :: Bool
 end
 
 
@@ -55,6 +57,8 @@ Keyword arguments
 - `minimum_thickness`: minimum ice thickness on model domain
 - `evolveShelves`: flag for turning on and off the evolution of the shelves in the forward run_simulation
 - `smallHAF`: small value of HAF used within update_thickness when not evolving shelves
+- `effective_pressure` : effective pressure
+- `calcAcousticImpedance` : whether to calculate the acoustic impedance or not (default false)
 """
 function Params(; g = 9.81, 
                   density_ice = 918.0,
@@ -77,7 +81,9 @@ function Params(; g = 9.81,
                   sea_level_wrt_geoid  = 0.0,
                   minimum_thickness = 50.0,
                   evolveShelves = true,
-                  smallHAF = 1.0)
+                  smallHAF = 1.0,
+                  effective_pressure = 1.0e6,
+                  calcAcousticImpedance=false)
                       
   #defualt the timestep to 1.0 (will be updated when the model is embedded in a simulation)
   dt = 1.0
@@ -105,6 +111,8 @@ function Params(; g = 9.81,
                   sea_level_wrt_geoid,
                   minimum_thickness,
                   evolveShelves,
-                  smallHAF
+                  smallHAF,
+                  effective_pressure,
+                  calcAcousticImpedance
                   )
 end

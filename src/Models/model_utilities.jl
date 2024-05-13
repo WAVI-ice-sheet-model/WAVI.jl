@@ -44,6 +44,11 @@ if all(isnan.(initial_conditions.initial_damage))
     initial_conditions = @set initial_conditions.initial_damage =  default_damage*ones(grid.nx, grid.ny, grid.nσ)
 end
 
+if all(isnan.(initial_conditions.initial_effective_pressure))
+    default_effective_pressure = params.effective_pressure
+    #@info "Did not find a specified initial damage field, reverting to default value specified in params ($default_damage everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
+    initial_conditions = @set initial_conditions.initial_effective_pressure =  default_effective_pressure*ones(grid.nx, grid.ny)
+end
 
 
 #check sizes are compatible
@@ -54,6 +59,7 @@ end
 (size(initial_conditions.initial_temperature) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial temperature field is not compatible with grid size. Input temperature field is has size $(size(initial_conditions.initial_temperature)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
 (size(initial_conditions.initial_viscosity) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial viscosity field is not compatible with grid size. Input temperature field is has size $(size(initial_conditions.initial_temperature)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
 (size(initial_conditions.initial_damage) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial damage field is not compatible with grid size.Input temperature field is has size $(size(initial_conditions.initial_temperature)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
+(size(initial_conditions.initial_effective_pressure) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial effective pressure field is not compatible with grid size. Input effective pressure field has size $(size(initial_conditions.initial_effective_pressure)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 
 
 return initial_conditions

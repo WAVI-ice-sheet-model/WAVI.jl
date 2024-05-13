@@ -38,6 +38,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     #gh=HGrid(grid, params) #uncomment if using the explicit constructor method
     h =  deepcopy(initial_conditions.initial_thickness)
     grounded_fraction =  deepcopy(initial_conditions.initial_grounded_fraction)
+    effective_pressure = deepcopy(initial_conditions.initial_effective_pressure)
     ηav = deepcopy(initial_conditions.initial_viscosity[:,:,1]) #set to the viscosity on the first level for now
     gh=HGrid(
     nxh=grid.nx,
@@ -47,7 +48,8 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     b = bed_array,
     h = h,
     ηav = ηav,
-    grounded_fraction = grounded_fraction
+    grounded_fraction = grounded_fraction,
+    effective_pressure = effective_pressure
     )
 
     #u-grid

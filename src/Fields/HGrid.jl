@@ -35,6 +35,8 @@ struct HGrid{T <: Real, N  <: Integer}
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
+   effective_pressure :: Array{T,2}                            # effective pressure
+   acoustic_impedance :: Array{T,2}                            # acoustic impedance
 end
 
 
@@ -47,7 +49,8 @@ end
             b,
             h,
             ηav = zeros(nxh,nyh),
-            grounded_fraction = ones(nxh,nyh))
+            grounded_fraction = ones(nxh,nyh),
+            effective_pressure = ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -64,6 +67,7 @@ Keyword arguments
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
+    = 'effective_pressure': initial effective pressure
 """
 
 
@@ -75,10 +79,12 @@ function HGrid(;
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh))
+                grounded_fraction = ones(nxh,nyh),
+                effective_pressure = zeros(nxh,nyh))
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(effective_pressure) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+ 
 
     #construct operators
     n = count(mask)
@@ -112,6 +118,7 @@ function HGrid(;
     quad_f1 = zeros(nxh,nyh)
     quad_f2 = zeros(nxh,nyh)
     quad_f2[mask] = h[mask]./(3*ηav[mask])
+    acoustic_impedance = zeros(nxh,nyh)
 
     #check sizes of everything
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
@@ -146,6 +153,8 @@ function HGrid(;
     @assert size(quad_f1)==(nxh,nyh)
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
+    @assert size(effective_pressure)==(nxh,nyh)
+    @assert size(acoustic_impedance)==(nxh,nyh)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -188,5 +197,7 @@ return HGrid(
             quad_f1,
             quad_f2,
             dneghηav,
-            dimplicit)
+            dimplicit,
+            effective_pressure,
+            acoustic_impedance)
 end

@@ -17,6 +17,7 @@ function update_state!(model, clock)
     update_velocities_on_h_grid!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+    update_acoustic_impedance!(model)
     return nothing
 end
 
@@ -38,6 +39,7 @@ function update_state!(model)
     update_velocities_on_h_grid!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+    update_acoustic_impedance!(model)
     return nothing
 end
 
@@ -195,5 +197,21 @@ Wrapper function for that which updates the model wavelets
 """
 function update_model_wavelets!(model::AbstractModel)
     update_wavelets!(model)
+    return model
+end
+
+"""
+    update_acoustic_impedance!(model::AbstractModel)
+
+Wrapper function for that which updates the acoustic impedance
+"""
+function update_acoustic_impedance!(model::AbstractModel)
+    @unpack params = model
+    if params.calcAcousticImpedance == true
+        effectivePressure = model.fields.gh.effective_pressure
+        ZP,ZS = updateAcousticImpedance!(model.acoustic_impedance,params.g,effectivePressure)
+        # print(maximum(ZP), maximum(ZS))
+        model.fields.gh.acoustic_impedance[:] = ZP
+    end
     return model
 end

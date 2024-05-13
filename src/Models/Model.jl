@@ -6,6 +6,7 @@ struct Model{T <: Real, N <: Integer,A,W, G, M <:AbstractMeltRate, PS <: Abstrac
     fields::Fields{T,N}
     melt_rate::M
     parallel_spec::PS
+    acoustic_impedance::AcousticImpedance{T,N}
 end
 
 """
@@ -16,7 +17,8 @@ end
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
         melt_rate = UniformMeltRate(),
-        parallel_spec = BasicParallelSpec())
+        parallel_spec = BasicParallelSpec(),
+        acoustic_impedance = AcousticImpedance())
 
 Construct a WAVI.jl model object.
 
@@ -28,7 +30,8 @@ Keyword arguments
 - `solver_params`: a `SolverParams` object that defines parameters relating to the numerical scheme
 - `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, and damage
 - `melt_rate`: a melt rate model, responsible for controlling/setting the basal melt rate
-- `parallel_spec`: specification of parallel computation method.
+- `parallel_spec`: specification of parallel computation method
+- `acoustic_impedance`: acoustic impedance calculation.
 
 """
 function Model(;
@@ -38,7 +41,8 @@ function Model(;
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
     melt_rate = UniformMeltRate(),
-    parallel_spec = BasicParallelSpec())
+    parallel_spec = BasicParallelSpec(),
+    acoustic_impedance = AcousticImpedance())
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
@@ -87,7 +91,7 @@ function Model(;
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec)
+    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec,acoustic_impedance)
 
     return model
 end

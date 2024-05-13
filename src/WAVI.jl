@@ -23,6 +23,9 @@ export
     #Melt ratesS
     PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins, 
    
+    #Acoustic Impedance
+    AcousticImpedance,
+
     #Post-processing controls
     volume_above_floatation, height_above_floatation
 
@@ -53,6 +56,7 @@ include("OutputParams/OutputParams.jl")
 include("Grid.jl")
 include("Params.jl")
 include("SolverParams.jl")
+include("AcousticImpedance/acousticImpedance.jl")
 include("TimesteppingParams.jl")
 include("Clock.jl")
 include("InitialConditions.jl")
