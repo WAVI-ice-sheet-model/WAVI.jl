@@ -222,8 +222,8 @@ end
 
 Map the value of the autoregressive process to the pycnocline position, i.e. get the internal part of the pycnoline position
 """
-function get_random_pc_component(t, r, random_seed, rf_threshold, pc_max, pc_min, digits)
-    rf = generate_random_forcing_anomaly(t, r, random_seed, digits)
+function get_random_pc_component(t, r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale)
+    rf = generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale)
     if rf  > rf_threshold
         rf = rf_threshold
     end
@@ -256,7 +256,7 @@ get_bump_pc_component(t, bump_width, bump_amplitude, bump_time) = bump_amplitude
 
 
 
-pc_position(t,r, random_seed, rf_threshold, pc_max, pc_min, per_century_trend, trend_onset,bump_width, bump_amplitude, bump_time, tround_digits) = get_random_pc_component(t,r, random_seed, rf_threshold, pc_max, pc_min, tround_digits) + get_trend_pc_component(t, per_century_trend, trend_onset) + get_bump_pc_component(t, bump_width, bump_amplitude, bump_time)
+pc_position(t,r, random_seed, rf_threshold, pc_max, pc_min, per_century_trend, trend_onset,bump_width, bump_amplitude, bump_time, smooth_timescale) = get_random_pc_component(t,r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale) + get_trend_pc_component(t, per_century_trend, trend_onset) + get_bump_pc_component(t, bump_width, bump_amplitude, bump_time)
 
 """
     function get_Ta(z,Tl,Tu,pc)
