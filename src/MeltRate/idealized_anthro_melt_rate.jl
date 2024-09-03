@@ -22,6 +22,7 @@ struct IdealizedAnthroMeltRate{T <: Real, N <: Integer, ST} <: AbstractMeltRate
     Tu :: T                       #temperature of the lower layer
     pw :: T                       #width of the pycnocline
     smooth_timescale :: ST         #timescale to smooth the random forcing component over 
+    t_shift :: T
 end
 
 
@@ -76,11 +77,12 @@ function IdealizedAnthroMeltRate(;
                                 Tl = 1.0, 
                                 Tu = -1.2,
                                 pw = 400.0, 
-                                smooth_timescale = nothing)
+                                smooth_timescale = nothing, 
+                                t_shift = 0.0)
 
     return IdealizedAnthroMeltRate(bump_width, bump_time, bump_amplitude, per_century_trend, trend_onset,
                     pc_max, pc_min, M, λ1, λ2,λ3, melt_partial_cell, random_seed,rf_threshold, r ,
-                    Sl, Su, Tl, Tu, pw, smooth_timescale)
+                    Sl, Su, Tl, Tu, pw, smooth_timescale, t_shift)
 end
 
 
