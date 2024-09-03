@@ -134,7 +134,9 @@ function set_idealized_anthro_melt_rate!(basal_melt,
                 idealized_anthro_melt_rate.bump_width, 
                 idealized_anthro_melt_rate.bump_amplitude, 
                 idealized_anthro_melt_rate.bump_time,
-                idealized_anthro_melt_rate.smooth_timescale) 
+                idealized_anthro_melt_rate.smooth_timescale, 
+                idealized_anthro_melt_rate.t_shift
+                ) 
         
     #compute the salinity and temperature
     Sa_shelf = get_Sa.(zb,
@@ -228,8 +230,8 @@ end
 
 Map the value of the autoregressive process to the pycnocline position, i.e. get the internal part of the pycnoline position
 """
-function get_random_pc_component(t, r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale)
-    rf = generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale)
+function get_random_pc_component(t, r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale, t_shift)
+    rf = generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale, t_shift)
     if rf  > rf_threshold
         rf = rf_threshold
     end
@@ -262,7 +264,7 @@ get_bump_pc_component(t, bump_width, bump_amplitude, bump_time) = bump_amplitude
 
 
 
-pc_position(t,r, random_seed, rf_threshold, pc_max, pc_min, per_century_trend, trend_onset,bump_width, bump_amplitude, bump_time, smooth_timescale) = get_random_pc_component(t,r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale) + get_trend_pc_component(t, per_century_trend, trend_onset) + get_bump_pc_component(t, bump_width, bump_amplitude, bump_time)
+pc_position(t,r, random_seed, rf_threshold, pc_max, pc_min, per_century_trend, trend_onset,bump_width, bump_amplitude, bump_time, smooth_timescale, t_shift) = get_random_pc_component(t,r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale, t_shift) + get_trend_pc_component(t, per_century_trend, trend_onset) + get_bump_pc_component(t, bump_width, bump_amplitude, bump_time)
 
 """
     function get_Ta(z,Tl,Tu,pc)
