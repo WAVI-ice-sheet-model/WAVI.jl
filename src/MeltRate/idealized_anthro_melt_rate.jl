@@ -166,7 +166,10 @@ end
 Generate values of the random forcing as an AR1 process with autocorrelation r at time point t
 
 """
-function generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale)
+function generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale, t_shift)
+    if t > t_shift
+        t = t - t_shift
+    end
     N = 1000  # number of timeseries in the series to be sampled(can be big)
     dt = 1    # script assumes this is 1, no guarantees it is robust if changed!
     td = 0:dt:(N-1)*dt 
@@ -214,6 +217,7 @@ function generate_random_forcing_anomaly(t, r, random_seed, smooth_timescale)
         rf = linterp(t)
         rf = sum(rf)/length(rf)        
     end
+    
     return rf
 end
 
