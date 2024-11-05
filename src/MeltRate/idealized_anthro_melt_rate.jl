@@ -5,7 +5,9 @@ struct IdealizedAnthroMeltRate{T <: Real, N <: Integer, ST} <: AbstractMeltRate
     bump_time  :: T               #time of the center of the bump
     bump_amplitude :: T           #amplitude of the bump
     per_century_trend :: T        #per century trend in the forcing
+    per_century_trend2 :: T       #per century trend in the forcing, which kicks in at a certain time
     trend_onset :: T              #time of onset of the trend
+    trend_onset2 :: T             #time of onset of the second trend
     pc_max :: T                   #maximum pycnocline position (without a trend) 
     pc_min :: T                   #minimum pycncoline position (without a trend)
     M :: T                        #melt rate prefactor = γT .* (ρw * c / ρi /L)^2
@@ -60,8 +62,10 @@ function IdealizedAnthroMeltRate(;
                                 bump_width = 1.0e-5,
                                 bump_time  = 0.0,
                                 bump_amplitude = 0.0, 
-                                per_century_trend = 0.0, 
+                                per_century_trend = 0.0,
+                                per_century_trend2 = 0.0, 
                                 trend_onset = 0.0, 
+                                trend_onset2 = 100000.0,
                                 pc_max = -400.0,
                                 pc_min = -600.0,
                                 M = 1.0, 
@@ -80,7 +84,7 @@ function IdealizedAnthroMeltRate(;
                                 smooth_timescale = nothing, 
                                 t_shift = 0.0)
 
-    return IdealizedAnthroMeltRate(bump_width, bump_time, bump_amplitude, per_century_trend, trend_onset,
+    return IdealizedAnthroMeltRate(bump_width, bump_time, bump_amplitude, per_century_trend,per_century_trend2, trend_onset, trend_onset2,
                     pc_max, pc_min, M, λ1, λ2,λ3, melt_partial_cell, random_seed,rf_threshold, r ,
                     Sl, Su, Tl, Tu, pw, smooth_timescale, t_shift)
 end
@@ -131,6 +135,8 @@ function set_idealized_anthro_melt_rate!(basal_melt,
                 idealized_anthro_melt_rate.pc_min, 
                 idealized_anthro_melt_rate.per_century_trend, 
                 idealized_anthro_melt_rate.trend_onset,
+                idealized_anthro_melt_rate.per_century_trend2, 
+                idealized_anthro_melt_rate.trend_onset2,
                 idealized_anthro_melt_rate.bump_width, 
                 idealized_anthro_melt_rate.bump_amplitude, 
                 idealized_anthro_melt_rate.bump_time,
@@ -249,12 +255,14 @@ end
 
 Return the trend component of the pycncoline position at a given t.
 """
-function get_trend_pc_component(t, per_century_trend, trend_onset)
+function get_trend_pc_component(t, per_century_trend, trend_onset, per_century_trend2, trend_onset2)
     pc_pos = 0
     if t < trend_onset
         pc_pos = 0
-    else
+    elseif (t >= trend_onset) & (t < trend_onset2)
         pc_pos = per_century_trend/100 * (t - trend_onset)
+    else
+        pc_pos = per_century_trend/100 * (trend_onset2 - trend_onset) + per_century_trend2/100 * (t - trend_onset2)
     end
 
     return pc_pos 
@@ -264,7 +272,7 @@ get_bump_pc_component(t, bump_width, bump_amplitude, bump_time) = bump_amplitude
 
 
 
-pc_position(t,r, random_seed, rf_threshold, pc_max, pc_min, per_century_trend, trend_onset,bump_width, bump_amplitude, bump_time, smooth_timescale, t_shift) = get_random_pc_component(t,r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale, t_shift) + get_trend_pc_component(t, per_century_trend, trend_onset) + get_bump_pc_component(t, bump_width, bump_amplitude, bump_time)
+pc_position(t,r, random_seed, rf_threshold, pc_max, pc_min, per_century_trend, trend_onset,per_century_trend2, trend_onset2,bump_width, bump_amplitude, bump_time, smooth_timescale, t_shift) = get_random_pc_component(t,r, random_seed, rf_threshold, pc_max, pc_min, smooth_timescale, t_shift) + get_trend_pc_component(t, per_century_trend, trend_onset, per_century_trend2, trend_onset2) + get_bump_pc_component(t, bump_width, bump_amplitude, bump_time)
 
 """
     function get_Ta(z,Tl,Tu,pc)
