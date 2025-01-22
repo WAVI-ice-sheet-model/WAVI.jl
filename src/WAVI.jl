@@ -15,10 +15,10 @@ import Setfield: @set
 export
     #Structures
     Model, Params, TimesteppingParams, Grid, SolverParams, InitialConditions, OutputParams, 
-    Simulation, BasicParallelSpec, SharedMemorySpec,
+    Simulation, BasicParallelSpec, SharedMemorySpec, Inversion,
 
     #Simulation controls
-    update_state!, timestep!, run_simulation!,
+    update_state!, timestep!, run_simulation!,run_inversion!,
 
     #Melt ratesS
     PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins, 
@@ -64,7 +64,8 @@ include("SharedMemorySpec.jl")
 include("MeltRate/MeltRate.jl")
 include("Simulations/Simulation.jl")
 include("utilities.jl")
-
+include("Inversion/Inversion.jl")
+#include("Inversion/DataFields.jl")
 
 end
 

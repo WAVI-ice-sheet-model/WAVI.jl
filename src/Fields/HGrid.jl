@@ -31,6 +31,7 @@ struct HGrid{T <: Real, N  <: Integer}
                  βeff :: Array{T,2}                            # Effective β value (eqn 12 in Arthern 2015 JGeophysRes)
                  τbed :: Array{T,2}                            # Stress at the bed
                   ηav :: Array{T,2}                            # Depth averaged viscosity
+              quad_f0 :: Array{T,2}                        # F0 quadratrue field (eqn 7 in Arthern 2015 JGeophysRes)
               quad_f1 :: Array{T,2}                            # F1 quadratrue field (eqn 7 in Arthern 2015 JGeophysRes)
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
@@ -109,6 +110,7 @@ function HGrid(;
     β = zeros(nxh,nyh)
     βeff = zeros(nxh,nyh)
     τbed = zeros(nxh,nyh)
+    quad_f0 = zeros(nxh,nyh)
     quad_f1 = zeros(nxh,nyh)
     quad_f2 = zeros(nxh,nyh)
     quad_f2[mask] = h[mask]./(3*ηav[mask])
@@ -143,6 +145,7 @@ function HGrid(;
     @assert size(β)==(nxh,nyh)
     @assert size(βeff)==(nxh,nyh)
     @assert size(τbed)==(nxh,nyh)
+    @assert size(quad_f0)==(nxh,nyh)
     @assert size(quad_f1)==(nxh,nyh)
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
@@ -185,6 +188,7 @@ return HGrid(
             βeff,
             τbed,
             ηav,
+            quad_f0,
             quad_f1,
             quad_f2,
             dneghηav,
