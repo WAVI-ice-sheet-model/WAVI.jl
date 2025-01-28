@@ -1,4 +1,4 @@
-struct Params{T <: Real, A, W, G}
+struct Params{T <: Real, A, G}
                       dt :: T
                        g :: T
              density_ice :: T
@@ -15,13 +15,11 @@ glen_a_activation_energy :: T
     glen_temperature_ref :: T 
                   glen_n :: T 
     glen_reg_strain_rate :: T 
-              weertman_c :: W
-              weertman_m :: T 
-      weertman_reg_speed :: T 
      sea_level_wrt_geoid :: T
        minimum_thickness :: T 
            evolveShelves :: Bool
                 smallHAF :: T
+      effective_pressure :: T
 end
 
 
@@ -48,13 +46,11 @@ Keyword arguments
 - `glen_temperature_ref`: reference temperature using in glen b calculation
 - `glen_n`: exponent in glen b calculation
 - `glen_reg_strain_rate`: strain rate regularization value
-- `weertman_c`: basal sliding field of coefficients
-- `weertman_m`: sliding law exponent
-- `weertman_reg_speed`: regularization speed, used to prevent bed speed going to zero
 - `sea_level_wrt_geoid`: reference sea level
 - `minimum_thickness`: minimum ice thickness on model domain
 - `evolveShelves`: flag for turning on and off the evolution of the shelves in the forward run_simulation
 - `smallHAF`: small value of HAF used within update_thickness when not evolving shelves
+- `effective_pressure` : effective pressure (Pa)
 """
 function Params(; g = 9.81, 
                   density_ice = 918.0,
@@ -71,13 +67,11 @@ function Params(; g = 9.81,
                   glen_temperature_ref= 263.15,
                   glen_n = 3.0,
                   glen_reg_strain_rate = 1.0e-5,
-                  weertman_c = 1.0e4,
-                  weertman_m  = 3.0,
-                  weertman_reg_speed = 1.0e-5,
                   sea_level_wrt_geoid  = 0.0,
                   minimum_thickness = 50.0,
                   evolveShelves = true,
-                  smallHAF = 1.0)
+                  smallHAF = 1.0,
+                  effective_pressure = 1.0e6)
                       
   #defualt the timestep to 1.0 (will be updated when the model is embedded in a simulation)
   dt = 1.0
@@ -99,12 +93,10 @@ function Params(; g = 9.81,
                   glen_temperature_ref,
                   glen_n,
                   glen_reg_strain_rate,
-                  weertman_c,
-                  weertman_m,
-                  weertman_reg_speed,
                   sea_level_wrt_geoid,
                   minimum_thickness,
                   evolveShelves,
-                  smallHAF
+                  smallHAF,
+                  effective_pressure
                   )
 end

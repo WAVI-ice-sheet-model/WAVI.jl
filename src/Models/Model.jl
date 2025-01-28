@@ -1,11 +1,12 @@
-struct Model{T <: Real, N <: Integer,A,W, G, M <:AbstractMeltRate, PS <: AbstractParallelSpec} <: AbstractModel{T,N,M,PS}
+struct Model{T <: Real, N <: Integer,A, G, M <:AbstractMeltRate, PS <: AbstractParallelSpec, SL <:AbstractSlidingLaw} <: AbstractModel{T,N,M,PS,SL}
     grid::Grid{T,N}
-    params::Params{T,A,W,G}
+    params::Params{T,A,G}
     solver_params::SolverParams{T,N}
     initial_conditions::InitialConditions{T}
     fields::Fields{T,N}
     melt_rate::M
     parallel_spec::PS
+    sliding_law::SL
 end
 
 """
@@ -16,7 +17,8 @@ end
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
         melt_rate = UniformMeltRate(),
-        parallel_spec = BasicParallelSpec())
+        parallel_spec = BasicParallelSpec(),
+        sliding_law = SlidingLaw())
 
 Construct a WAVI.jl model object.
 
@@ -28,7 +30,8 @@ Keyword arguments
 - `solver_params`: a `SolverParams` object that defines parameters relating to the numerical scheme
 - `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, and damage
 - `melt_rate`: a melt rate model, responsible for controlling/setting the basal melt rate
-- `parallel_spec`: specification of parallel computation method.
+- `parallel_spec`: specification of parallel computation method
+- `sliding_law`: a sliding law model, responsible for controlling/setting the basal friction.
 
 """
 function Model(;
@@ -38,7 +41,8 @@ function Model(;
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
     melt_rate = UniformMeltRate(),
-    parallel_spec = BasicParallelSpec())
+    parallel_spec = BasicParallelSpec(),
+    sliding_law = WeertmanSlidingLaw())
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
@@ -59,12 +63,12 @@ function Model(;
     initial_conditions = check_initial_conditions(initial_conditions, params, grid)
 
     ## Parameter fields checks 
-    #if weertman c passed as a scalar, replace weertman_c parameters with matrix of this value
-    if isa(params.weertman_c, Number) 
-        params = @set params.weertman_c = params.weertman_c*ones(grid.nx,grid.ny)
+    #if drag c passed as a scalar, replace drag_c parameters with matrix of this value
+    if isa(sliding_law.drag_c, Number) 
+        sliding_law = @set sliding_law.drag_c = sliding_law.drag_c*ones(grid.nx,grid.ny)
     end
-    #check size compatibility of resulting weertman C
-    (size(params.weertman_c)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input weertman c must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+    #check size compatibility of resulting drag C
+    (size(sliding_law.drag_c)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag c must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
     
     #if accumulation is passed as a scalar, replace accumulation parameters with matrix of this value
     if isa(params.accumulation_rate, Number) 
@@ -87,7 +91,7 @@ function Model(;
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec)
+    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec,sliding_law)
 
     return model
 end

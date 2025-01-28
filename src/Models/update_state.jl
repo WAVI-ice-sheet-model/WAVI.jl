@@ -11,7 +11,7 @@ function update_state!(model, clock)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
     update_basal_melt!(model, clock)
-    update_weertman_c!(model)
+    update_drag_c!(model)
     update_dsdh!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
@@ -32,7 +32,7 @@ function update_state!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
     update_basal_melt!(model, WAVI.Clock())
-    update_weertman_c!(model)
+    update_drag_c!(model)
     update_dsdh!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
@@ -122,14 +122,14 @@ function update_basal_melt!(model::AbstractModel, clock)
 end
 
 """
-    update_weertman_c!(model::AbstractModel)
+    update_drag_c!(model::AbstractModel)
 
 Update coefficient used in the sliding law to account for migration of grounding line.
 """
-function update_weertman_c!(model::AbstractModel)
+function update_drag_c!(model::AbstractModel)
     @unpack gh=model.fields
-    @unpack params=model
-    gh.weertman_c .= params.weertman_c .* gh.grounded_fraction
+    @unpack sliding_law=model
+    gh.drag_c .= sliding_law.drag_c .* gh.grounded_fraction
     return model
 end
 

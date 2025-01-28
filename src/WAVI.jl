@@ -22,6 +22,9 @@ export
 
     #Melt ratesS
     PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins, 
+
+    #Sliding Law
+    WeertmanSlidingLaw, CoulombSlidingLaw,
    
     #Post-processing controls
     volume_above_floatation, height_above_floatation
@@ -33,8 +36,9 @@ export
 #Abstract types
 abstract type AbstractGrid{T <: Real, N <: Integer} end
 abstract type AbstractMeltRate end
+abstract type AbstractSlidingLaw end
 abstract type AbstractParallelSpec end
-abstract type AbstractModel{T <: Real, N <: Integer, M <: AbstractMeltRate, PS <: AbstractParallelSpec} end
+abstract type AbstractModel{T <: Real, N <: Integer, M <: AbstractMeltRate, PS <: AbstractParallelSpec, SL <: AbstractSlidingLaw} end
 abstract type AbstractPreconditioner{T <: Real, N <: Integer} end
 
 #abstract type AbstractSimulation{T,N,R,A,W} end
@@ -59,6 +63,7 @@ include("InitialConditions.jl")
 include("KroneckerProduct.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
+include("SlidingLaw/SlidingLaw.jl")
 include("Models/Model.jl")
 include("SharedMemorySpec.jl")
 include("MeltRate/MeltRate.jl")

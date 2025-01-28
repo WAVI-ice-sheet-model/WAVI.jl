@@ -26,7 +26,7 @@ struct HGrid{T <: Real, N  <: Integer}
                    ub :: Array{T,2}                            # x-velocity at the bed 
                    vb :: Array{T,2}                            # y-velocity at the bed
             bed_speed :: Array{T,2}                            # Ice speed at the bed
-           weertman_c :: Array{T,2}                            # Weertman drag coefficients 
+               drag_c :: Array{T,2}                            # Sliding law drag coefficients 
                     β :: Array{T,2}                            # Raw β value (eqn 8 in Arthern 2015 JGeophysRes)
                  βeff :: Array{T,2}                            # Effective β value (eqn 12 in Arthern 2015 JGeophysRes)
                  τbed :: Array{T,2}                            # Stress at the bed
@@ -35,6 +35,7 @@ struct HGrid{T <: Real, N  <: Integer}
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
+   effective_pressure :: Array{T,2}                            # effective pressure
 end
 
 
@@ -47,7 +48,8 @@ end
             b,
             h,
             ηav = zeros(nxh,nyh),
-            grounded_fraction = ones(nxh,nyh))
+            grounded_fraction = ones(nxh,nyh),
+	    effective_pressure = ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -64,6 +66,7 @@ Keyword arguments
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
+    - 'effective_pressure': initial effective pressure
 """
 
 
@@ -75,10 +78,11 @@ function HGrid(;
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh))
+                grounded_fraction = ones(nxh,nyh),
+		effective_pressure = zeros(nxh,nyh))
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh) == size(effective_pressure) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -105,7 +109,7 @@ function HGrid(;
     ub = zeros(nxh,nyh) 
     vb= zeros(nxh,nyh)
     bed_speed = zeros(nxh,nyh)
-    weertman_c = zeros(nxh,nyh)
+    drag_c = zeros(nxh,nyh)
     β = zeros(nxh,nyh)
     βeff = zeros(nxh,nyh)
     τbed = zeros(nxh,nyh)
@@ -139,13 +143,14 @@ function HGrid(;
     @assert size(us)==(nxh,nyh)
     @assert size(vs)==(nxh,nyh)
     @assert size(bed_speed)==(nxh,nyh)
-    @assert size(weertman_c)==(nxh,nyh)
+    @assert size(drag_c)==(nxh,nyh)
     @assert size(β)==(nxh,nyh)
     @assert size(βeff)==(nxh,nyh)
     @assert size(τbed)==(nxh,nyh)
     @assert size(quad_f1)==(nxh,nyh)
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
+    @assert size(effective_pressure)==(nxh,nyh)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -180,7 +185,7 @@ return HGrid(
             ub,
             vb,
             bed_speed,
-            weertman_c,
+            drag_c,
             β,
             βeff,
             τbed,
@@ -188,5 +193,6 @@ return HGrid(
             quad_f1,
             quad_f2,
             dneghηav,
-            dimplicit)
+            dimplicit,
+	    effective_pressure)
 end

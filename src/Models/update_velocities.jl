@@ -241,8 +241,9 @@ Find the drag coefficient at the bed using the sliding law.
 """
 function update_β!(model::AbstractModel)
     @unpack gh=model.fields
-    @unpack params=model
-    gh.β .= gh.weertman_c .* ( sqrt.(gh.bed_speed.^2 .+  params.weertman_reg_speed^2 ) ).^(1.0/params.weertman_m - 1.0)
+    # println("before update: ",maximum(gh.β))
+    update_β_sliding_law!(model.sliding_law,model)
+    println("after update: ",minimum(gh.β)," ",maximum(gh.β))
     return model
 end
 
