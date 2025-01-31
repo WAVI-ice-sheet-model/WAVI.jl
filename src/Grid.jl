@@ -55,7 +55,7 @@ Keyword arguments
 - `x0`: grid origin x co-ordinate 
 - `y0`: grid origin y co-ordinate
 - `h_mask`: Mask defining domain points within grid
-- `h_isfixed': Mask defining locations of fixed thickness within grid
+- `h_isfixed`: Mask defining locations of fixed thickness within grid
 - `u_iszero`: Locations of zero u velocity points
 - `v_iszero`: Locations of zero v velocity points
 - `u_isfixed`: Locations of fixed u velocity points
