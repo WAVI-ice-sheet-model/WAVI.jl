@@ -55,7 +55,8 @@ end
 
 
 """
-    run_simulation(simulation)
+    run_simulation!(simulation)
+    
 Perform the simulation specified by the simulation
 """
 function run_simulation!(simulation)
