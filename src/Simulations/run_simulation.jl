@@ -62,6 +62,7 @@ function run_simulation!(simulation)
     @unpack model, timestepping_params, output_params = simulation
     chkpt_tag = "A"
     for i = (simulation.clock.n_iter+1):timestepping_params.n_iter_total
+        @info "Running iteration $(simulation.clock.n_iter)/$(timestepping_params.n_iter_total)"
         timestep!(simulation)
         
         #check if we have hit a temporary checkpoint
