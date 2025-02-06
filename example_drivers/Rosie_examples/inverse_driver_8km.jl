@@ -4,8 +4,6 @@ using WAVI
 using Printf
 using ImageFiltering
 
-
-
 function inverse_driver_8km()
 
 #
@@ -117,7 +115,7 @@ initial_conditions = InitialConditions(initial_thickness = h,
 
 #solver parameters
 #
-maxiter_picard = 10
+maxiter_picard = 1
 tol_picard = 1.0e-4
 solver_params = SolverParams(maxiter_picard = maxiter_picard,
                             tol_picard = tol_picard)
@@ -198,6 +196,51 @@ simulation = Simulation(model = model,
 @printf "The inversion test is about to be done"
 #perform the inversion
 
+gmres_reltol=1e-4
+gmres_maxiter=2500
+gmres_restart =500
+βgrounded_start=1.e4
+βfloating_start=1.e-4
+ηstart_guess = 1.0e7
+βpower = 0.1
+Bpower_shelf = 0.1
+Bpower_grounded = 0.01
+max_JKV_iterations = 20
+
+inversion_params = InversionParams(gmres_reltol = gmres_reltol,
+                                    gmres_maxiter = gmres_maxiter,
+                                    gmres_restart = gmres_restart,
+                                    βgrounded_start = βgrounded_start,
+                                    βfloating_start = βfloating_start,
+                                    ηstart_guess = ηstart_guess,
+                                    βpower = βpower,
+                                    max_JKV_iterations = max_JKV_iterations)
+
+                                    
+JKV=zeros(max_JKV_iterations)
+JRMS=zeros(max_JKV_iterations)
+
+inversion_output = InversionOutput(JKV=JKV,
+                                    JRMS=JRMS)
+
+                                    
+#JKVstepping parameters
+niter0 = 0
+n_iter_out=1
+max_JKV_iterations = 20
+n_iter_chkpt = 100
+n_iter_pchkpt= 5
+
+JKVstepping_params = JKVsteppingParams(niter0 = niter0, 
+                                        n_iter_chkpt = n_iter_chkpt,
+                                        n_iter_pchkpt = n_iter_pchkpt,
+                                        n_iter_total = max_JKV_iterations,
+                                        n_iter_out = n_iter_out)
+
+                           
+ @printf "The inversion_simulation is made"
+
+
 #First read in the data to be used for the inversion:
 
 accumulation_rate=Array{Float64}(undef,nx,ny);
@@ -231,58 +274,86 @@ vdatamask.=ntoh.(vdatamask)
 udatamask_combo = ((udatamask .== 1) .& (model.fields.gu.mask .== 1))
 vdatamask_combo = ((vdatamask .== 1) .& (model.fields.gv.mask .== 1))
 dhdtaccmask_combo = ((dhdtaccmask .== 1) .& (model.fields.gh.mask .== 1))
-
 udatamask_combo = convert(Array{Bool,2}, udatamask_combo)
 vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
 inversion = Inversion(grid = grid,
+                    bed_elevation=bed,
+                    inversion_params=inversion_params,
+                    solver_params=solver_params,
                     speed_u = udata,
                     speed_u_mask = udatamask_combo,
                     speed_v = vdata,
                     speed_v_mask = vdatamask_combo,
                     dhdt = dhdt,
                     accumulation_rate = accumulation_rate,
-                    dhdtacc_mask=dhdtaccmask_combo)
+                    dhdtacc_mask=dhdtaccmask_combo,
+                    initial_conditions=initial_conditions,
+                    params = params,
+                    inversion_output=inversion_output)
+ #                   melt_rate=nothing,
+ #                   parallel_spec=nothing)
+
+ @printf "About to make inversion_simulation"
+
+ ##output parameters
+folder = "outputs_8km_inversion_test_matlabx0_quads"
+isdir(folder) && rm(folder, force = true, recursive = true)
+mkdir(folder) #make a clean folder for outputs
+outputs = (h = model.fields.gh.h,
+            u = model.fields.gu.u,
+            v = model.fields.gv.v,
+            b = model.fields.gh.b,
+            s = model.fields.gh.s,
+            h_mask = model.fields.gh.mask,
+            u_mask =  model.fields.gu.mask,
+            v_mask =  model.fields.gv.mask,
+            grounded_fraction = model.fields.gh.grounded_fraction,
+            beta = model.fields.gh.β,
+            beta_eff = model.fields.gh.βeff,
+            preBfactor = model.fields.gh.preBfactor,
+            quad_f0 = model.fields.gh.quad_f0,
+            quad_f1 = model.fields.gh.quad_f1,
+            quad_f2 = model.fields.gh.quad_f2,
+            eta_av = model.fields.gh.ηav,
+            udata = inversion.data_fields.gudata.speed_u,
+            vdata = inversion.data_fields.gvdata.speed_v,
+            udata_mask = inversion.data_fields.gudata.mask,
+            vdata_mask = inversion.data_fields.gvdata.mask,
+            dhdtdata = inversion.data_fields.ghdata.dhdt,
+            dhdtaccdata_mask = inversion.data_fields.ghdata.mask,
+            u_d = inversion.fields.gu.u,
+            v_d = inversion.fields.gv.v,
+            tau_surf_u= inversion.fields.gu.τsurf,
+            tau_surf_v = inversion.fields.gv.τsurf,
+            sigmazz_h= inversion.fields.gh.σzzsurf,
+            JKV=inversion.inversion_output.JKV,
+            JRMS=inversion.inversion_output.JRMS
+           # gh=model.fields.gh,
+            )
+
+output_freq = 1
+output_params = OutputParams(outputs = outputs, 
+                           output_path = folder,
+                           output_freq = output_freq,
+                           output_format = "mat",
+                           zip_format = "nc")
+   
+
+inversion_simulation = InversionSimulation(model = model, 
+                                        inversion = inversion,
+                                        JKVstepping_params = JKVstepping_params,
+                                        output_params = output_params)
+           
 
 #Then run the inversion:
-run_inversion!(simulation,inversion)
+run_inversion_simulation!(inversion_simulation)
+
+#run_inversion!(simulation,inversion)
 
 @printf "The inversion test has been run"
 
-
 return model
 
-
 end
-
-
-#= 
-"""
-    get_u_mask(h_mask)
-
-Find mask of valid grid points on u-grid corresponding to a mask defined on h-grid.
-
-"""
-function get_u_mask(h_mask)
-    #include all u faces next to a selected center
-    (nx,ny)=size(h_mask)
-    u_mask=falses(nx+1,ny)
-    u_mask[1:end-1,1:end]=u_mask[1:end-1,1:end].|h_mask
-    u_mask[2:end,1:end]=u_mask[2:end,1:end].|h_mask
-    return u_mask
-end
-
- u_mask = get_u_mask(h_mask)
-
-    #u-grid
-    gu=UGrid(
-    nxu=grid.nx+1,
-    nyu=grid.ny,
-    dx=grid.dx,
-    dy=grid.dy,
-    mask=u_mask,
-    u_isfixed=grid.u_isfixed,
-    u=deepcopy(initial_conditions.initial_u_veloc),
-    levels=solver_params.levels
-    ) =#

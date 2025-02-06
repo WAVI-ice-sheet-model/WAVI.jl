@@ -78,7 +78,7 @@ function get_op_fun(model::AbstractModel{T,N}) where {T,N}
             vspread .= @view inputVector[(gu.nxu*gu.nyu+1):(gu.nxu*gu.nyu+gv.nxv*gv.nyv)]
 
         end
-
+        
             #Extensional resistive stresses
         @!  dudx = gu.∂x*uspread
         @!  dvdy = gv.∂y*vspread

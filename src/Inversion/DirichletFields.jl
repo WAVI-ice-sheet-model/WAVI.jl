@@ -1,29 +1,27 @@
-include("HGrid.jl")
-include("CGrid.jl")
-include("VGrid.jl")
-include("UGrid.jl")
-include("SigmaGrid.jl")
+#include("HGrid.jl")
+#include("CGrid.jl")
+#include("VGrid.jl")
+#include("UGrid.jl")
+#include("SigmaGrid.jl")
 
 """
-    Structure to hold all field variables in WAVI.jl
+    Structure to hold all dirichlet field variables in WAVI.jl
 """
-struct Fields{T <: Real, N <: Real}
+struct DirichletFields{T <: Real, N <: Real}
     gh::HGrid{T,N}
     gu::UGrid{T,N}
     gv::VGrid{T,N}
     gc::CGrid{T,N}
     g3d::SigmaGrid{T,N}   
-    wu::UWavelets{T,N}
-    wv::VWavelets{T,N}
 end
 
 """
-    setup_fields(grid, initial_conditions, solver_params, params, bed_array)
+    setup_dirichlet_fields(grid)
 
-Acts as a constructor for the fields (no explicit constructor as fields `only ever called when setting up a model)
+Acts as a constructor for the dirichletfields (no explicit constructor as dirichletfields `only ever called when setting up a model)
 """
 
-function setup_fields(grid, initial_conditions, solver_params, params, bed_array)
+function setup_dirichletfields(grid,bed_array,solver_params,initial_conditions,params)
     #Define masks for points on h-, u-, v- and c-grids that lie in model domain.
     h_mask = grid.h_mask 
     u_mask = get_u_mask(h_mask)
@@ -36,18 +34,15 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
 
     #h-grid
     #gh=HGrid(grid, params) #uncomment if using the explicit constructor method
-    h =  deepcopy(initial_conditions.initial_thickness)
-    grounded_fraction =  deepcopy(initial_conditions.initial_grounded_fraction)
-    ηav = deepcopy(initial_conditions.initial_viscosity[:,:,1]) #set to the viscosity on the first level for now
     gh=HGrid(
     nxh=grid.nx,
     nyh=grid.ny,
     mask=h_mask,
     h_isfixed = grid.h_isfixed,
     b = bed_array,
-    h = h,
-    ηav = ηav,
-    grounded_fraction = grounded_fraction
+  #  h = h,
+   # ηav = ηav,
+    #grounded_fraction = grounded_fraction
     )
 
     #u-grid
@@ -58,7 +53,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     dy=grid.dy,
     mask=u_mask,
     u_isfixed=grid.u_isfixed,
-    u=deepcopy(initial_conditions.initial_u_veloc),
+  #  u=deepcopy(initial_conditions.initial_u_veloc),
     levels=solver_params.levels
     )
 
@@ -70,7 +65,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     dy=grid.dy,
     mask=v_mask,
     v_isfixed=grid.v_isfixed,
-    v=deepcopy(initial_conditions.initial_v_veloc),
+  #  v=deepcopy(initial_conditions.initial_v_veloc),
     levels=solver_params.levels
     )
 
@@ -89,14 +84,13 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     for i = 1:grid.nx
         for j = 1:grid.ny
             for k = 1:grid.nσ
-                g3_glen_b[i,j,k] = glen_b.(θ[i,j,k],Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
+               g3_glen_b[i,j,k] = glen_b.(θ[i,j,k],Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
             end
         end
     end
-
-
+      
     preBfactor=zeros(grid.nx,grid.ny,grid.nσ)
-        
+
     g3d=SigmaGrid(
     nxs=grid.nx,
     nys=grid.ny,
@@ -107,13 +101,8 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     Φ = Φ,
     glen_b = g3_glen_b,
     quadrature_weights = grid.quadrature_weights,
-    preBfactor = preBfactor
-    )
+    preBfactor= preBfactor
+    ) 
 
-    #Wavelet-grid, u-component.
-    wu=UWavelets(nxuw=grid.nx+1,nyuw=grid.ny,levels=solver_params.levels)
-
-    #Wavelet-grid, v-component.
-    wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=solver_params.levels)
-    return Fields(gh,gu,gv,gc,g3d,wu,wv)
+    return DirichletFields(gh,gu,gv,gc,g3d)
 end

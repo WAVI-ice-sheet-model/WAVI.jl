@@ -26,6 +26,7 @@ struct UGrid{T <: Real, N <: Integer}
              dnegβeff :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (diagonal of βeff) 
                     u :: Array{T,2}                            # Ice velocities in x direction
              residual :: Array{T,2}                            # Residuals in x direction
+                τsurf :: Array{T,2}                            # TauSurf Dirichlet calculated in inversion (see in Arthern 2015 JGeophysRes)
 end
     
 """
@@ -94,7 +95,7 @@ function UGrid(;
     grounded_fraction = ones(nxu,nyu)
     βeff = zeros(nxu,nyu)
     dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
-
+    τsurf=zeros(nxu,nyu)
 
     #size assertions
     @assert n == count(mask)
@@ -108,6 +109,7 @@ function UGrid(;
     @assert size(h)==(nxu,nyu)
     @assert size(grounded_fraction)==(nxu,nyu)
     @assert size(βeff)==(nxu,nyu)
+    @assert size(τsurf)==(nxu,nyu)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -141,5 +143,6 @@ function UGrid(;
                 βeff,
                 dnegβeff,
                 u,
-                residual)
+                residual,
+                τsurf)
 end
