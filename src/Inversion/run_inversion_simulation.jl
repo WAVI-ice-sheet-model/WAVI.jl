@@ -30,8 +30,7 @@ function JKVstep!(inversion_simulation)
     println("      mean  inversion.fields.gv.τsurf[gv.mask] is" ,mean(inversion.fields.gv.τsurf[inversion.fields.gv.mask]))
     println("      mean  inversion.fields.gh.σzzsurf[gh.mask] is" ,mean(inversion.fields.gh.σzzsurf[inversion.fields.gh.mask]))
     println("      mean  model.fields.gh.ηav[gh.mask] is" ,mean(model.fields.gh.ηav[inversion.fields.gh.mask]))
-
-#=     #do updates update_velocity does for both Neumann and Dirichlet velocities:
+     #do updates update_velocity does for both Neumann and Dirichlet velocities:
      update_surf_stress_dirichelt!(inversion)
      
     ###ISSUE is that gh.quad are only on model grid and not also inversion, but I don't want to copy them, or to call model and inversion to all these functions...
@@ -72,10 +71,10 @@ function JKVstep!(inversion_simulation)
     update_damage!(model)
     update_glen_b!(model)
 
-     inner_update_viscosity!(model)
+    inner_update_viscosity!(model)
     update_av_viscosity!(model)
     update_quadrature_falpha!(model)
- =#
+ 
     update_JKV!(model,inversion,clock)
     update_JRMS!(model,inversion,clock)
     println("Completed iteration number " ,clock.n_iter)
