@@ -47,11 +47,11 @@ function get_correction_coarse(p::AbstractPreconditioner)
 end
 
 """
-    precondition!(x, p, b)
+    apply_precondition!(x, p, b)
 
 Apply wavelet-based multigrid preconditioner using information stored in p.
 """
-function precondition!(x, p, b)
+function apply_precondition!(x::AbstractVecOrMat{T}, p::AbstractPreconditioner{T,N}, b::AbstractVecOrMat{T}) where {T, N}
     @unpack op,op_diag,nsmooth,sweep,sweep_order,smoother_omega,restrict,
             prolong,op_coarse,correction_coarse,tol_coarse,maxiter_coarse = p
 
@@ -117,7 +117,7 @@ conjugate gradient method if p has type  <: AbstractPreconditioner.
 
 """
 function ldiv!(x::AbstractVecOrMat{T}, p::AbstractPreconditioner{T,N}, b::AbstractVecOrMat{T}) where {T,N}
-    precondition!(x, p, b)
+    apply_precondition!(x, p, b)
 end
 
 

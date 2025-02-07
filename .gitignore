@@ -11,7 +11,9 @@ Manifest.toml
 *.bin
 #*.png
 *.DS_Store
+*.log
 /docs/build
+benchmarks/params.json
 
 #useful things to ignore when testing driver scripts
 /drivers/

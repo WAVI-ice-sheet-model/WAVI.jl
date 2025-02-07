@@ -1,4 +1,4 @@
-export SharedMemorySpec
+export SharedMemorySpec, update_preconditioner!, precondition!
 
 """
 Struct to represent the shared memory parallel specification of a model.
@@ -11,36 +11,6 @@ Struct to represent the shared memory parallel specification of a model.
     niterations::N = 0
     damping::T = 0.0
     schwarzModelArray::Array{AbstractModel,2} = Array{AbstractModel,2}(undef,ngridsx,ngridsy)
-end
-
-
-"""
-get_parallel_spec(model::AbstractModel)
-
-Function to return the parallel specification of a model.
-
-"""
-get_parallel_spec(model::AbstractModel) = model.parallel_spec
-
-
-"""
-update_preconditioner!(model)
-
-Update the preconditioner for Basic Parallel Specification or Shared Memory Parallel Specification as appropriate.
-
-"""
-update_preconditioner!(model::AbstractModel) = update_preconditioner!(model::AbstractModel,get_parallel_spec(model::AbstractModel))
-
-
-
-"""
-update_preconditioner!(model::AbstractModel,::BasicParallelSpec)
-
-Update the preconditioner. For Basic Parallel Specification no action is needed. 
-
-"""
-function update_preconditioner!(model::AbstractModel,::BasicParallelSpec)
-    return model
 end
 
 
@@ -80,11 +50,11 @@ function precondition!(model::AbstractModel,::SharedMemorySpec)
     @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.parallel_spec
     @unpack solver_params = model
 
-    x=get_start_guess(model)  
-    op=get_op(model)
-    b=get_rhs(model)
-    resid=get_resid(x,op,b)
-    set_residual!(model,resid)
+    x = WAVI.get_start_guess(model)  
+    op = WAVI.get_op(model)
+    b = WAVI.get_rhs(model)
+    resid = WAVI.get_resid(x,op,b)
+    WAVI.set_residual!(model,resid)
     rel_resid = norm(resid)/norm(b)
     converged = rel_resid < solver_params.tol_picard
 
@@ -112,7 +82,7 @@ function precondition!(model::AbstractModel,::SharedMemorySpec)
                 for jgrid = 1:ngridsy
                     Threads.@spawn begin
                         model_g = schwarzModelArray[igrid,jgrid]
-                        update_state!(model_g)
+                        WAVI.update_state!(model_g)
                     end
                 end
             end
@@ -219,7 +189,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     quadrature_weights_g = quadrature_weights 
     σ_g = σ 
 
-    grid_g=Grid(
+    grid_g = WAVI.Grid(
         nx=nx_g,
         ny=ny_g,
         dx=dx_g,
@@ -253,7 +223,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     initial_temperature_g = g3d.θ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_damage_g = g3d.Φ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
 
-    initial_conditions_g = InitialConditions(
+    initial_conditions_g = WAVI.InitialConditions(
         initial_thickness = initial_thickness_g,
         initial_grounded_fraction = initial_grounded_fraction_g,
         initial_u_veloc = initial_u_veloc_g,
@@ -277,10 +247,6 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     return model_g
 end
-
-
-
-
 
 """
 schwarzRestrictVelocities!(model_g::AbstractModel,model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,overlap=1)
@@ -320,10 +286,6 @@ function schwarzRestrictVelocities!(model_g::AbstractModel,model::AbstractModel;
 
     return model_g
 end
-
-
-
-
 
 """
 schwarzProlongVelocities!(model::AbstractModel,model_g::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,overlap=1,damping=0.0)
@@ -370,10 +332,6 @@ function schwarzProlongVelocities!(model::AbstractModel,model_g::AbstractModel;i
 
     return model
 end
-
-
-
-
 
 """
 schwarzPartitionOfUnity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj)

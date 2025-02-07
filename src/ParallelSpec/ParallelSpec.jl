@@ -1,13 +1,28 @@
 module ParallelSpec
 
-export BasicParallelSpec
+using LinearAlgebra, Parameters, Setfield
+using WAVI
 
-using Parameters, Setfield
 
-using WAVI: AbstractParallelSpec, AbstractModel
+"""
+get_parallel_spec(model::AbstractModel)
 
-struct BasicParallelSpec <: AbstractParallelSpec end
+Function to return the parallel specification of a model.
 
+"""
+get_parallel_spec(model::AbstractModel) = model.parallel_spec
+
+precondition!(model::AbstractModel) = precondition!(model,get_parallel_spec(model))
+
+"""
+update_preconditioner!(model)
+
+Update the preconditioner for Basic Parallel Specification or Shared Memory Parallel Specification as appropriate.
+
+"""
+update_preconditioner!(model::AbstractModel) = update_preconditioner!(model::AbstractModel, get_parallel_spec(model::AbstractModel))
+
+include("basic_spec.jl")
 include("shared_memory_spec.jl")
 
 end
