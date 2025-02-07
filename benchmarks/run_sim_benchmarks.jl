@@ -70,3 +70,5 @@ else
 end
 
 results = run(suite, verbose = true)
+
+@show results

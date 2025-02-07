@@ -1,0 +1,5 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Plotly = "58dd65bb-95f3-509e-9936-c39a10fdeae7"
+WAVI = "881191c6-26ca-4787-919d-8f98f1c41532"
