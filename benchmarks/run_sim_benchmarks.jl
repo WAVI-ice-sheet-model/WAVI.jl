@@ -1,43 +1,82 @@
+using ArgParse
 using BenchmarkTools
 using LinearAlgebra
+using Logging
 using WAVI
 
-const suite = BenchmarkGroup()
+function parse_cli()
+    arg_settings = ArgParseSettings(exit_after_help = true)
+    @add_arg_table! arg_settings begin
+        "--depth"
+            help = "Vertical depth on grid"
+            default = 4
+            arg_type = Int
+        "--grid-cells"
+            help = "Override the number of grid cells square"
+            default = "100"
+        "--cell-spacing"
+            help = "Override the test grid cell spacing"
+            default = "8000.0"            
+        "--skip-dist-basic"
+            help = "Skip the basic parallel spec distribution strategy"
+            action = :store_true
+        "--skip-dist-sharedmem"
+            help = "Skip the shared memory spec distribution strategy"
+            action = :store_true
+        "--verbose"
+            help = "Turn logging debug messages on"
+            action = :store_true
+        "threads"
+            help = "Number of threads to run basic and shared memory with"
+            required = true
+    end
+    return parse_args(ARGS, arg_settings)
+end
 
+args = parse_cli()
+
+thread_nums = parse.(Int, split(args["threads"], ","))
+num_cells = parse.(Int, split(args["grid-cells"], ","))
+cell_spacing = parse.(Float64, split(args["cell-spacing"], ","))
+depth = Int(args["depth"])
+distributions = []
+
+if ~args["skip-dist-basic"]
+    push!(distributions, BasicParallelSpec())
+end
+
+if ~args["skip-dist-sharedmem"]
+    push!(distributions, SharedMemorySpec(ngridsx=4, ngridsy=4, niterations=4))
+end
+
+const suite = BenchmarkGroup()
 suite["runs"] = BenchmarkGroup()
 
-thread_nums = [1, 8, 16,]
-grid_sizes = [(100, 8000.0)]#, (400, 2000.0), (1000, 800.0),]
-depths = [4, 10]
-distributions = [BasicParallelSpec(), SharedMemorySpec(ngridsx=4, ngridsy=4, niterations=4)]
-
-for threads in thread_nums, grid_size in grid_sizes, depth in depths, dist_spec in distributions
-
-    suite["runs"][typeof(dist_spec)][(threads, grid_size..., depth)] = @benchmarkable begin
+for threads in thread_nums, cells in num_cells, spacing in cell_spacing, dist_spec in distributions
+    suite["runs"][typeof(dist_spec)][threads][(cells, spacing, depth)] = @benchmarkable begin
         BLAS.set_num_threads($threads)
         min_elev = 20
         max_elev = 100
-        n, d = $grid_size
-        depth = $depth
         
-        @info "Creating test scenario with grid: $n x $n x $depth with $d spacing, $($threads) threads, distribution $(typeof($dist_spec))"
+        @info "Creating test scenario with grid: $($cells) x $($cells) x $($depth) with $($spacing) spacing, $($threads) threads, distribution $(typeof($dist_spec))"
         
         grid = Grid(
-            nx = n,
-            ny = n,
-            dx = d,
-            dy = d,
-            nσ = depth,
+            nx = $cells,
+            ny = $cells,
+            dx = $spacing,
+            dy = $spacing,
+            nσ = $depth,
             x0 = 0.0,
             y0 = -40000.0,
         )
+        @info grid
         init = InitialConditions()
         params = Params()
         timestep = TimesteppingParams(
             dt = 1.0,
             end_time= 10., 
         )
-        span = range(min_elev, max_elev, length = n)
+        span = range(min_elev, max_elev, length = $cells)
             
         model = Model(
             grid = grid, 
