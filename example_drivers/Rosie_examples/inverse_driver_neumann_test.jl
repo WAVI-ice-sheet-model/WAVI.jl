@@ -4,7 +4,7 @@ using WAVI
 using Printf
 using ImageFiltering
 
-function inverse_driver_8km()
+function inverse_driver_neumann_test_8km()
 
 #
 #Grid and boundary conditions
@@ -117,12 +117,11 @@ initial_conditions = InitialConditions(initial_thickness = h,
 #
 maxiter_picard = 1
 tol_picard = 1.0e-4
-n_iter_viscosity = 10
+n_iter_viscosity = 2
 
 solver_params = SolverParams(maxiter_picard = maxiter_picard,
                             tol_picard = tol_picard,
                             n_iter_viscosity = n_iter_viscosity)
-
 
 #
 #Physical parameters
@@ -138,6 +137,8 @@ accumulation_rate = accumulation_rate
 params = Params(accumulation_rate = accumulation_rate,
                 weertman_c = weertman_c,
                 evolveShelves = evolveShelves)
+
+               
 
 
  #build the model to use in the initialisation:
@@ -207,7 +208,7 @@ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inver
 accumulation_rate.=ntoh.(accumulation_rate)
 
 dhdt=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_dhdt_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",dhdt)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Neumann_test_dhdt.bin",dhdt)
 dhdt.=ntoh.(dhdt)
 
 dhdtaccmask=Array{Float64}(undef,nx,ny);
@@ -215,29 +216,31 @@ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inver
 dhdtaccmask.=ntoh.(dhdtaccmask)
 
 udata=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_udata_clip_BedmachineV3_FULL_stripe_fix.bin",udata)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Neumann_test_us.bin",udata)
 udata.=ntoh.(udata)
 
 vdata=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_vdata_clip_BedmachineV3_FULL_stripe_fix.bin",vdata)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Neumann_test_vs.bin",vdata)
 vdata.=ntoh.(vdata)
 
-udatamask=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_udatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",udatamask)
-udatamask.=ntoh.(udatamask)
+#udatamask=Array{Float64}(undef,nx+1,ny);
+#read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_udatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",udatamask)
+#udatamask.=ntoh.(udatamask)
 
-vdatamask=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_vdatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",vdatamask)
-vdatamask.=ntoh.(vdatamask)
+#vdatamask=Array{Float64}(undef,nx,ny+1);
+#read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_vdatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",vdatamask)
+#vdatamask.=ntoh.(vdatamask)
 
-udatamask_combo = ((udatamask .== 1) .& (model.fields.gu.mask .== 1))
-vdatamask_combo = ((vdatamask .== 1) .& (model.fields.gv.mask .== 1))
+udatamask_combo = (model.fields.gu.mask .== 1)
+vdatamask_combo = (model.fields.gv.mask .== 1)
+
 dhdtaccmask_combo = ((dhdtaccmask .== 1) .& (model.fields.gh.mask .== 1))
+
 udatamask_combo = convert(Array{Bool,2}, udatamask_combo)
 vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
-gmres_reltol=1e-7
+gmres_reltol=1e-8
 gmres_maxiter=5000
 gmres_restart =200
 βgrounded_start=1.e4
@@ -246,7 +249,7 @@ gmres_restart =200
 βpower = 0.1
 Bpower_shelf = 0.1
 Bpower_grounded = 0.01
-#max_JKV_iterations = 5
+max_JKV_iterations = 10
 
 inversion_params = InversionParams(gmres_reltol = gmres_reltol,
                                     gmres_maxiter = gmres_maxiter,
@@ -254,14 +257,21 @@ inversion_params = InversionParams(gmres_reltol = gmres_reltol,
                                     βgrounded_start = βgrounded_start,
                                     βfloating_start = βfloating_start,
                                     ηstart_guess = ηstart_guess,
-                                    βpower = βpower)
-               #                     max_JKV_iterations = max_JKV_iterations)
+                                    βpower = βpower,
+                                    max_JKV_iterations = max_JKV_iterations)
 
-                                
+                                    
+JKV=zeros(max_JKV_iterations)
+JRMS=zeros(max_JKV_iterations)
+
+inversion_output = InversionOutput(JKV=JKV,
+                                    JRMS=JRMS)
+
+                                    
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 20
+max_JKV_iterations = 10
 n_iter_chkpt = 100
 n_iter_pchkpt= 5
 
@@ -270,12 +280,6 @@ JKVstepping_params = JKVsteppingParams(niter0 = niter0,
                                         n_iter_pchkpt = n_iter_pchkpt,
                                         n_iter_total = max_JKV_iterations,
                                         n_iter_out = n_iter_out)
-
-JKV=zeros(max_JKV_iterations)
-JRMS=zeros(max_JKV_iterations)
-
-inversion_output = InversionOutput(JKV=JKV,
-                                    JRMS=JRMS)
 
                 
 inversion = Inversion(grid = grid,
@@ -298,7 +302,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "outputs_8km_inversion_test_schur_pdguess"
+folder = "outputs_8km_inversion_test_neumann_data"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
@@ -308,8 +312,6 @@ outputs = (h = model.fields.gh.h,
             vh = model.fields.gh.v,
             b = model.fields.gh.b,
             s = model.fields.gh.s,
-            av_speed = model.fields.gh.av_speed,
-            av_speed_d = inversion.fields.gh.av_speed,
             dhdt_n = model.fields.gh.dhdt,
             h_mask = model.fields.gh.mask,
             u_mask =  model.fields.gu.mask,

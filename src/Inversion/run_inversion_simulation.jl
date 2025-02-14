@@ -9,20 +9,26 @@ function JKVstep!(inversion_simulation)
    
     println("iteration number is" ,clock.n_iter)
    
+  #  if clock.n_iter==0
+     #   println("We're allowed to update betaeff")
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
-    update_rheological_operators!(model)
+ 
     model_inversion_links!(model,inversion)
+  #  end
 
-    println( "mean of β is ",mean(model.fields.gh.β[model.fields.gh.mask] ))
-    println( "mean of βeff is ",mean(model.fields.gh.βeff[model.fields.gh.mask] ))
-    println( "mean of quad_f2 is ",mean(model.fields.gh.quad_f2[model.fields.gh.mask] ))
+    update_rheological_operators!(model)
+
+   # println( "mean of β is ",mean(model.fields.gh.β[model.fields.gh.mask] ))
+  #  println( "mean of βeff is ",mean(model.fields.gh.βeff[model.fields.gh.mask] ))
+  #  println( "mean of quad_f2 is ",mean(model.fields.gh.quad_f2[model.fields.gh.mask] ))
 
     # get_neumann_velocs
-    solve_neumann_velocities!(model,inversion,clock)
+   # solve_neumann_velocities!(model,inversion,clock)
+  #  #get_dirichlet_velocs
+  #  solve_dirichelt_velocities!(model,inversion,clock)
 
-    #get_dirichlet_velocs
-    solve_dirichelt_velocities!(model,inversion,clock)
+    solve_dirichelt_neumann_velocities!(model, inversion,clock) 
 
     println("      mean  inversion.fields.gu.u[gu.mask] is" ,mean(inversion.fields.gu.u[inversion.fields.gu.mask]))
     println("      mean  inversion.fields.gv.v[gv.mask] is" ,mean(inversion.fields.gv.v[inversion.fields.gv.mask]))
@@ -31,7 +37,7 @@ function JKVstep!(inversion_simulation)
     println("      mean  inversion.fields.gh.σzzsurf[gh.mask] is" ,mean(inversion.fields.gh.σzzsurf[inversion.fields.gh.mask]))
     println("      mean  model.fields.gh.ηav[gh.mask] is" ,mean(model.fields.gh.ηav[inversion.fields.gh.mask]))
      #do updates update_velocity does for both Neumann and Dirichlet velocities:
-     update_surf_stress_dirichelt!(inversion)
+    update_surf_stress_dirichelt!(inversion)
      
     ###ISSUE is that gh.quad are only on model grid and not also inversion, but I don't want to copy them, or to call model and inversion to all these functions...
     update_velocities_on_h_grid!(model)  
@@ -48,6 +54,8 @@ function JKVstep!(inversion_simulation)
     #
     update_surf_speed!(model)
     update_surf_speed!(inversion)
+    update_surface_velocities_on_uv_grid!(model)
+    update_surface_velocities_on_uv_grid!(inversion)
 
     update_basal_drag_components!(model)
     update_basal_drag_components!(inversion)
@@ -72,8 +80,10 @@ function JKVstep!(inversion_simulation)
     update_glen_b!(model)
 
     inner_update_viscosity!(model)
-    update_av_viscosity!(model)
-    update_quadrature_falpha!(model)
+     update_av_viscosity!(model)
+   #  update_quadrature_falpha_direct!(model)
+     update_quadrature_falpha!(model)
+  
  
     update_JKV!(model,inversion,clock)
     update_JRMS!(model,inversion,clock)
@@ -113,6 +123,8 @@ function run_inversion_simulation!(inversion_simulation)
     start_guess_β_inversion!(model,inversion)
     start_guess_η_inversion!(model,inversion)
 
+
+  #  quadrature_falpha_start!(model)
     update_quadrature_falpha!(model)
     update_av_viscosity!(model)
 
@@ -120,7 +132,7 @@ function run_inversion_simulation!(inversion_simulation)
    # i_JKV = 0
 
    # while !converged && (inversion_simulation.clock.n_iter+1 < inversion.inversion_params.max_JKV_iterations+1)
-     for   i = (inversion_simulation.clock.n_iter+1): inversion.inversion_params.max_JKV_iterations
+     for   i = (inversion_simulation.clock.n_iter+1): JKVstepping_params.n_iter_total
         #      for i = (inversion_simulation.clock.n_iter+1):JKVstepping_params.n_iter_total
 
       #  i=inversion_simulation.clock.n_iter+1
@@ -152,8 +164,11 @@ function run_inversion_simulation!(inversion_simulation)
 
     end
 
+    ff=gg
+
     #zip the inversion_simulation output (no zipping handled by zip_output)
     zip_output(inversion_simulation)
+
         
     return inversion_simulation
 end

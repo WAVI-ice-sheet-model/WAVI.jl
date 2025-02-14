@@ -340,6 +340,7 @@ Compute the effective drag coefficient.
 """
 function update_βeff!(model::AbstractModel)
     @unpack gh=model.fields
+  #  gh.βeff[gh.mask] .= gh.β[gh.mask] ./ (1.0 .+ gh.quad_f2[gh.mask] .* gh.β[gh.mask])
     gh.βeff .= gh.β ./ (1.0 .+ gh.quad_f2 .* gh.β)
     return model
 end
@@ -387,6 +388,8 @@ function update_rheological_operators!(model::AbstractModel)
     gh.dimplicit[] .= gh.crop*Diagonal(-params.density_ice * params.g * solver_params.super_implicitness .* params.dt * gh.dsdh[:])*gh.crop
     return model
 end
+
+
 
 
 """
@@ -437,3 +440,4 @@ function set_residual!(model::AbstractModel,residual)
     @views gv.residual[gv.mask_inner] .= residual[(gu.ni+1):(gu.ni+gv.ni)]
     return model
 end
+

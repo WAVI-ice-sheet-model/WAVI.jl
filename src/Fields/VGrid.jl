@@ -26,8 +26,10 @@ struct VGrid{T <: Real, N <: Int}
              dnegβeff :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (diagonal of βeff) 
                     v :: Array{T,2}                            # Ice velocity in the y-direction
              residual :: Array{T,2}                            # Residuals in the y-direction
-    τsurf :: Array{T,2}                            # TauSurf Dirichlet calculated in inversion (see in Arthern 2015 JGeophysRes)
-            end
+                τsurf :: Array{T,2}                            # TauSurf Dirichlet calculated in inversion (see in Arthern 2015 JGeophysRes)
+                   vs :: Array{T,2}                            # Surface Ice velocity in the y-direction
+   
+        end
 
     
 """
@@ -97,6 +99,7 @@ function VGrid(;
     βeff = zeros(nxv,nyv)
     dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
     τsurf=zeros(nxv,nyv)
+    vs=zeros(nxv,nyv)
 
     #size assertions
     @assert n == count(mask)
@@ -111,6 +114,7 @@ function VGrid(;
     @assert size(grounded_fraction)==(nxv,nyv)
     @assert size(βeff)==(nxv,nyv)
     @assert size(τsurf)==(nxv,nyv)
+    @assert size(vs)==(nxv,nyv)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -146,5 +150,6 @@ function VGrid(;
                 dnegβeff,
                 v,
                 residual,
-                τsurf)
+                τsurf,
+                vs)
 end

@@ -27,7 +27,8 @@ struct UGrid{T <: Real, N <: Integer}
                     u :: Array{T,2}                            # Ice velocities in x direction
              residual :: Array{T,2}                            # Residuals in x direction
                 τsurf :: Array{T,2}                            # TauSurf Dirichlet calculated in inversion (see in Arthern 2015 JGeophysRes)
-end
+                   us :: Array{T,2}                               # Ice surface velocities in x direction
+              end
     
 """
     UGrid(;
@@ -96,6 +97,7 @@ function UGrid(;
     βeff = zeros(nxu,nyu)
     dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
     τsurf=zeros(nxu,nyu)
+    us=zeros(nxu,nyu)
 
     #size assertions
     @assert n == count(mask)
@@ -110,6 +112,7 @@ function UGrid(;
     @assert size(grounded_fraction)==(nxu,nyu)
     @assert size(βeff)==(nxu,nyu)
     @assert size(τsurf)==(nxu,nyu)
+    @assert size(us)==(nxu,nyu)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -144,5 +147,6 @@ function UGrid(;
                 dnegβeff,
                 u,
                 residual,
-                τsurf)
+                τsurf,
+                us)
 end

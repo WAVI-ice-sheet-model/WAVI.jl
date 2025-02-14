@@ -11,7 +11,6 @@ struct InversionParams{T <: Real, A, W, G}
                     βpower :: T
                     Bpower_shelf :: T
                     Bpower_grounded :: T
-                    max_JKV_iterations :: Int
 end
 
 """
@@ -34,8 +33,7 @@ function InversionParams(; gmres_reltol = 1e-6,
                     ηstart_guess = 1.0e7,
                     βpower = 0.1,
                     Bpower_shelf = 0.1,
-                    Bpower_grounded = 0.01,
-                    max_JKV_iterations = 20 )
+                    Bpower_grounded = 0.01 )
                       
   return InversionParams(gmres_reltol,
                   gmres_maxiter,
@@ -48,7 +46,6 @@ function InversionParams(; gmres_reltol = 1e-6,
                   ηstart_guess,
                   βpower,
                   Bpower_shelf,
-                  Bpower_grounded,
-                  max_JKV_iterations
+                  Bpower_grounded
                   )
 end

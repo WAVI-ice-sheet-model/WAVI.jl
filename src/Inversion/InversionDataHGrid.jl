@@ -9,6 +9,7 @@ struct InversionDataHGrid{T <: Real, N <: Integer}
                spread :: SparseMatrixCSC{T,N}                  # Spread matrix: take model domain to full domain
                   dhdt :: Array{T,2}                            # dhdt data on h
      accumulation_rate :: Array{T,2}                            # accumulation rate data on h
+             residual :: Array{T,2}                            # residuals on h
 end
     
 """
@@ -38,7 +39,8 @@ function InversionDataHGrid(;
                 mask = trues(nxh,nyh),
                 h_isfixed = falses(nxh,nxy),
                 dhdt = zeros(nxh,nyh),
-                accumulation_rate = zeros(nxh,nyh)
+                accumulation_rate = zeros(nxh,nyh),
+                residual = zeros(nxh,nyh)
                 )
 
     #check the sizes of inputs
@@ -74,6 +76,7 @@ function InversionDataHGrid(;
                 samp,
                 spread,
                 dhdt,
-                accumulation_rate
+                accumulation_rate,
+                residual
                 )
 end

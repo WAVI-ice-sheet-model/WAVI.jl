@@ -23,9 +23,10 @@ set the drag coefficient at the start of the inversion.
 function start_guess_β_inversion!(model::AbstractModel, inversion)
     @unpack gh=model.fields
     @unpack inversion_params=inversion
+    aground = (gh.haf .>= 0)
     gh.β .= inversion_params.βfloating_start*ones(gh.nxh,gh.nyh)
  #   gh.β[gh.grounded_fraction .< 0.5].=
-    gh.β[gh.grounded_fraction .>= 0.5].=inversion_params.βgrounded_start
+    gh.β[aground].=inversion_params.βgrounded_start
     return model
 end
 
@@ -57,8 +58,6 @@ function solve_dirichelt_velocities!(model, inversion,clock)
     @unpack gudata, gvdata, ghdata=inversion.data_fields 
     @unpack inversion_params=inversion
 
-    x0=get_start_guess_dirichlet(inversion)
-
     #get the ops needed:
     Op_combo=get_op_combo(model,inversion)
 
@@ -69,83 +68,373 @@ function solve_dirichelt_velocities!(model, inversion,clock)
 
     #get f2
     f2=get_rhs_dirichlet_inverse_data(model,inversion)
+   # f2=get_rhs_neumann_data_check(model,inversion)
+  #  f2=get_rhs_neumann_check_data(model,inversion)
 
     f=[f1;f2]
 
-
-    ni=gu.ni+gv.ni+gudata.ni + gvdata.ni + ghdata.n
-    x0m=Vector{Float64}(undef,ni);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x0guess.bin",x0m)
-    x0m.=ntoh.(x0m)
+  #  ni=gu.ni+gv.ni+gudata.ni + gvdata.ni + ghdata.n
+    #x0m=Vector{Float64}(undef,ni);
+   # read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x0guess.bin",x0m)
+   # x0m.=ntoh.(x0m)
     #
-    nirhsd1=gu.ni+gv.ni
-    rhsd1=Vector{Float64}(undef,nirhsd1);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSD1.bin",rhsd1)
-    rhsd1.=ntoh.(rhsd1)
-    nirhsd2=gudata.ni + gvdata.ni + ghdata.n
-    rhsd2=Vector{Float64}(undef,nirhsd2);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSD2.bin",rhsd2)
-    rhsd2.=ntoh.(rhsd2)
-    fm=[rhsd1;rhsd2] 
+   # x02m=Vector{Float64}(undef,ni);
+  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x02guess.bin",x02m)
+  #  x02m.=ntoh.(x02m)
+    #
+ #   nirhsd1=gu.ni+gv.ni
+ #   rhsd1=Vector{Float64}(undef,nirhsd1);
+ #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSD1.bin",rhsd1)
+ #   rhsd1.=ntoh.(rhsd1)
+ #   nirhsd2=gudata.ni + gvdata.ni + ghdata.n
+ #   rhsd2=Vector{Float64}(undef,nirhsd2);
+#    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSD2.bin",rhsd2)
+#    rhsd2.=ntoh.(rhsd2)
+#    fm=[rhsd1;rhsd2] 
 
-    resid=get_resid(x0m,Op_combo,f)
-  
+    x=get_start_guess_dirichlet(inversion)
+  #  if clock.n_iter==0
+     #   x=[gu.samp_inner*gu.u[:];gv.samp_inner*gv.v[:]; zeros(gudata.ni); zeros(gvdata.ni); zeros(ghdata.n)]
+   #     x=x
+   # end
+
+    resid=get_resid(x,Op_combo,f)
     relative_residual = norm(resid) / norm(f)
     println("Initial relative Residual: ", relative_residual)
- #   endhere=rosie_stop
 
-    if clock.n_iter==0
-    x = gmres!(x0m,-Op_combo, -f, abstol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-    else
-        x = gmres!(x0,-Op_combo, -f, abstol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-    end
 
-    x_output=x[1] 
+    # Perturb the initial guess with noise proportional to its values
+  #  noise_proportion = 0.01  # Set the proportion of noise to add (e.g., 10% of the initial guess's magnitude)
+  #  x0_perturbed = perturb_initial_guess_proportional(x0m, noise_proportion)
 
-    
+#  println("norm of f is" ,norm(f))
 
-#    println("Check convergence:"  ,x[2])
-    resid=get_resid(x_output,Op_combo,f)
+  #  if clock.n_iter==0
 
+    x,ch =gmres!(x,Op_combo, f, abstol=inversion_params.gmres_reltol*1e6, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)  
+  #  x,ch =minres!(x,Op_combo, f, abstol=8, maxiter=inversion_params.gmres_maxiter, log=true,verbose=false)  
+   # Extract total iterations and final residual
+    total_iters = ch.iters
+    is_conv = ch.isconverged
+    resid=get_resid(x,Op_combo,f)
     relative_residual = norm(resid) / norm(f)
-    println("Relative Residual: ", relative_residual)
+    println("gmres finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
+ 
+    #xN=[gu.samp_inner*gu.u[:];gv.samp_inner*gv.v[:]; zeros(gudata.ni); zeros(gvdata.ni); zeros(ghdata.n)]
+    #resid_N=get_resid(xN,Op_combo,f)
+   # relative_residual_N = norm(resid_N) / norm(f)
+ 
+   # println("GMRES finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
+  #  println("Convergence with Neumann guess would be rel resid $relative_residual_N")
 
-    set_velocities!(inversion,x_output)
+    set_residual_inversion!(model,inversion,resid)
+#    set_residual_inversion!(model,inversion,resid_N)
 
-    set_inversion_pressure!(model,inversion,x_output)
+
+    # elseif clock.n_iter==1
+   # gmres!(x,Op_combo, f, reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+      #  x_output=x0
+   # else
+   # gmres!(x,Op_combo, f, reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+     
+   # end
+
+  #  x_output=x[1] 
+   # resid_check = norm(Op_combo * x - f) / norm(f)
+   # println("Direct residual check: ", resid_check)
+
+    set_velocities!(inversion,x)
+
+    set_inversion_pressure!(model,inversion,x)
     
-  #=  #Contruct A:
-   op_A=get_op_A(model)
+    #Contruct A:
+ #  op_A=get_op_A(model)
    #Constuct B:
-   op_B=get_op_B(model,inversion)
+ #  op_B=get_op_B(model,inversion)
    #Constuct B-transpose:
-   op_BT=get_op_BT(model,inversion)
+ #  op_BT=get_op_BT(model,inversion)
    # Construct C:
-   op_C=get_op_C(model,inversion)
+ #  op_C=get_op_C(model,inversion)
+##
+  # uvvec=[inversion.fields.gu.u[gu.mask]; inversion.fields.gv.v[gv.mask]]
+  # pivec=[inversion.fields.gu.τsurf[inversion.data_fields.gudata.mask]; inversion.fields.gv.τsurf[inversion.data_fields.gvdata.mask]; inversion.fields.gh.σzzsurf[inversion.data_fields.ghdata.mask] ]
+   
+ #  uvvec=[model.fields.gu.u[gu.mask]; model.fields.gv.v[gv.mask]]
+ #  pivec=[zeros(gudata.ni); zeros(gvdata.ni); zeros(ghdata.n) ]
+   
+   
+ #  opAcheck=op_A*uvvec-f1
+ #  println("mean of opAcheck is ",mean(opAcheck))
+ #  println("max of opAcheck is ",maximum(abs.(opAcheck)))
+  #resid_N=get_resid(uvvec,op_A,f1)
+  # relative_residual_N = norm(resid_N) / norm(f1)
+  # println("Relative Residual of Au=f1: ", relative_residual_N)
+#
 
-   uvvec=[inversion.fields.gu.u[gu.mask]; inversion.fields.gv.v[gv.mask]]
-   pivec=[inversion.fields.gu.τsurf[inversion.data_fields.gudata.mask]; inversion.fields.gv.τsurf[inversion.data_fields.gvdata.mask]; inversion.fields.gh.σzzsurf[inversion.data_fields.ghdata.mask] ]
-   opAcheck=op_A*uvvec
-   println("mean of opAcheck is ",mean(opAcheck))
-   opBTcheck=op_BT*pivec
-   println("mean of opBTcheck is ",mean(opBTcheck))
-   opBcheck=op_B*uvvec
-   println("mean of opBcheck is ",mean(opBcheck))
-   opCcheck=op_C*pivec
-   println("mean of opCcheck is ",mean(opCcheck))
-   f1check =  opAcheck +  opBTcheck 
-   f2check = op_B*uvvec .+ op_C*pivec
-   println("mean of f1check is ",mean(f1check))
-   println("mean of f2check is ",mean(f2check))
+ #   opBTcheck=op_BT*pivec
+  #  println("mean of opBTcheck is ",mean(opBTcheck))
+ #   opBcheck=op_B*uvvec
 
+ #   resid_B=get_resid(uvvec,op_B,f2)
+ #   relative_residual_B = norm(resid_B) / norm(f2)
+ #   println("Relative Residual of Bu=f2: ", relative_residual_B)
+ #
+ #   v1=op_BT*f2
+ #   v2=op_BT*(op_B*uvvec)
+  #  residual_v1v2 = norm(v1 - v2)
+  #  println(" Residual of diff v1-v2 is : " ,residual_v1v2)
 
+  #  println("mean of opBcheck is ",mean(opBcheck))
+  #  println("mean of opBcheck_R_only is ",mean(opBcheck[1:(gudata.ni+gvdata.ni)]))
+  #  println("mean of opBcheck_div_only is ",mean(opBcheck[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)]))
+   
+  #  update_velocities_on_h_grid!(model)  
+  #  update_surface_velocities_on_uv_grid!(model)
+ #   update_dhdt!(model)
 
-    ff=gg =#
+ #   opB_R_resid=opBcheck[1:(gudata.ni+gvdata.ni)].-f2[1:(gudata.ni+gvdata.ni)]
+
+ #   opB_div_resid=opBcheck[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)].-f2[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)]
+
+ #   opB_div_diff=opBcheck[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)].-(model.fields.gh.dhdt[ghdata.mask].-model.fields.gh.accumulation[ghdata.mask])
+
+   # uN_surf_f2=[model.fields.gu.us[gu.mask]; model.fields.gv.vs[gv.mask]].-f2[1:(gudata.ni+gvdata.ni)]
+
+  #  println("mean of  uN_surf_f2 is ",mean(uN_surf_f2))
+  #  println("max of  uN_surf_f2 is ",maximum(abs.(uN_surf_f2)))
+
+ #  println("mean of  opB_R_diff is ",mean(opB_R_diff))
+ #  println("max of  opB_R_diff is ",maximum(abs.(opB_R_diff)))
+ #  println("mean of  opB_R_resid is ",mean(opB_R_resid))
+#   println("max of  opB_R_resid is ",maximum(abs.(opB_R_resid)))
+#   println("mean of   opB_div_resid is ",mean((opB_div_resid)))
+#   println("max of   opB_div_resid is ",maximum(abs.(opB_div_resid)))
+
+  # opCcheck=op_C*pivec
+ #  println("mean of opCcheck is ",mean(opCcheck))
+   #f1check =  opAcheck +  opBTcheck 
+   #f2check = op_B*uvvec .+ op_C*pivec
+   #println("mean of f1check is ",mean(f1check))
+   #println("mean of f2check is ",mean(f2check))
+   
+ #ff=gg 
+
     println("Solved for Dirichlet velocites")
     
     return inversion
 end
+
+function solve_dirichelt_neumann_velocities!(model, inversion,clock) 
+
+    @unpack params,solver_params=model
+    @unpack gu,gv,wu,wv,gh = model.fields
+    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack inversion_params=inversion
+
    
+
+    #get the ops needed:
+    Op_combo=get_op_combo(model,inversion)
+
+    #get rhs f1, and get rhsf2:
+    #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
+    #NEED TO CHECK SCHUR HERE!!!
+    f1=get_rhs_dirichlet_inversion(model)
+    
+        #Contruct A:
+        op_A=get_op_A(model)
+        #Constuct B:
+        op_B=get_op_B(model,inversion)
+        #Constuct B-transpose:
+        op_BT=get_op_BT(model,inversion)
+        op_C=get_op_C(model,inversion)
+#
+        # Compute diagonal preconditioner
+        Adiag = LinearMap(op_A)  # Approximate diagonal
+        A_diag_vals = extract_diagonal(Adiag)  # Extract diagonal values
+        A_inv = 1.0 ./ A_diag_vals  # Inverse of diagonal
+        Adiag_inv = Diagonal(A_inv)  # Sparse diagonal matrix
+        Adiag_inv=sparse(Adiag_inv)
+
+        M2=[]
+
+        M1 = Diagonal(A_diag_vals)
+       # M1 =Diagonal(extract_diagonal(Adiag_inv))
+ #       M1 = diagonal_preconditioner(op_A, (gu.ni+gv.ni))  # Define preconditioner
+       # Adiag_prec = LinearSolve.InvPreconditioner(LinearMap(x -> solve_Adiag_approx(x), size(op_A, 1), size(op_A, 2)))
+        #Adiag_prec = LinearSolve.InvPreconditioner(LinearMap(x -> M1 * x, size(op_A, 1), size(op_A, 2)))
+        #op_BAdiag_inv_BT = LinearMap(x -> op_B * (Adiag_prec \ (op_BT * x)), size(op_C, 1), size(op_C, 2))
+        #MSchur = LinearMap(x -> -op_BAdiag_inv_BT * x + op_C * x, size(op_C, 1), size(op_C, 2))
+
+
+        #Neumann solve:
+        uN=get_start_guess(model)
+        #cg!(uN,op_A,fN,reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter,Pl=M1,log=true)
+        uN, ch = gmres!(uN,op_A, f1, abstol=0.001, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+        println("solved for Neumann velocs")
+        resid=get_resid(uN,op_A,f1)
+        relative_residual = norm(resid) / norm(f1)
+        #println("   Relative Residual for Neumann is: ", relative_residual)
+        total_iters = ch.iters
+        is_conv = ch.isconverged
+        println("gmres finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
+       # println("Check convergence:"  ,uN[2])
+    
+        #set Neumann velocites:
+        set_velocities!(model,uN)
+
+         #get f2
+        f2=get_rhs_dirichlet_inverse_data(model,inversion)
+      #  f2=get_rhs_neumann_data_check(model,inversion)
+
+        f=[f1;f2]
+
+        println("about to computer MSchur")
+    #    # Compute Schur complement matrix
+        MSchur = Diagonal(extract_diagonal(-op_B * (Adiag_inv * op_BT) + op_C))
+  #      MSchur = Diagonal(-op_B * (Adiag_inv * op_BT) + op_C)
+        println("Computed MSchur")
+#
+        xD_guess=get_start_guess_dirichlet(inversion)
+
+        #Dirichlet solve
+        #Define right hand side for Schur (pressure) solve
+        u0=xD_guess[1:gu.ni+gv.ni]
+        cg!(u0,op_A,f1,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter)
+        #,M1,M2);
+        println("Made right hand side for Schur (pressure) solve")
+        resid=get_resid(u0,op_A,f1)
+        relative_residual = norm(resid) / norm(f1)
+        println("   Relative Residual for RHS for Schur is: ", relative_residual)
+
+
+        bSchur=-op_B*u0+f2;
+        # Define the Schur complement operator as a LinearMap
+        SchurOp = LinearMap(x -> schurVec(x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params), size(op_C, 1), size(op_C, 2))
+
+        # Solve Schur complement system using BICGSTAB
+       # pD = bicgstabl(SchurOp, bSchur, 2, reltol=inversion_params.gmres_reltol, Pl=MSchur, verbose=true)
+       ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
+       if  clock.n_iter==0
+        x0m=Vector{Float64}(undef,ni);
+        read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x0guess.bin",x0m)
+        x0m.=ntoh.(x0m)
+        pD=x0m[gu.ni+gv.ni+1:ni]
+        println("pressure initial guess is being fed in from Matlab!!")
+       else
+        pD=xD_guess[gu.ni+gv.ni+1:ni]
+        end
+
+        pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, abstol=inversion_params.gmres_reltol*1e6, restart=inversion_params.gmres_restart, Pl=MSchur,verbose=false,log=true)
+        #pD, ch = bicgstabl!(pD,SchurOp, bSchur, 1, reltol=inversion_params.gmres_reltol, Pl=MSchur,verbose=true,log=true)
+        println("Solved Schur complement system using gmres")
+        total_iters = ch.iters
+        is_conv = ch.isconverged
+        println("GMRES finished in $total_iters iterations and convergence was $is_conv")
+
+        #Define right hand side for velocity solve
+        b=f1-op_BT*pD;
+
+        #Solve for velocity
+        uD=xD_guess[1:gu.ni+gv.ni]
+        cg!(uD,op_A,b,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter,Pl=M1)
+        #,M1,M2);
+        println("Solved for Dirichelt velocities")
+        resid=get_resid(uD,op_A,b)
+        relative_residual = norm(resid) / norm(b)
+        println("   Relative Residual for Dirichelt system is: ", relative_residual)
+
+        x_output=[uD;pD]
+
+#       println("Check convergence:"  ,x[2])
+        resid=get_resid(x_output,Op_combo,f)
+
+        relative_residual = norm(resid) / norm(f)
+        println("Relative Residual: ", relative_residual)
+ 
+
+        #set Dirichelt velocites:
+        set_velocities!(inversion,x_output)
+
+        #set pressues:
+        set_inversion_pressure!(model,inversion,x_output)
+    
+        println("Solved for Neumann and Dirichlet velocites")
+    
+    return inversion
+end
+
+
+function schurVec(x, A, B, BT, C, M1, M2, inversion_params)
+    # Define tolerance for inner iterative solver
+    inner_tol = 1.0e-6
+    inner_maxiters=500;
+
+    # Solve A * u = B' * x using PCG (preconditioned CG)
+    b = BT * x  # Compute B' * x
+    #u = similar(b)  # Storage for solution u
+    u=zeros(size(b))
+
+    # Solve using CG with preconditioners M1 and M2 (if provided)
+    cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
+ #   u=gmres(A, b, reltol=inner_tol, maxiter=inner_maxiters,restart=500, Pl=M1)
+   # pD = gmres(SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, reltol=inversion_params.gmres_reltol, restart=inversion_params.gmres_restart, Pl=MSchur,verbose=true)
+
+ #  println("Solved for SchurVec")
+   resid=get_resid(u,A,b)
+   relative_residual = norm(resid) / norm(b)
+  # println("   Relative Residual for Dirichelt system is: ", relative_residual)
+
+
+    # Compute final Schur complement operation
+    return -B * u + C * x
+end
+
+function solve_Adiag_approx(x)
+    # Apply an approximate inverse of A_diag to x
+    # This could be a simple Jacobi preconditioner (diagonal inverse)
+    return x ./ diag_entries_of_A  # Assuming `diag_entries_of_A` is available
+end
+
+# Function to add noise proportional to the initial guess (scaled by a proportion)
+function perturb_initial_guess_proportional(x0, noise_proportion)
+    noise = noise_proportion .* x0 .* randn(length(x0))  # Add noise scaled by the magnitude of x0
+    return x0 + noise
+end
+
+# Manually extract diagonal from a LinearMap (op_A)
+function extract_diagonal(LM::LinearMap)
+    n = size(LM, 1)  # Assuming the linear map is square (adjust for non-square if needed)
+    diag_vals = Float64[]  # Initialize an empty array to store diagonal values
+    
+    # Generate standard basis vectors and apply LM to them
+    for i in 1:n
+        e_i = zeros(n)  # Create a zero vector of length n
+        e_i[i] = 1.0     # Set the i-th element to 1 (standard basis vector)
+        result = LM(e_i)  # Apply the LinearMap to the standard basis vector
+        push!(diag_vals, result[i])  # The diagonal element is the i-th element of the result
+    end
+    return diag_vals
+end
+
+# Function to estimate the diagonal (without explicitly forming A)
+function estimate_diagonal(op_A, n)
+    e = zeros(n)
+    diag_est = zeros(n)
+    for i in 1:n
+        e[i] = 1.0
+        diag_est[i] = op_A(e)[i]  # Apply A to unit basis vector
+        e[i] = 0.0
+    end
+    return diag_est
+end
+
+# Define diagonal preconditioner as a LinearMap
+function diagonal_preconditioner(op_A, n)
+    diag_est = estimate_diagonal(op_A, n)  # Approximate diagonal
+    return LinearMap(x -> x ./ diag_est, n, n)  # Jacobi preconditioner
+end
+
 
 function solve_neumann_velocities!(model,inversion,clock) 
 
@@ -154,20 +443,21 @@ function solve_neumann_velocities!(model,inversion,clock)
     @unpack gu,gv,wu,wv = model.fields
     @unpack inversion_params=inversion
 
-    x0=get_start_guess(model)
+    x=get_start_guess(model)
 
     #get the ops needed:
     Op=get_op_A(model)
-
-  #=   ni=gu.ni+gv.ni
-    x0m=Vector{Float64}(undef,ni);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_xNguess.bin",x0m)
-    x0m.=ntoh.(x0m)
+   # Op=get_op(model)
+#
+   #  ni=gu.ni+gv.ni
+ #   x0m=Vector{Float64}(undef,ni);
+ #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_xNguess.bin",x0m)
+ #   x0m.=ntoh.(x0m)
     #
-    nirhsn=gu.ni+gv.ni
-    rhsn=Vector{Float64}(undef,nirhsn);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSN.bin",rhsn)
-    rhsn.=ntoh.(rhsn) =#
+ #   nirhsn=gu.ni+gv.ni
+ #   rhsn=Vector{Float64}(undef,nirhsn);
+ #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSN.bin",rhsn)
+ #   rhsn.=ntoh.(rhsn) 
     #get rhs f1, and get rhsf2:
     #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
     #NEED TO CHECK SCHUR HERE!!!
@@ -175,35 +465,34 @@ function solve_neumann_velocities!(model,inversion,clock)
   #  println("Size of f1 (rhs) is," ,size(f1))
 
     f=f1
-#    fm=rhsn
+ #   fm=rhsn
 
-    resid=get_resid(x0,Op,f)
+    resid=get_resid(x,Op,f)
 
   #  println("Initial residual norm: ", norm(resid))
     relative_residual = norm(resid) / norm(f)
     println("Initial relative Residual: ", relative_residual)
 
-    #if clock.n_iter==0
-    #    x = gmres!(x0m,Op_combo, f, abstol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-        #x_output=x0m
-      #  else
-     #       x = gmres!(x0,Op, f, abstol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-     #   end
-#
-     #   x_output=x[1] 
+    #    if clock.n_iter==0
+        x, ch = gmres!(x,Op, f, abstol=0.0001, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+    #     else
+    #      gmres!(x,Op, f, reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+    #    end
+    #    x_output=x[1] 
+    #   x = gmres!(x0,Op, f, reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+    #    x_output=x[1]
+    #    println("Check convergence:"  ,x[2])
+        
+    # Extract total iterations and final residual
+    total_iters = ch.iters
+    is_conv = ch.isconverged
 
-   x = gmres!(x0,Op, f, abstol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-    x_output=x[1]
-    println("Check convergence:"  ,x[2])
-    
-    resid=get_resid(x_output,Op,f)
-
+    resid=get_resid(x,Op,f)
     relative_residual = norm(resid) / norm(f)
-    println("Relative Residual: ", relative_residual)
+   println("gmres finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
 
-    set_velocities!(model,x_output)
-  
-#    Ax=Op*x_output
+
+    set_velocities!(model,x)
 
     println("Solved for Neumann velocites")
     
@@ -266,6 +555,7 @@ function get_op_fun_combo(model::AbstractModel{T,N}, inversion) where {T,N}
         op_BT=get_op_BT(model,inversion)
 
         op_C=get_op_C(model,inversion)
+
 
         f1 = op_A*uvsampi .+ op_BT*pisampi 
         f2 = op_B*uvsampi .+ op_C*pisampi
@@ -479,7 +769,8 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
     vsampi :: Vector{T} = zeros(gv.ni);                             @assert length(vsampi) == gv.ni
     uspread :: Vector{T} = zeros(nxnyu);                            @assert length(uspread) == nxnyu
     vspread :: Vector{T} = zeros(nxnyv);                            @assert length(vspread) == nxnyv
-    R :: Vector{T} = zeros(nxnyh);                                  @assert length(R) == nxnyh
+    R :: Array{T,2} = zeros(gh.nxh,gh.nyh);                               @assert length(R) == nxnyh
+#    R :: Vector{T} = zeros(nxnyh);                                  @assert length(R) == nxnyh
     R_crop :: Vector{T} = zeros(nxnyh);                             @assert length(R_crop) == nxnyh
     u_on_h :: Vector{T} = zeros(nxnyh);                             @assert length(u_on_h) == nxnyh
     Ru_on_h :: Vector{T} = zeros(nxnyh);                            @assert length(Ru_on_h) == nxnyh
@@ -529,8 +820,9 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
         end
     
         #Compute R from Arthern et al 2015 and build the R term from equation (28):
-        @. R = (1.0 + gh.β[:]*gh.quad_f1[:])/ (1.0 + gh.β[:]*gh.quad_f2[:])
-        @! R_crop=gh.crop*R
+        
+        R[gh.mask] .= (1.0 .+ gh.β[gh.mask].*gh.quad_f1[gh.mask])./ (1.0 .+ gh.β[gh.mask].*gh.quad_f2[gh.mask])
+        @! R_crop=gh.crop*vec(R)
 
 
         @! u_on_h=gh.crop*(gu.cent*(uspread))
@@ -538,12 +830,14 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
         @! Ru_on_u=gu.centᵀ*Ru_on_h
       #  @! Ru_on_u_i=gu.samp_inner*Ru_on_u
         @! fx1=gu.crop*Ru_on_u
+       #  fx1=Ru_on_u
 
         @! v_on_h=gh.crop*(gv.cent*(vspread))
         @. Rv_on_h=R_crop*v_on_h
         @! Rv_on_v=gv.centᵀ*Rv_on_h
     #    @! Rv_on_v=gv.samp_inner*Rv_on_v
         @! fy1=gv.crop*Rv_on_v
+    #      fy1=Rv_on_v
        
         #sample these to only include data masked points:
         @! fx1_sampi = gudata.samp_inner*fx1
@@ -703,21 +997,24 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
     
         @!  sigmasspread_crop=gh.crop*sigmasspread
         @!  dsigmadx=gu.∂xᵀ*sigmasspread_crop
-   #     @.  dsigmadx = -dsigmadx
+   #    @.  dsigmadx = -dsigmadx
         @!  dsigmadx_crop=gu.crop*dsigmadx
         @. h_dsigmadx=gu.h[:]*dsigmadx_crop
         @!  h_dsigmadx_crop=gu.crop*h_dsigmadx
   
         @!  dsigmady=gv.∂yᵀ*sigmasspread_crop
- #       @.  dsigmady=dsigmady
+    #    @.  dsigmady=-dsigmady
         @!  dsigmady_crop=gv.crop*dsigmady
         @.  h_dsigmady=gv.h[:]*dsigmady_crop
         @!  h_dsigmady_crop=gv.crop*h_dsigmady
         
 
         fx2 =  -h_dsigmadx_crop
-      #  fx2 = dsigmadx_crop
         fy2 =  -h_dsigmady_crop
+
+    #    fx2 =  -100000*h_dsigmadx_crop
+        #  fx2 = dsigmadx_crop
+     #     fy2 =  -100000*h_dsigmady_crop
 
         #sample these to only include masked points:
         @!  fx2_sampi = gu.samp_inner*fx2
@@ -761,6 +1058,8 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
     tausspreadv :: Vector{T} = zeros(nxnyv);                          @assert length(tausspreadv) == nxnyv
     tausspreadu_crop :: Vector{T} = zeros(nxnyu);                     @assert length(tausspreadu_crop) == nxnyu
     tausspreadv_crop :: Vector{T} = zeros(nxnyv);                     @assert length(tausspreadv_crop) == nxnyv
+    tauspreadu_on_h_crop :: Vector{T} = zeros(nxnyh);                     @assert length(tauspreadu_on_h_crop) == nxnyh
+    tauspreadv_on_h_crop :: Vector{T} = zeros(nxnyh);                     @assert length(tauspreadv_on_h_crop) == nxnyh
     sigmasspread :: Vector{T} = zeros(nxnyh);                         @assert length(sigmasspread) == nxnyh
     sigmasspread_crop :: Vector{T} = zeros(nxnyh);                    @assert length(sigmasspread_crop) == nxnyh 
     R :: Vector{T} = zeros(nxnyh);                                  @assert length(R) == nxnyh
@@ -817,14 +1116,16 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
 
         @!  tausspreadu_crop=gu.crop*tausspreadu
         @!  tauspreadu_on_h=gu.cent*tausspreadu_crop
-        @.  Ptauu_on_h=P*tauspreadu_on_h
+        @!  tauspreadu_on_h_crop=gh.crop*tauspreadu_on_h
+        @.  Ptauu_on_h=P*tauspreadu_on_h_crop
         @!  Ptauu_on_h_crop=gh.crop*Ptauu_on_h
         @!  Ptauu_on_u=gu.centᵀ*Ptauu_on_h_crop
         @!  Ptauu_on_u_crop=gu.crop*Ptauu_on_u
 
         @!  tausspreadv_crop=gv.crop*tausspreadv
         @!  tauspreadv_on_h=gv.cent*tausspreadv_crop
-        @.  Ptauv_on_h=P*tauspreadv_on_h
+        @!  tauspreadv_on_h_crop=gh.crop*tauspreadv_on_h
+        @.  Ptauv_on_h=P*tauspreadv_on_h_crop
         @!  Ptauv_on_h_crop=gh.crop*Ptauv_on_h
         @!  Ptauv_on_v=gv.centᵀ*Ptauv_on_h_crop
         @!  Ptauv_on_v_crop=gv.crop*Ptauv_on_v
@@ -989,6 +1290,73 @@ function get_rhs_dirichlet_inversion(model::AbstractModel{T,N}) where {T,N}
     return rhs
 end
 
+function get_rhs_neumann_data_check(model, inversion)
+    @unpack gh,gu,gv,gc=model.fields
+    @unpack params, solver_params = model
+    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+       
+     #Preallocate intermediate variables used 
+     nxnyh = gh.nxh*gh.nyh
+     nxnyu = gu.nxu*gu.nyu
+     nxnyv = gv.nxv*gv.nyv
+     
+     us_data= zeros(gu.nxu,gu.nyu);                          
+     vs_data= zeros(gv.nxv,gv.nyv);                               
+     us_data_sampi  = zeros(gudata.ni);                      
+     vs_data_sampi  = zeros(gvdata.ni);                    
+     dhdt_data = zeros(gh.nxh,gh.nyh);                              
+     accumulation_data = zeros(gh.nxh,gh.nyh);     
+
+     dhdtacc_data= zeros(nxnyh);                         
+     dhdtacc_data_sampi= zeros(ghdata.n);                 
+     f1 = zeros(gudata.ni+gvdata.ni+ghdata.n);            
+     rhs_dirichlet = zeros(gudata.ni+gvdata.ni+ghdata.n);
+    
+     
+     us_data = gudata.speed_u
+     vs_data = gvdata.speed_v  
+
+     us_data_vec=us_data[gudata.mask]
+     vs_data_vec=vs_data[gvdata.mask]
+
+     us_data_spread=gudata.spread*us_data_vec
+    us_data_crop = gu.crop * us_data_spread[:]  
+    us_data_cent = gu.cent * us_data_crop 
+    us_data_cent_samp = gh.samp  * us_data_cent
+    us_data_cent_samp_spread= gh.spread*us_data_cent_samp
+    #
+    us_data_centT = gu.centᵀ*us_data_cent_samp_spread
+    us_data_centT_crop = gu.crop*us_data_centT
+
+    vs_data_spread=gvdata.spread*vs_data_vec
+    vs_data_crop = gv.crop * vs_data_spread[:]    
+    vs_data_cent = gv.cent * vs_data_crop 
+    vs_data_cent_samp = gh.samp  * vs_data_cent 
+    vs_data_cent_samp_spread= gh.spread*vs_data_cent_samp
+    vs_data_centT = gv.centᵀ*vs_data_cent_samp_spread
+    vs_data_centT_crop = gv.crop*vs_data_centT
+
+
+     us_data_sampi = gudata.samp_inner*us_data[:]
+     vs_data_sampi =gvdata.samp_inner*vs_data[:]
+
+   
+     f1[1:gudata.ni] .= us_data_sampi
+     f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
+    
+     dhdt_data = ghdata.dhdt
+     accumulation_data = ghdata.accumulation_rate
+      dhdtacc_data=dhdt_data[:] .- accumulation_data[:]
+     dhdtacc_data_sampi=ghdata.samp*dhdtacc_data
+    
+    f1[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)] .=  dhdtacc_data_sampi
+        
+    rhs_dirichlet .= f1 
+
+    return rhs_dirichlet
+end
+    
+
 
 """
     set_velocities!(model::AbstractModel,x)
@@ -1149,7 +1517,7 @@ Update the drag coefficient at the bed in the inversion
 function update_β_inversion!(model::AbstractModel,inversion)
     @unpack gh=model.fields
     @unpack inversion_params=inversion
-    gh.β[gh.mask] .=  gh.β[gh.mask].*(gh.drag_heating[gh.mask]./inversion.fields.gh.drag_heating[gh.mask]).^inversion_params.βpower;
+    gh.β[gh.mask] .=  gh.β[gh.mask].*(gh.drag_heating[gh.mask]./inversion.fields.gh.drag_heating[gh.mask]).^inversion_params.βpower
     return model
 end
 
@@ -1165,7 +1533,8 @@ function update_preBfactor_inversion!(model::AbstractModel,inversion)
     #####MASKS OR NOT HERE??
     BPower=inversion_params.Bpower_shelf.*ones(gh.nxh,gh.nyh)
     #### WHAT ABOUT PARTIALLY FLOATING?!
-    BPower[gh.grounded_fraction .>= 0.5] .= inversion_params.Bpower_grounded
+    aground = (gh.haf .>= 0)
+    BPower[aground] .= inversion_params.Bpower_grounded
 
  #= grounded_mask=gh.grounded_fraction .≥ 0.99  
    floating_mask = (gh.mask .== 1) .& (gh.grounded_fraction .== 0.0)
@@ -1226,15 +1595,6 @@ function update_preBfactor_3d!(model::AbstractModel)
           end
        end
     end
-
-    preBdiff=preBfactor_av.-gh.preBfactor
-    println("total weight is " ,sum(g3d.quadrature_weights))
-    println("g3d.quadrature_weights " ,g3d.quadrature_weights)
-    println("nnz of preBdiff is " ,count(!iszero ,preBdiff[gh.mask]))
-    println("max of preBdiff is " ,maximum(preBdiff[gh.mask]))
-    println("min of preBdiff is " ,minimum(preBdiff[gh.mask]))
-    println("mean of preBdiff is " ,mean(preBdiff[gh.mask]))
-   # gg=hh;
 
     return model
 end
@@ -1298,6 +1658,10 @@ function update_JKV!(model::AbstractModel,inversion,clock)
     σzzsurf_comp=inversion.fields.gh.σzzsurf[gh.mask]'*(inversion.data_fields.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]).*(grid.dx*grid.dy) 
     τx_surf_comp=inversion.fields.gh.τx_surf[gh.mask]'*(inversion.fields.gh.us[gh.mask].-gh.us[gh.mask]).*(grid.dx*grid.dy)
     τy_surf_comp=inversion.fields.gh.τy_surf[gh.mask]'*(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask]).*(grid.dx*grid.dy)
+    println("mean of dhdt comp is " ,mean(inversion.data_fields.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]))
+    println("max of us comps is " ,maximum(abs.(inversion.fields.gh.us[gh.mask].-gh.us[gh.mask])))
+    println("max of vs comps is " ,maximum(abs.(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask])))
+    
     JKV=σzzsurf_comp .+ τx_surf_comp .+ τy_surf_comp
     inversion.inversion_output.JKV[clock.n_iter+1]=JKV
     println("   JKV is " ,inversion.inversion_output.JKV)
@@ -1366,18 +1730,78 @@ function update_quadrature_falpha_direct!(model::AbstractModel)
     f2=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
     read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_F2.bin",f2)
     f2.=ntoh.(f2)
+
     visc_av=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
     read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_visc_av.bin",visc_av)
     visc_av.=ntoh.(visc_av)
+
+   # visc_av=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
+  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_visc_av_Neumann.bin",visc_av)
+   # visc_av.=ntoh.(visc_av)
+
+   # beta_i1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
+  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_visc_av.bin",visc_av)
+  #  visc_av.=ntoh.(visc_av)
+
+  #  betai1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
+  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_betai1.bin",betai1)
+ #   betai1.=ntoh.(betai1)
+
+ #   preBi1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
+ #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_preBi1.bin",preBi1)
+ #   preBi1.=ntoh.(preBi1)
     
-        gh.quad_f0[gh.mask].=f0[gh.mask]
-        gh.quad_f1[gh.mask].=f1[gh.mask]
-        gh.quad_f2[gh.mask].=f2[gh.mask]
-        gh.ηav[gh.mask].=visc_av[gh.mask]
+    #    gh.quad_f0.=f0
+    #    gh.quad_f1.=f1
+    #    gh.quad_f2.=f2
+         gh.ηav.=visc_av
+     #   gh.preBfactor.=preBi1
+     #   gh.β.=betai1
+
+    return model
+end
+
+"""
+    quadrature_falpha_start!(model::AbstractModel)
+
+Use quadrature_falpha_start to compute initial falpha functions
+"""
+function quadrature_falpha_start!(model::AbstractModel)
+    @unpack gh,g3d=model.fields
+    gh.quad_f0 .= zero(gh.quad_f0)
+    gh.quad_f1 .= zero(gh.quad_f1)
+    gh.quad_f2 .= zero(gh.quad_f2)
+  
+                gh.quad_f0[gh.mask] .= gh.h[gh.mask]./(1*1e7)
+                gh.quad_f1[gh.mask] .= gh.h[gh.mask]./(2*1e7)
+                gh.quad_f2[gh.mask] .= gh.h[gh.mask]./(3*1e7)
 
     return model
 end
 
 
+function update_surface_velocities_on_uv_grid!(model)
+    @unpack gh,gu,gv = model.fields
+    #surface  velocities
+    gu.us[:].=gu.crop*(gu.centᵀ*gh.crop*(gh.us[:]))
+    gv.vs[:].=gv.crop*(gv.centᵀ*gh.crop*(gh.vs[:]))
 
+    return model
+end
 
+"""
+    set_residual_inversion!(model::AbstractModel,residual)
+
+Set residuals to particular values.
+"""
+function set_residual_inversion!(model::AbstractModel,inversion,residual)
+    @unpack gu,gv=model.fields
+    @unpack gudata,gvdata,ghdata=inversion.data_fields
+
+    @views inversion.fields.gu.residual[gu.mask_inner] .= residual[1:gu.ni]
+    @views inversion.fields.gv.residual[gv.mask_inner] .= residual[(gu.ni+1):(gu.ni+gv.ni)]
+    @views gudata.residual[gudata.mask_inner] .= residual[(gu.ni+gv.ni+1):(gu.ni+gv.ni+gudata.ni)]
+    @views gvdata.residual[gvdata.mask_inner] .= residual[(gu.ni+gv.ni+gudata.ni+1):(gu.ni+gv.ni+gudata.ni+gvdata.ni)]
+    @views ghdata.residual[ghdata.mask] .= residual[(gu.ni+gv.ni+gudata.ni+gvdata.ni+1):(gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n)]
+    return model, inversion
+end

@@ -95,7 +95,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     end
 
 
-    preBfactor=zeros(grid.nx,grid.ny,grid.nσ)
+    preBfactor=ones(grid.nx,grid.ny,grid.nσ)
         
     g3d=SigmaGrid(
     nxs=grid.nx,

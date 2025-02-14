@@ -11,6 +11,7 @@ struct InversionDataUGrid{T <: Real, N <: Integer}
                spread :: SparseMatrixCSC{T,N}                  # Spread matrix: take model domain to full domain
          spread_inner :: SparseMatrixCSC{T,N}                  # Spread matrix: take interior of model domain to full domain
               speed_u :: Array{T,2}                            # Surface speed data on u
+             residual :: Array{T,2}                            # Residuals in x direction
 end
     
 """
@@ -39,7 +40,8 @@ function InversionDataUGrid(;
                 nyu,
                 mask = trues(nxu,nyu),
                 u_isfixed = falses(nxu,nyu),
-                speed_u = zeros(nxu,nyu)
+                speed_u = zeros(nxu,nyu),
+                residual = zeros(nxu,nyu),
                 )
 
     #check the sizes of inputs
@@ -84,6 +86,7 @@ function InversionDataUGrid(;
                 samp_inner,
                 spread,
                 spread_inner,
-                speed_u
+                speed_u,
+                residual
                 )
 end
