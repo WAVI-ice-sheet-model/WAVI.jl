@@ -54,6 +54,7 @@ function JKVstep!(inversion_simulation)
     #
     update_surf_speed!(model)
     update_surf_speed!(inversion)
+    
     update_surface_velocities_on_uv_grid!(model)
     update_surface_velocities_on_uv_grid!(inversion)
 
@@ -75,7 +76,7 @@ function JKVstep!(inversion_simulation)
     update_β_inversion!(model,inversion)
 
     update_preBfactor_inversion!(model,inversion)
-    update_preBfactor_3d!(model)
+   # update_preBfactor_3d!(model)
     update_damage!(model)
     update_glen_b!(model)
 
@@ -163,9 +164,7 @@ function run_inversion_simulation!(inversion_simulation)
         end   
 
     end
-
-    ff=gg
-
+    
     #zip the inversion_simulation output (no zipping handled by zip_output)
     zip_output(inversion_simulation)
 

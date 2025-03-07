@@ -1,5 +1,6 @@
 struct InversionParams{T <: Real, A, W, G}
                     gmres_reltol :: T
+                    gmres_abstol :: T
                     gmres_maxiter :: Int
                     gmres_restart :: Int
                     accumulation_rate_holder :: A
@@ -23,6 +24,7 @@ Keyword arguments
 - 
 """
 function InversionParams(; gmres_reltol = 1e-6, 
+                    gmres_abstol = 1e-6, 
                     gmres_maxiter = 1000,
                     gmres_restart=100,
                     accumulation_rate_holder=0.0,
@@ -36,6 +38,7 @@ function InversionParams(; gmres_reltol = 1e-6,
                     Bpower_grounded = 0.01 )
                       
   return InversionParams(gmres_reltol,
+                  gmres_abstol, 
                   gmres_maxiter,
                   gmres_restart,
                   accumulation_rate_holder,

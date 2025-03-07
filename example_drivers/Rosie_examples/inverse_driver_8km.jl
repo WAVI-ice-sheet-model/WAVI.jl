@@ -230,14 +230,27 @@ vdatamask=Array{Float64}(undef,nx,ny+1);
 read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_vdatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",vdatamask)
 vdatamask.=ntoh.(vdatamask)
 
-udatamask_combo = ((udatamask .== 1) .& (model.fields.gu.mask .== 1))
-vdatamask_combo = ((vdatamask .== 1) .& (model.fields.gv.mask .== 1))
+#pre-select points not near data gaps:  
+u_neargap = imfilter((model.fields.gu.mask .& .!(udatamask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+v_neargap = imfilter((model.fields.gv.mask .& .!(vdatamask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+#data_mask_u = .!gudata.neargap .& .!gu.u_isfixed .& gu.mask
+
+    
+udatamask_combo = ((udatamask .== 1) .& (model.fields.gu.mask .== 1) .& (u_neargap .== 0))
+vdatamask_combo = ((vdatamask .== 1) .& (model.fields.gv.mask .== 1) .& (v_neargap .== 0))
 dhdtaccmask_combo = ((dhdtaccmask .== 1) .& (model.fields.gh.mask .== 1))
+#
 udatamask_combo = convert(Array{Bool,2}, udatamask_combo)
 vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
-gmres_reltol=1e-7
+println("nnz inmodel.fields.gu.mask is " ,count(!iszero, model.fields.gu.mask))
+println("nnz in udatamask is " ,count(!iszero, udatamask))
+println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
+println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
+
+gmres_reltol=0.05
+gmres_abstol=0.01
 gmres_maxiter=5000
 gmres_restart =200
 βgrounded_start=1.e4
@@ -261,7 +274,7 @@ inversion_params = InversionParams(gmres_reltol = gmres_reltol,
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 20
+max_JKV_iterations = 30
 n_iter_chkpt = 100
 n_iter_pchkpt= 5
 
@@ -298,7 +311,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "outputs_8km_inversion_test_schur_pdguess"
+folder = "outputs_8km_inversion_test_schur_nostripe_lowertol_preBedit"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,

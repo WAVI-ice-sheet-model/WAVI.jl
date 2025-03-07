@@ -231,16 +231,16 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
     @unpack gudata, gvdata, ghdata=inversion.data_fields 
     @unpack inversion_params=inversion
 
-   
-
-    #get the ops needed:
-    Op_combo=get_op_combo(model,inversion)
-
-    #get rhs f1, and get rhsf2:
-    #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
-    #NEED TO CHECK SCHUR HERE!!!
-    f1=get_rhs_dirichlet_inversion(model)
     
+
+        #get the ops needed:
+        Op_combo=get_op_combo(model,inversion)
+
+        #get rhs f1, and get rhsf2:
+        #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
+        #NEED TO CHECK SCHUR HERE!!!
+        f1=get_rhs_dirichlet_inversion(model)
+        
         #Contruct A:
         op_A=get_op_A(model)
         #Constuct B:
@@ -250,36 +250,60 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         op_C=get_op_C(model,inversion)
 #
         # Compute diagonal preconditioner
-        Adiag = LinearMap(op_A)  # Approximate diagonal
-        A_diag_vals = extract_diagonal(Adiag)  # Extract diagonal values
-        A_inv = 1.0 ./ A_diag_vals  # Inverse of diagonal
-        Adiag_inv = Diagonal(A_inv)  # Sparse diagonal matrix
-        Adiag_inv=sparse(Adiag_inv)
+   #     Adiag = LinearMap(op_A)  # Approximate diagonal
+   #     A_diag_vals = extract_diagonal(Adiag)  # Extract diagonal values
+   #     A_inv = 1.0 ./ A_diag_vals  # Inverse of diagonal
+   #     A_diag_inv = Diagonal(A_inv)  # Sparse diagonal matrix
 
+        #using inbuilt function op_diag:
+        A_diag_vals=get_op_diag(model,op_A)
+        M1 = Diagonal(A_diag_vals)
         M2=[]
 
-        M1 = Diagonal(A_diag_vals)
-       # M1 =Diagonal(extract_diagonal(Adiag_inv))
- #       M1 = diagonal_preconditioner(op_A, (gu.ni+gv.ni))  # Define preconditioner
-       # Adiag_prec = LinearSolve.InvPreconditioner(LinearMap(x -> solve_Adiag_approx(x), size(op_A, 1), size(op_A, 2)))
-        #Adiag_prec = LinearSolve.InvPreconditioner(LinearMap(x -> M1 * x, size(op_A, 1), size(op_A, 2)))
-        #op_BAdiag_inv_BT = LinearMap(x -> op_B * (Adiag_prec \ (op_BT * x)), size(op_C, 1), size(op_C, 2))
-        #MSchur = LinearMap(x -> -op_BAdiag_inv_BT * x + op_C * x, size(op_C, 1), size(op_C, 2))
-
+    #    t_start = time()  # Get start time
+     #  # MSchur_ori = Diagonal(extract_diagonal(-op_B * (A_diag_inv * op_BT) + op_C))
+      #  MSchur_ori = (extract_diagonal(-op_B * (A_diag_inv * op_BT) + op_C))
+       # t_end = time()  # Get end time
+        #println("MSchur computation took: ", t_end - t_start, " seconds")
 
         #Neumann solve:
+        abstol=0.001
+      #  reltol=0.36
         uN=get_start_guess(model)
         #cg!(uN,op_A,fN,reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter,Pl=M1,log=true)
-        uN, ch = gmres!(uN,op_A, f1, abstol=0.001, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-        println("solved for Neumann velocs")
-        resid=get_resid(uN,op_A,f1)
-        relative_residual = norm(resid) / norm(f1)
+        #original working one:
+     #   uN, ch = gmres!(uN,op_A, f1, abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false,Pl=M1)
+     #   resid=get_resid(uN,op_A,f1)
+     #   final_resid = norm(resid) / norm(f1)
         #println("   Relative Residual for Neumann is: ", relative_residual)
-        total_iters = ch.iters
-        is_conv = ch.isconverged
-        println("gmres finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
-       # println("Check convergence:"  ,uN[2])
-    
+      #  total_iters = ch.iters
+      #  is_conv = ch.isconverged
+      #  final_resid_direct = ch[:resnorm][end]  # Extract the final relative residual 
+      #  println("GMRES finished in $total_iters iterations and convergence was $is_conv and final_resid was $final_resid and final_resid_direct was $final_resid_direct")
+      #  println("abstol is " ,abstol)
+      #  println("GMRES  reported residual norm: ", ch[:resnorm][end])
+      #  println("Manually computed residual norm: ", norm(resid))
+        
+        # trying to control stopping criteria directly
+        uN=get_start_guess(model)
+        num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
+        for i in 1:num_restarts
+            uN, ch = gmres!(uN, op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, log=true, verbose=false, Pl=M1)
+            total_iters = ch.iters
+            # Compute true residual norm
+            resid = get_resid(uN, op_A, f1)
+            true_rel_resid_norm = norm(resid)/norm(f1)
+            #compute total number of iterations:
+            iter_total=total_iters+(i-1)*inversion_params.gmres_restart
+
+            println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
+        
+            if  true_rel_resid_norm  < inversion_params.gmres_reltol*1e-8
+                println("Stopping early: Relative Residual below tolerance.")
+                break
+            end
+        end     
+        println("solved for Neumann velocs")
         #set Neumann velocites:
         set_velocities!(model,uN)
 
@@ -289,24 +313,30 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         f=[f1;f2]
 
-        println("about to computer MSchur")
-    #    # Compute Schur complement matrix
-        MSchur = Diagonal(extract_diagonal(-op_B * (Adiag_inv * op_BT) + op_C))
-  #      MSchur = Diagonal(-op_B * (Adiag_inv * op_BT) + op_C)
-        println("Computed MSchur")
-#
+    # Define MSchur as a linear operator
+    t_start = time()  # Get start time
+    mi=gudata.ni+gvdata.ni+ghdata.n
+    MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
+    MSchur_new=get_op_diag_inversion(inversion, model,MSchur_op)
+    t_end = time()  # Get end time
+    println("MSchur_new linearmap computation took: ", t_end - t_start, " seconds")
+   
+  # println("Max absolute diff new to ori: ", maximum(abs.(MSchur_new - (MSchur_ori))))
+  # println("Max relative diff new to ori: ", maximum(abs.((MSchur_new - (MSchur_ori)) ./(MSchur_ori))))
+  # println("nnz new to ori: ", count(!iszero, (MSchur_new .- (MSchur_ori))))
+
         xD_guess=get_start_guess_dirichlet(inversion)
 
         #Dirichlet solve
         #Define right hand side for Schur (pressure) solve
         u0=xD_guess[1:gu.ni+gv.ni]
-        cg!(u0,op_A,f1,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter)
+       # cg!(u0,op_A,f1,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter)
+        u0, ch = gmres!(u0,op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false,Pl=M1)
         #,M1,M2);
         println("Made right hand side for Schur (pressure) solve")
         resid=get_resid(u0,op_A,f1)
         relative_residual = norm(resid) / norm(f1)
         println("   Relative Residual for RHS for Schur is: ", relative_residual)
-
 
         bSchur=-op_B*u0+f2;
         # Define the Schur complement operator as a LinearMap
@@ -315,29 +345,59 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         # Solve Schur complement system using BICGSTAB
        # pD = bicgstabl(SchurOp, bSchur, 2, reltol=inversion_params.gmres_reltol, Pl=MSchur, verbose=true)
        ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
-       if  clock.n_iter==0
-        x0m=Vector{Float64}(undef,ni);
-        read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x0guess.bin",x0m)
-        x0m.=ntoh.(x0m)
-        pD=x0m[gu.ni+gv.ni+1:ni]
-        println("pressure initial guess is being fed in from Matlab!!")
-       else
+     #  if  clock.n_iter==-1
+     #   x0m=Vector{Float64}(undef,ni);
+    #    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x0guess.bin",x0m)
+     #   x0m.=ntoh.(x0m)
+     #   pD=x0m[gu.ni+gv.ni+1:ni]
+     #   println("pressure initial guess is being fed in from Matlab!!")
+    #   else
         pD=xD_guess[gu.ni+gv.ni+1:ni]
-        end
+     #   end
 
-        pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, abstol=inversion_params.gmres_reltol*1e6, restart=inversion_params.gmres_restart, Pl=MSchur,verbose=false,log=true)
-        #pD, ch = bicgstabl!(pD,SchurOp, bSchur, 1, reltol=inversion_params.gmres_reltol, Pl=MSchur,verbose=true,log=true)
-        println("Solved Schur complement system using gmres")
-        total_iters = ch.iters
-        is_conv = ch.isconverged
-        println("GMRES finished in $total_iters iterations and convergence was $is_conv")
+    t_start=time()  
+# this one works:
+   # pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, abstol=abstol, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
+ # this one is to try and control stopping criteria:
+ num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
+ for i in 1:num_restarts
+     uN, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
+     total_iters = ch.iters
+     # Compute true residual norm
+     resid = get_resid(pD, SchurOp, bSchur)
+    # resid_norm=norm(resid)
+    # println("resid is = $resid_norm")
+    # resid=norm(SchurOp * pD - bSchur)
+    # resid_norm=norm(resid)
+    # println("resid is = $resid_norm")
+     true_rel_resid_norm = norm(resid)/norm(bSchur)
+     #compute total number of iterations:
+     iter_total=total_iters+(i-1)*inversion_params.gmres_restart
+
+     println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
+ 
+     if  true_rel_resid_norm  < inversion_params.gmres_reltol
+         println("Stopping early: Relative Residual below tolerance.")
+         break
+     end
+ end
+      t_end = time()  # Get end time
+        println("gmres pD computation took: ", t_end - t_start, " seconds")
+        #println("Solved Schur complement system using gmres")
+
+       # total_iters = ch.iters
+       # is_conv = ch.isconverged
+       # final_resid_direct = ch[:resnorm][end]  # Extract the final relative residual
+       #final_resid= norm(SchurOp * pD - bSchur)/norm(bSchur)  
+       # println("GMRES finished in $total_iters iterations and convergence was $is_conv and final_resid was $final_resid and final_resid_direct was $final_resid_direct")
+
 
         #Define right hand side for velocity solve
         b=f1-op_BT*pD;
 
         #Solve for velocity
         uD=xD_guess[1:gu.ni+gv.ni]
-        cg!(uD,op_A,b,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter,Pl=M1)
+        cg!(uD,op_A,b,reltol=inversion_params.gmres_reltol*1e-6, maxiter=inversion_params.gmres_maxiter,Pl=M1)
         #,M1,M2);
         println("Solved for Dirichelt velocities")
         resid=get_resid(uD,op_A,b)
@@ -348,10 +408,6 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
 #       println("Check convergence:"  ,x[2])
         resid=get_resid(x_output,Op_combo,f)
-
-        relative_residual = norm(resid) / norm(f)
-        println("Relative Residual: ", relative_residual)
- 
 
         #set Dirichelt velocites:
         set_velocities!(inversion,x_output)
@@ -364,11 +420,60 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
     return inversion
 end
 
+"""
+    get_op_diag(wavi::AbstractModel,op::LinearMap)
+
+ Get diagonal of operator for use in preconditioner.
+
+"""
+function get_op_diag_inversion(inversion::AbstractModel,model::AbstractModel,op::LinearMap)
+    @unpack gudata,gvdata, ghdata=inversion.data_fields
+    @unpack params,solver_params=model
+    mi,ni = size(op)
+   # print("mi is" ,mi)
+  #  print("ni is" ,ni)
+    
+    @assert mi == ni == gudata.ni + gvdata.ni + ghdata.n
+    op_diag=zeros(eltype(op),ni)
+    ope_tmp=zeros(eltype(op),ni)
+    sm=solver_params.stencil_margin
+
+    sweep=[[1+mod((i-1),sm)+sm*mod((j-1),sm) for i=1:gudata.nxu, j=1:gudata.nyu][gudata.mask_inner];
+           [1+sm^2+mod((i-1),sm)+sm*mod((j-1),sm) for i=1:gvdata.nxv, j=1:gvdata.nyv][gvdata.mask_inner];
+           [1+2*sm^2+mod(i-1,sm)+sm*mod(j-1,sm) for i=1:ghdata.nxh, j=1:ghdata.nyh][ghdata.mask]]  # New `ghdata` part
+          # sweep = vcat(sweep, zeros(Int, ghdata.n))  # Extend with zeros to match `gh` size
+    e=zeros(Bool,ni)
+    for i = unique(sweep)
+        e .= sweep .== i
+        mul!(ope_tmp,op,e)
+        op_diag[e] .= ope_tmp[e]
+    end
+    return op_diag
+end
+
+
+# Define the Schur complement linear operator
+function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
+
+    temp = op_BT * x  # Compute B^T * x
+ #  temp_scaled = temp ./ A_diag_vals  # Scale by A_diag_vals (element-wise)
+    A_inv = 1.0 ./ A_diag_vals  # Inverse of diagonal
+    A_diag_inv = Diagonal(A_inv)
+    temp_scaled = A_diag_inv * temp   # Scale by A_diag_vals (element-wise)
+    result = -op_B * temp_scaled  # Compute B * (A_diag_inv * (B^T * x))
+    
+    # Add diagonal contribution of op_C (if needed)
+    result .+= op_C * x
+   
+    return result
+end
+
+
 
 function schurVec(x, A, B, BT, C, M1, M2, inversion_params)
     # Define tolerance for inner iterative solver
-    inner_tol = 1.0e-6
-    inner_maxiters=500;
+    inner_tol = 1.0e-4
+    inner_maxiters=1000;
 
     # Solve A * u = B' * x using PCG (preconditioned CG)
     b = BT * x  # Compute B' * x
@@ -376,15 +481,12 @@ function schurVec(x, A, B, BT, C, M1, M2, inversion_params)
     u=zeros(size(b))
 
     # Solve using CG with preconditioners M1 and M2 (if provided)
-    cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
- #   u=gmres(A, b, reltol=inner_tol, maxiter=inner_maxiters,restart=500, Pl=M1)
-   # pD = gmres(SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, reltol=inversion_params.gmres_reltol, restart=inversion_params.gmres_restart, Pl=MSchur,verbose=true)
+ #   cg!(u,A, b, abstol=inner_tol, maxiter=inner_maxiters,Pl=M1)
+   cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
 
- #  println("Solved for SchurVec")
    resid=get_resid(u,A,b)
    relative_residual = norm(resid) / norm(b)
-  # println("   Relative Residual for Dirichelt system is: ", relative_residual)
-
+ #  println("   Relative Residual for Au=BTx system is: ", relative_residual)
 
     # Compute final Schur complement operation
     return -B * u + C * x
@@ -675,12 +777,12 @@ function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
         @.  r_xy_strain_rate_sum_c = dudy_c + dvdx_c
         @!  r_xy_strain_rate_sum_crop_c = gc.crop*r_xy_strain_rate_sum_c
         ##EDIT TO MATCH WITH MATLAB!!!!
-        @!  r_xy_strain_rate_sum = gc.cent*r_xy_strain_rate_sum_crop_c
-        @!  r_xy = gh.dneghηav[]*r_xy_strain_rate_sum
-        @.  r_xy = -r_xy
-        @!  r_xy_c = gc.centᵀ*r_xy
-       # @!  r_xy_c = gc.dneghηav[]*r_xy_strain_rate_sum_crop_c
-       # @.  r_xy_c = -r_xy_c
+     #   @!  r_xy_strain_rate_sum = gc.cent*r_xy_strain_rate_sum_crop_c
+     #   @!  r_xy = gh.dneghηav[]*r_xy_strain_rate_sum
+     #   @.  r_xy = -r_xy
+     #   @!  r_xy_c = gc.centᵀ*r_xy
+        @!  r_xy_c = gc.dneghηav[]*r_xy_strain_rate_sum_crop_c
+        @.  r_xy_c = -r_xy_c
         @!  r_xy_crop_c = gc.crop*r_xy_c
 
             #Gradients of resisitve stresses
@@ -1172,7 +1274,6 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
      f1 = zeros(gudata.ni+gvdata.ni+ghdata.n);            
      rhs_dirichlet = zeros(gudata.ni+gvdata.ni+ghdata.n);
     
-     
      us_data = gudata.speed_u
      vs_data = gvdata.speed_v  
 
@@ -1196,13 +1297,49 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
     vs_data_centT = gv.centᵀ*vs_data_cent_samp_spread
     vs_data_centT_crop = gv.crop*vs_data_centT
 
-
      us_data_sampi = gudata.samp_inner*us_data_centT_crop
      vs_data_sampi =gvdata.samp_inner*vs_data_centT_crop
 
+          f1[1:gudata.ni] .= us_data_sampi
+          f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
+
+          println("gudata.ni is " ,gudata.ni)
+          println("gvdata.ni is " ,gvdata.ni)
+
+     println("size of  us_data_sampi is " ,size( us_data_sampi))
+     println("size of  vs_data_sampi is " ,size( vs_data_sampi))
+#= 
+
+    # f1[1:gudata.ni] .= us_data_sampi
+   #  f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
+
+     gu_nearGap = imfilter((gu.mask .& .!gudata.mask) .|> Int, Kernel.ones(3,3)) .> 0
+     gv_nearGap = imfilter((gv.mask .& .!gvdata.mask) .|> Int, Kernel.ones(3,3)) .> 0
+
+     data_mask_u = .!gu_nearGap .& .!gu.u_isfixed .& gu.mask
+     data_mask_v = .!gv_nearGap .& .!gv.v_isfixed .& gv.mask
+     
+     println("size of gu_nearGap is " ,size(gu_nearGap))
+     println("size of gv_nearGap is " ,size(gv_nearGap))
+
+     println("size of Data_mask_u is " ,size(data_mask_u))
+     println("size of Data_mask_v is " ,size(data_mask_v))
+
+     println("nnz of Data_mask_u is " ,count(!iszero ,data_mask_u))
+     println("nnz of Data_mask_v is " ,count(!iszero ,data_mask_v))
+
+  
+        velDataRHS_smoothed_full_u=us_data_centT_crop[data_mask_u[:]]
+        velDataRHS_smoothed_full_v=vs_data_centT_crop[data_mask_v[:]]
+     
+        println("size of velDataRHS_smoothed_masked_u is " ,size(velDataRHS_smoothed_full_u))
+        println("size of velDataRHS_smoothed_masked_v is " ,size(velDataRHS_smoothed_full_v))
+        println("ghdata.n is " ,ghdata.n)
    
-     f1[1:gudata.ni] .= us_data_sampi
-     f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
+   
+          f1[1:gudata.ni] .= velDataRHS_smoothed_full_u
+          f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= velDataRHS_smoothed_full_v
+ =#
     
      dhdt_data = ghdata.dhdt
      accumulation_data = ghdata.accumulation_rate
@@ -1536,31 +1673,6 @@ function update_preBfactor_inversion!(model::AbstractModel,inversion)
     aground = (gh.haf .>= 0)
     BPower[aground] .= inversion_params.Bpower_grounded
 
- #= grounded_mask=gh.grounded_fraction .≥ 0.99  
-   floating_mask = (gh.mask .== 1) .& (gh.grounded_fraction .== 0.0)
-
-   println("Bpower_grounded is " ,inversion_params.Bpower_grounded)
-    println("mean Bpower_grounded over mask is " ,mean(BPower[gh.mask]))
-    println("mean Bpower_grounded over grounded is " ,mean(BPower[grounded_mask]))
-
-    println("mean model shelf_heating over floating is " ,mean(gh.shelf_heating[floating_mask ] ))
-    println("mean inversion shelf_heating over floating is " ,mean(inversion.fields.gh.shelf_heating[floating_mask ]))
-    println("mean model vert_shear_heating over floating is " ,mean(gh.vert_shear_heating[floating_mask ] ))
-    println("mean inversion vert_shear_heating over floating is " ,mean(inversion.fields.gh.vert_shear_heating[floating_mask ]))
-
-    println("mean model shelf_heating over grounded is " ,mean(gh.shelf_heating[grounded_mask] ))
-    println("mean inversion shelf_heating over grounded is " ,mean(inversion.fields.gh.shelf_heating[grounded_mask]))
-    println("mean model vert_shear_heating over grounded is " ,mean(gh.vert_shear_heating[grounded_mask] ))
-    println("mean inversion vert_shear_heating over grounded is " ,mean(inversion.fields.gh.vert_shear_heating[grounded_mask])) 
-
-    multiplier=zeros(gh.nxh,gh.nyh)
-    multiplier[gh.mask]=((gh.shelf_heating[gh.mask] .+ gh.vert_shear_heating[gh.mask])./(inversion.fields.gh.shelf_heating[gh.mask] .+ inversion.fields.gh.vert_shear_heating[gh.mask])).^BPower[gh.mask]
-    println("size multiplier is " ,size(multiplier))
-    println("mean multiplier over grounded is " ,mean(multiplier[grounded_mask]))
-    println("mean multiplier over floating is " ,mean(multiplier[floating_mask ]))
-    println("max multiplier is " ,maximum(multiplier))
-    println("min multiplier is " ,minimum(multiplier)) =#
-
     gh.preBfactor[gh.mask] .= gh.preBfactor[gh.mask].*((gh.shelf_heating[gh.mask] .+ gh.vert_shear_heating[gh.mask])./(inversion.fields.gh.shelf_heating[gh.mask] .+ inversion.fields.gh.vert_shear_heating[gh.mask])).^BPower[gh.mask];
     return model
 end
@@ -1613,7 +1725,8 @@ function update_damage!(model::AbstractModel)
         for j=1:g3d.nys
             for i=1:g3d.nxs
                 if gh.mask[i,j]
-                g3d.Φ[i,j,k] = 1.0 .- g3d.preBfactor[i,j,k]
+              #  g3d.Φ[i,j,k] = 1.0 .- g3d.preBfactor[i,j,k]
+                g3d.Φ[i,j,k] = 1.0 .- gh.preBfactor[i,j]
                 end
             end
         end
@@ -1678,28 +1791,26 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     @unpack gudata,gvdata,ghdata=inversion.data_fields
     @unpack grid=model
 
-
     surf_speed_data_on_h=zeros(gh.nxh,gh.nyh)
 
     us_data = gudata.speed_u[gudata.mask]
     vs_data = gvdata.speed_v[gvdata.mask] 
 
-
     us_data_spread =  gudata.crop*(gudata.spread*us_data)
     vs_data_spread =  gvdata.crop*(gvdata.spread*vs_data)
 
-    us_data_cent =(gu.cent*(us_data_spread))
-    vs_data_cent = (gv.cent*(vs_data_spread))
+  #  us_data_spread[us_data_spread .== 0] .= NaN
+   # vs_data_spread[vs_data_spread .== 0] .= NaN
 
-    
-  #  println("size us_data_cent is " ,size(us_data_cent))
+    us_data_cent =gh.crop*(gu.cent*(us_data_spread))
+    vs_data_cent =gh.crop*(gv.cent*(vs_data_spread))
 
     surf_speed_data_on_h[:]=sqrt.(us_data_cent[:].^2 .+ vs_data_cent[:].^2)
 
     # Assume u_mask and v_mask are boolean arrays (true = valid, false = invalid)
     surf_speed_data_on_h_mask = falses(size(gh.mask))  # Initialize h_mask with all false
 
-# Check validity of the surrounding u and v masks and update h_mask accordingly
+    # Check validity of the surrounding u and v masks and update h_mask accordingly
     surf_speed_data_on_h_mask[:, :] .= 
     (gudata.mask[2:end, :] .& gudata.mask[1:end-1,:]) .&  # Check valid u-mask for left and right neighbors
     (gvdata.mask[:, 2:end] .& gvdata.mask[:, 1:end-1])       # Check valid v-mask for top and bottom neighbors
@@ -1707,12 +1818,18 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     data_and_model_mask = surf_speed_data_on_h_mask .& gh.mask
     data_and_model_mask = convert(Array{Bool,2},data_and_model_mask)
 
+  #  mask = .!isnan.(surf_speed_data_on_h)
+  #  full_mask=mask .& gh.mask
+    println("the nnz in data_and_model_mask is  " ,count(!iszero, data_and_model_mask))
+   # println("the nnz in data_and_model_mask is  " ,count(!iszero, full_mask))
+#    mask_diff=full_mask-data_and_model_mask
+ #   println("the nnz in mask_diff  " ,count(!iszero, mask_diff))
+
     JRMS=sqrt(mean((surf_speed_data_on_h[data_and_model_mask] .- gh.surf_speed[data_and_model_mask]).^2));
     inversion.inversion_output.JRMS[clock.n_iter+1]=JRMS
     println("   JRMS is " ,inversion.inversion_output.JRMS)
     return model
 end
-
 
 
 function update_quadrature_falpha_direct!(model::AbstractModel)
