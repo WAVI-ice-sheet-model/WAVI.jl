@@ -80,9 +80,6 @@ function Model(;
     #check size compatibility of resulting glen a ref
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
-
-
-
     #Setup the fields 
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
