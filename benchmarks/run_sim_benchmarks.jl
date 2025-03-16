@@ -69,7 +69,7 @@ for threads in thread_nums, cells in num_cells, spacing in cell_spacing, dist_sp
             x0 = 0.0,
             y0 = -40000.0,
         )
-        @info grid
+
         init = InitialConditions()
         params = Params()
         timestep = TimesteppingParams(
