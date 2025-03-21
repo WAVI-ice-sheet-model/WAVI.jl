@@ -1,44 +1,20 @@
-using ArgParse
 using BenchmarkTools
 using LinearAlgebra
 using Logging
 using Parameters
 using WAVI
 
-@kwdef struct GridParams
-    nx::Int64
-    ny::Int64
-    mx::Int64
-    my::Int64
-    cell_spacing::Float64 = 8000.0
-    depth::Int64 = 4
+@kwdef struct GridParams{T, N}
+    nx::T
+    ny::T
+    mx::T
+    my::T
+    cell_spacing::N = 8000.0
+    depth::T = 4
 end
 
-function parse_cli()
-    arg_settings = ArgParseSettings(exit_after_help = true)
-    @add_arg_table! arg_settings begin
-        "--depth", "-d"
-            help = "Vertical depth on grid"
-            default = 4
-            arg_type = Int
-        "--cell-spacing", "-s"
-            help = "Override the test grid cell spacing"
-            default = "8000.0"            
-        "--verbose", "-v"
-            help = "Turn logging debug messages on"
-            action = :store_true
-        "nx"
-            arg_type = Int
-        "ny"
-            arg_type = Int
-        "mx"
-            default = 1
-            arg_type = Int
-        "my"
-            default = 1
-            arg_type = Int
-    end
-    return parse_args(ARGS, arg_settings)
+function GridParams(nx, ny; mx=1, my=1, depth=4, cell_spacing=8000.0)
+    return GridParams{Int64, Float64}(nx, ny, mx, my, depth,cell_spacing)
 end
 
 function create_model(p::GridParams, spec::AbstractParallelSpec)::WAVI.AbstractModel
@@ -71,13 +47,7 @@ function run_grid_ops(model::WAVI.AbstractModel)
     update_state!(model)
 end
 
-args = parse_cli()
-@debug args
-params = GridParams(
-    nx = args["nx"], 
-    ny = args["ny"],
-    mx = args["mx"], 
-    my = args["my"]
-)
-run_grid_ops(create_model(params, BasicSpec()))
-run_grid_ops(create_model(params, SharedMemorySpec()))
+function run_benchmark()
+    run_grid_ops(create_model(params, BasicSpec()))
+    run_grid_ops(create_model(params, SharedMemorySpec()))
+end
