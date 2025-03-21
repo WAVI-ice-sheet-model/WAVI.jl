@@ -53,7 +53,7 @@ function create_model(p::GridParams, spec::AbstractParallelSpec)::WAVI.AbstractM
         y0 = -40000.0,
     )
     
-    #@info "Creating model with spec"
+    @info "Creating model with spec $(typeof(spec))"
     model = Model(
         grid = grid, 
         bed_elevation = [ℯ/ (y/p.ny) + 50 *sin(x * 1e-3 * p.nx) for x in range(1., 10., length = p.nx), y in range(1., 10., length = p.ny)],
@@ -67,7 +67,7 @@ function create_model(p::GridParams, spec::AbstractParallelSpec)::WAVI.AbstractM
 end
 
 function run_grid_ops(model::WAVI.AbstractModel)
-    @info "Updating state for model"
+    @info "Updating state for model with spec $(typeof(spec))"
     update_state!(model)
 end
 
@@ -79,5 +79,5 @@ params = GridParams(
     mx = args["mx"], 
     my = args["my"]
 )
-run_grid_ops(create_model(params, BasicParallelSpec()))
+run_grid_ops(create_model(params, BasicSpec()))
 run_grid_ops(create_model(params, SharedMemorySpec()))

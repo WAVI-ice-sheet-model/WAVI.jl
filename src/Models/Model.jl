@@ -16,7 +16,7 @@ end
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
         melt_rate = UniformMeltRate(),
-        parallel_spec = BasicParallelSpec())
+        parallel_spec = BasicSpec())
 
 Construct a WAVI.jl model object.
 
@@ -38,7 +38,7 @@ function Model(;
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
     melt_rate = UniformMeltRate(),
-    parallel_spec = BasicParallelSpec())
+    parallel_spec = BasicSpec())
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
@@ -48,9 +48,9 @@ function Model(;
     #if a functional bed has been specified, convert to an array
     bed_array = zeros(grid.nx,grid.nx) #initialize a bed array
     try
-    bed_array = get_bed_elevation(bed_elevation, grid)
+        bed_array = get_bed_elevation(bed_elevation, grid)
     catch
-    throw(ArgumentError("bed elevation must be of type function or array"))
+        throw(ArgumentError("bed elevation must be of type function or array"))
     end
             #check the size of the bed
     #(Base.size(bed_array) = (grid.nx, grid.ny)) || throw(ArgumentError("Bed and grid sizes must be identical"))

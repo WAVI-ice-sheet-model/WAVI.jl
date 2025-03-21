@@ -42,7 +42,7 @@ depth = Int(args["depth"])
 distributions = []
 
 if ~args["skip-dist-basic"]
-    push!(distributions, BasicParallelSpec())
+    push!(distributions, BasicSpec())
 end
 
 if ~args["skip-dist-sharedmem"]

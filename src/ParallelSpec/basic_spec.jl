@@ -1,18 +1,18 @@
-export BasicParallelSpec, update_preconditioner!, precondition!
+export BasicSpec, update_preconditioner!, precondition!
 
-struct BasicParallelSpec <: AbstractParallelSpec end
+struct BasicSpec <: AbstractParallelSpec end
 
 """
-update_preconditioner!(model::AbstractModel,::BasicParallelSpec)
+update_preconditioner!(model::AbstractModel,::BasicSpec)
 
 Update the preconditioner. For Basic Parallel Specification no action is needed. 
 
 """
-function update_preconditioner!(model::AbstractModel,::BasicParallelSpec)
+function update_preconditioner!(model::AbstractModel, ::BasicSpec)
     return model
 end
 
-function precondition!(model::AbstractModel, ::BasicParallelSpec)
+function precondition!(model::AbstractModel, ::BasicSpec)
     @unpack solver_params=model
 
     x = WAVI.get_start_guess(model)  
@@ -26,7 +26,7 @@ function precondition!(model::AbstractModel, ::BasicParallelSpec)
     correction = zero(x)
 
     if ! converged
-      p=WAVI.get_preconditioner(model,op)
+      p=WAVI.get_preconditioner(model, op)
       WAVI.apply_precondition!(correction, p, resid)
       correction_coarse = WAVI.get_correction_coarse(p)
       WAVI.set_correction_coarse!(model,correction_coarse)

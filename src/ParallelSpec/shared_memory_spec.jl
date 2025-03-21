@@ -67,7 +67,8 @@ function precondition!(model::AbstractModel,::SharedMemorySpec)
                 
                         model_g = schwarzModelArray[igrid,jgrid]
 
-                        schwarzRestrictVelocities!(model_g::AbstractModel,
+                        schwarzRestrictVelocities!(
+                            model_g::AbstractModel,
                             model::AbstractModel;
                             igrid=igrid,
                             jgrid=jgrid,
@@ -234,8 +235,6 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     melt_rate_g=model.melt_rate
 
-    parallel_spec_g = BasicParallelSpec()
-
     model_g = WAVI.Model(
         grid = grid_g, 
         bed_elevation = bed_elevation_g,
@@ -243,7 +242,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         solver_params = solver_params_g,
         initial_conditions = initial_conditions_g,
         melt_rate = melt_rate_g,
-        parallel_spec = parallel_spec_g)
+        parallel_spec = BasicSpec())
 
     return model_g
 end

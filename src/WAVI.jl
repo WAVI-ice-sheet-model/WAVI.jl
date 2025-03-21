@@ -4,7 +4,7 @@ module WAVI
 export
     #Structures
     Model, Params, TimesteppingParams, Grid, SolverParams, InitialConditions, OutputParams, 
-    Simulation, BasicParallelSpec, SharedMemorySpec,
+    Simulation, BasicSpec, SharedMemorySpec,
 
     #Simulation controls
     update_state!, timestep!, run_simulation!,
