@@ -43,11 +43,7 @@ function create_model(p::GridParams, spec::AbstractParallelSpec)::WAVI.AbstractM
 end
 
 function run_grid_ops(model::WAVI.AbstractModel)
-    @info "Updating state for model with spec $(typeof(spec))"
+    @info "Updating state for model with spec $(typeof(model.parallel_spec))"
     update_state!(model)
 end
 
-function run_benchmark()
-    run_grid_ops(create_model(params, BasicSpec()))
-    run_grid_ops(create_model(params, SharedMemorySpec()))
-end

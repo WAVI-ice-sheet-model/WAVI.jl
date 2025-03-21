@@ -3,8 +3,8 @@ module WAVI
 #This module will export these functions and types, allowing basic use of the model.
 export
     #Structures
-    Model, Params, TimesteppingParams, Grid, SolverParams, InitialConditions, OutputParams, 
-    Simulation, BasicSpec, SharedMemorySpec,
+    Model, Params, TimesteppingParams, Grid, SolverParams, InitialConditions, OutputParams, Simulation, 
+    BasicSpec, SharedMemorySpec, MPISpec, SlurmSpec,
 
     #Simulation controls
     update_state!, timestep!, run_simulation!,

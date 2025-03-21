@@ -3,6 +3,7 @@ module ParallelSpec
 using LinearAlgebra, Parameters, Setfield
 using WAVI
 
+include("SchwarzDecomposition/SchwarzDecomposition.jl")
 
 """
 get_parallel_spec(model::AbstractModel)
@@ -17,5 +18,7 @@ update_preconditioner!(model::AbstractModel) = update_preconditioner!(model::Abs
 
 include("basic_spec.jl")
 include("shared_memory_spec.jl")
+include("mpi_spec.jl")
+include("slurm_spec.jl")
 
 end
