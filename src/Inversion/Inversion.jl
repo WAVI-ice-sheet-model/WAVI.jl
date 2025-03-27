@@ -60,14 +60,32 @@ function Inversion(;
     throw(ArgumentError("bed elevation must be of type function or array"))
     end
 
+
+    #Check initial conditions, and revert to default values if not
+    initial_conditions = check_initial_conditions(initial_conditions, params, grid)
+
+    ## Parameter fields checks 
+    #if weertman c passed as a scalar, replace weertman_c parameters with matrix of this value
+    if isa(params.weertman_c, Number) 
+        params = @set params.weertman_c = params.weertman_c*ones(grid.nx,grid.ny)
+    end
+    #check size compatibility of resulting weertman C
+    (size(params.weertman_c)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input weertman c must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+
+    #if accumulation is passed as a scalar, replace accumulation parameters with matrix of this value
+    if isa(params.accumulation_rate, Number) 
+        params = @set params.accumulation_rate = params.accumulation_rate*ones(grid.nx,grid.ny)
+    end
+    #check size compatibility of resulting accumulation rate
+    (size(params.accumulation_rate)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input accumulation must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+
+
      #if glen_a_ref is passed as a scalar, replace glen_a_ref parameters with matrix of this value
      if isa(params.glen_a_ref, Number) 
         params = @set params.glen_a_ref = params.glen_a_ref*ones(grid.nx,grid.ny)
     end
     #check size compatibility of resulting glen a ref
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
-
-
 
     #Setup the fields 
     fields = setup_dirichletfields(grid,bed_array,solver_params,initial_conditions,params)

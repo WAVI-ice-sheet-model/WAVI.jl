@@ -285,11 +285,10 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
       #  println("Manually computed residual norm: ", norm(resid))
         
         # trying to control stopping criteria directly
-        uN=get_start_guess(model)
         num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
         for i in 1:num_restarts
-            uN, ch = gmres!(uN, op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, log=true, verbose=false, Pl=M1)
-            total_iters = ch.iters
+            uN, ch1 = gmres!(uN, op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, log=true, verbose=false, Pl=M1)
+            total_iters = ch1.iters
             # Compute true residual norm
             resid = get_resid(uN, op_A, f1)
             true_rel_resid_norm = norm(resid)/norm(f1)
@@ -298,7 +297,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
             println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
         
-            if  true_rel_resid_norm  < inversion_params.gmres_reltol*1e-8
+            if  true_rel_resid_norm  < inversion_params.gmres_reltol*1e-5
                 println("Stopping early: Relative Residual below tolerance.")
                 break
             end
@@ -316,8 +315,13 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
     # Define MSchur as a linear operator
     t_start = time()  # Get start time
     mi=gudata.ni+gvdata.ni+ghdata.n
-    MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
-    MSchur_new=get_op_diag_inversion(inversion, model,MSchur_op)
+
+# Define the LinearMap with the modified schur_apply
+MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
+
+  #  MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
+    MSchur_new=get_op_diag_inversion(inversion, model, MSchur_op)
+ 
     t_end = time()  # Get end time
     println("MSchur_new linearmap computation took: ", t_end - t_start, " seconds")
    
@@ -331,48 +335,55 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         #Define right hand side for Schur (pressure) solve
         u0=xD_guess[1:gu.ni+gv.ni]
        # cg!(u0,op_A,f1,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter)
-        u0, ch = gmres!(u0,op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false,Pl=M1)
+        u0, ch2 = gmres!(u0,op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false,Pl=M1)
         #,M1,M2);
         println("Made right hand side for Schur (pressure) solve")
         resid=get_resid(u0,op_A,f1)
         relative_residual = norm(resid) / norm(f1)
         println("   Relative Residual for RHS for Schur is: ", relative_residual)
 
-        bSchur=-op_B*u0+f2;
+     #   bSchur=-op_B*u0+f2;
+         bSchur = similar(f2,size(op_B, 1))  # Preallocate bSchur with the same size as f2
+        mul!(bSchur, op_B, vec(u0))  # Compute bSchur = op_B * u0
+        bSchur .*= -1           # In-place negation (bSchur = -op_B * u0)
+        bSchur .+= f2           # In-place addition (bSchur = -op_B * u0 + f2)
+
+       #   u=zeros(size(b))
         # Define the Schur complement operator as a LinearMap
-        SchurOp = LinearMap(x -> schurVec(x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params), size(op_C, 1), size(op_C, 2))
+       # u=zeros(size(b))
+     #  b_schur = similar(bSchur)  # Buffer for Schur complement results
+        schur_output = similar(bSchur)  
+        u = similar(bSchur,size(op_BT, 1))  # Buffer for PCG solve
+        b = similar(bSchur,size(op_BT, 1))  # Buffer for right-hand side
+        residBu = similar(bSchur,size(op_B, 1))  # Buffer for intermediate residuals
+    #    SchurOp = LinearMap(x -> schurVec(x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params), size(op_C, 1), size(op_C, 2))
+      #  SchurOp = LinearMap(x -> schurVec(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu))
+        SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu)), size(op_C, 1), size(op_C, 2))
 
         # Solve Schur complement system using BICGSTAB
        # pD = bicgstabl(SchurOp, bSchur, 2, reltol=inversion_params.gmres_reltol, Pl=MSchur, verbose=true)
        ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
-     #  if  clock.n_iter==-1
-     #   x0m=Vector{Float64}(undef,ni);
-    #    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_x0guess.bin",x0m)
-     #   x0m.=ntoh.(x0m)
-     #   pD=x0m[gu.ni+gv.ni+1:ni]
-     #   println("pressure initial guess is being fed in from Matlab!!")
-    #   else
-        pD=xD_guess[gu.ni+gv.ni+1:ni]
-     #   end
 
+        pD=xD_guess[gu.ni+gv.ni+1:ni]
+
+    ch = nothing
     t_start=time()  
 # this one works:
    # pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, abstol=abstol, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
  # this one is to try and control stopping criteria:
  num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
  for i in 1:num_restarts
-     uN, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
-     total_iters = ch.iters
+    mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
+    println("Memory allocated: ", mem_usage, " bytes") 
+   # @profile pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
+    #Profile.print()
+    total_iters = ch.iters
      # Compute true residual norm
      resid = get_resid(pD, SchurOp, bSchur)
-    # resid_norm=norm(resid)
-    # println("resid is = $resid_norm")
-    # resid=norm(SchurOp * pD - bSchur)
-    # resid_norm=norm(resid)
-    # println("resid is = $resid_norm")
      true_rel_resid_norm = norm(resid)/norm(bSchur)
      #compute total number of iterations:
      iter_total=total_iters+(i-1)*inversion_params.gmres_restart
+  #   GC.gc()
 
      println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
  
@@ -385,22 +396,18 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         println("gmres pD computation took: ", t_end - t_start, " seconds")
         #println("Solved Schur complement system using gmres")
 
-       # total_iters = ch.iters
-       # is_conv = ch.isconverged
-       # final_resid_direct = ch[:resnorm][end]  # Extract the final relative residual
-       #final_resid= norm(SchurOp * pD - bSchur)/norm(bSchur)  
-       # println("GMRES finished in $total_iters iterations and convergence was $is_conv and final_resid was $final_resid and final_resid_direct was $final_resid_direct")
-
-
         #Define right hand side for velocity solve
-        b=f1-op_BT*pD;
+#        b=f1-op_BT*pD;
+        brhs = similar(f1, size(op_BT, 1))  # Ensure b has the same size as f1
+        mul!(brhs, op_BT, vec(pD))  # Computes b = op_BT * pD in-place
+        brhs .= f1 .- b # b=f1-b          Element-wise subtraction
 
         #Solve for velocity
         uD=xD_guess[1:gu.ni+gv.ni]
-        cg!(uD,op_A,b,reltol=inversion_params.gmres_reltol*1e-6, maxiter=inversion_params.gmres_maxiter,Pl=M1)
+        cg!(uD,op_A,brhs,reltol=inversion_params.gmres_reltol*1e-6, maxiter=inversion_params.gmres_maxiter,Pl=M1,log=true)
         #,M1,M2);
         println("Solved for Dirichelt velocities")
-        resid=get_resid(uD,op_A,b)
+        resid=get_resid(uD,op_A,brhs)
         relative_residual = norm(resid) / norm(b)
         println("   Relative Residual for Dirichelt system is: ", relative_residual)
 
@@ -445,14 +452,55 @@ function get_op_diag_inversion(inversion::AbstractModel,model::AbstractModel,op:
     e=zeros(Bool,ni)
     for i = unique(sweep)
         e .= sweep .== i
-        mul!(ope_tmp,op,e)
+        mul!(ope_tmp,op,Float64.(e))
         op_diag[e] .= ope_tmp[e]
     end
     return op_diag
 end
 
 
-# Define the Schur complement linear operator
+ # Define the schur_apply! function to accept the preallocated arrays
+function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
+
+   # temp = op_BT * x  # Compute B^T * x
+
+    # Preallocate the arrays based on the size of `x` (input vector)
+    temp = similar(x,size(op_BT, 1))         # Preallocate temp, the same size as x
+    result = similar(x, size(op_B, 1))       # Preallocate result, the same size as x
+   # resultC = similar(x, size(op_B, 1))       # Preallocate result, the same size as x
+    A_inv = similar(A_diag_vals)  # Preallocate A_inv, same size as A_diag_vals
+    temp_scaled = similar(temp)  # Preallocate temp_scaled, the same size as x
+
+    # Compute B^T * x
+    mul!(temp, op_BT, vec(x))
+    
+    # Inverse of diagonal (A_diag_vals) and apply element-wise scaling
+    A_inv .= 1.0 ./ A_diag_vals  # Inverse of diagonal, A_inv is updated in place
+   # Diagonal(A_inv) * temp      # Scale temp with A_inv (multiplying by the diagonal)
+    
+    # Compute the final result: -B * (A_inv * (B^T * x))
+    #temp_scaled=Diagonal(A_inv)*temp  # Store A_inv * temp in temp_scaled
+
+    mul!(temp_scaled, Diagonal(A_inv), temp)  # In-place scaling
+
+   # mul!(result, -op_B, vec(temp_scaled))           # Compute -B * temp_scaled
+    
+    ## Add diagonal contribution of op_C (if needed)
+    #mul!(resultC, op_C, vec(x))  # Add C * x to result (if required)
+    #result .+= resultC
+
+    # Compute -B * (A_inv * (B^T * x))
+    mul!(result, op_B, temp_scaled, -1.0, 0.0)  # Scale and overwrite
+
+    # Add diagonal contribution of op_C directly to result
+    mul!(result, op_C, vec(x), 1.0, 1.0)  # Efficient accumulation
+
+
+    return result
+end 
+ 
+
+#= # Define the Schur complement linear operator
 function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
 
     temp = op_BT * x  # Compute B^T * x
@@ -466,30 +514,46 @@ function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
     result .+= op_C * x
    
     return result
-end
+end  =#
 
 
 
-function schurVec(x, A, B, BT, C, M1, M2, inversion_params)
+#function schurVec(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu)
+    function schurVec!(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu)
     # Define tolerance for inner iterative solver
+  #  fill!(uc, 0) 
     inner_tol = 1.0e-4
     inner_maxiters=1000;
 
     # Solve A * u = B' * x using PCG (preconditioned CG)
-    b = BT * x  # Compute B' * x
-    #u = similar(b)  # Storage for solution u
-    u=zeros(size(b))
-
+  #  b = BT * x  # Compute B' * x
+   # Compute b = BT * x without allocating a new vector
+  # b = similar(x, size(BT, 1)) 
+   mul!(b, BT, vec(x))  # b = BT * x  (instead of `b = BT * x`)
+     
+  #u = similar(b)  # Storage for solution u
+   # u=zeros(size(b))
+    fill!(u,0)
     # Solve using CG with preconditioners M1 and M2 (if provided)
  #   cg!(u,A, b, abstol=inner_tol, maxiter=inner_maxiters,Pl=M1)
-   cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
-
-   resid=get_resid(u,A,b)
-   relative_residual = norm(resid) / norm(b)
- #  println("   Relative Residual for Au=BTx system is: ", relative_residual)
+    cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
+   
+  # resid=get_resid(u,A,b)
+  # relative_residual = norm(resid) / norm(b)
+  # println("   Relative Residual for Au=BTx system is: ", relative_residual)
 
     # Compute final Schur complement operation
-    return -B * u + C * x
+  #  return -B * u + C * x
+
+     #   residBu=similar(u,  size(B, 1))
+        # Compute Schur complement operation in-place
+        mul!(residBu, B, vec(u))   # resid = B * u
+        residBu .*= -1        # resid = -B * u
+        uc=similar(x,  size(C, 1))
+        mul!(uc, C, x)       # uC = C * x
+        uc .+= residBu         # u = -B * u + C * x
+    
+        #return uc
 end
 
 function solve_Adiag_approx(x)

@@ -3,39 +3,38 @@
 using WAVI 
 using Printf
 using ImageFiltering
-using Profile
 
-function inverse_driver_8km()
+function inverse_driver_2km()
 
 #
 #Grid and boundary conditions
 #
-nx = 105
-ny = 123
-nσ = 12
-x0 = -1825000.
-y0 = -865000.
-dx = 8000.0
-dy = 8000.0
+nx = 398
+ny = 468
+nσ = 26
+x0 = -1789000.
+y0 = -833000.
+dx = 2000.0
+dy = 2000.0
 
 h_mask=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_h_mask_clip_BedmachineV3_FULL_stripe_fix.bin",h_mask)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/h_mask.bin",h_mask)
 h_mask.=ntoh.(h_mask)
 
 u_iszero=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_uiszero_clip_BedmachineV3_FULL_stripe_fix.bin",u_iszero)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/u_iszero.bin",u_iszero)
 u_iszero.=ntoh.(u_iszero)
 
 v_iszero=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_viszero_clip_BedmachineV3_FULL_stripe_fix.bin",v_iszero)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/v_iszero.bin",v_iszero)
 v_iszero.=ntoh.(v_iszero)
 
 sigma_grid=Array{Float64}(undef,nσ);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_sigma_grid_BedmachineV3_FULL_stripe_fix.bin",sigma_grid)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/sigma_grid.bin",sigma_grid)
 sigma_grid.=ntoh.(sigma_grid)
 
 basin_ID=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_basinID_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",basin_ID)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/basinID.bin",basin_ID)
 basin_ID.=ntoh.(basin_ID)
 
 
@@ -55,49 +54,49 @@ grid = Grid(nx = nx,
 #Bed 
 #
 bed=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_bed_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",bed)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/bed.bin",bed)
 bed.=ntoh.(bed)
 
 h=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_thickness_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",h)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/thickness.bin",h)
 h.=ntoh.(h) 
 
 #this should read in from inversion, because is necessary for julia setup,but is it used???
 # viscosity=Array{Float64}(undef,nx,ny,nσ);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_viscosity3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",viscosity)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_viscosity3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",viscosity)
  #viscosity.=ntoh.(viscosity)
 
  temp=Array{Float64}(undef,nx,ny,nσ);
- read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_3Dtemp_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",temp)
+ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/temps.bin",temp)
  temp.=ntoh.(temp)
 
  #check this comes in as all zeros...
 # damage=Array{Float64}(undef,nx,ny,nσ);
- # read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_damage3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",damage)
+ # read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_damage3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",damage)
 # damage.=ntoh.(damage)
 
 #all zeros and isn't used?? Does it actually need to be here?
  #weertman_c=Array{Float64}(undef,nx,ny);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_WeertmanC_clip_adjusted_noNan_BedmachineV3_FULL_stripe_fix.bin",weertman_c)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_WeertmanC_clip_adjusted_noNan_BedmachineV3_FULL_stripe_fix.bin",weertman_c)
  #weertman_c.=ntoh.(weertman_c)
 
  #same as accumulation data? Redundant??
  accumulation_rate=Array{Float64}(undef,nx,ny);
- read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_accumulation_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",accumulation_rate)
+ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/accumulation_data.bin",accumulation_rate)
  accumulation_rate.=ntoh.(accumulation_rate)
 
 #This is from data
  dhdt=Array{Float64}(undef,nx,ny);
- read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_dhdt_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",dhdt)
+ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/dhdt_data.bin",dhdt)
  dhdt.=ntoh.(dhdt)
 
  #Hope these aren't actually needed...
  #gu_u=Array{Float64}(undef,nx+1,ny);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_u_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gu_u)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_u_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gu_u)
  #gu_u.=ntoh.(gu_u)
 #
  #gv_v=Array{Float64}(undef,nx,ny+1);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_v_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gv_v)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_v_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gv_v)
  #gv_v.=ntoh.(gv_v)
 
 initial_conditions = InitialConditions(initial_thickness = h,
@@ -157,7 +156,7 @@ timestepping_params = TimesteppingParams(niter0 = niter0,
                                            pchkpt_freq = pchkpt_freq)
 
 ##output parameters
-folder = "outputs_8km_relax_test"
+folder = "outputs_2km_relax_test"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
@@ -192,31 +191,31 @@ simulation = Simulation(model = model,
 #First read in the data to be used for the inversion:
 
 #= accumulation_rate=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_accumulation_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",accumulation_rate)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_accumulation_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",accumulation_rate)
 accumulation_rate.=ntoh.(accumulation_rate)
 
 dhdt=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_dhdt_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",dhdt)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_dhdt_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",dhdt)
 dhdt.=ntoh.(dhdt) =#
 
 dhdtaccmask=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_dhdtaccmask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",dhdtaccmask)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/dhdt_acc_mask.bin",dhdtaccmask)
 dhdtaccmask.=ntoh.(dhdtaccmask)
 
 udata=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_udata_clip_BedmachineV3_FULL_stripe_fix.bin",udata)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/udata.bin",udata)
 udata.=ntoh.(udata)
 
 vdata=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_vdata_clip_BedmachineV3_FULL_stripe_fix.bin",vdata)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/vdata.bin",vdata)
 vdata.=ntoh.(vdata)
 
 udatamask=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_udatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",udatamask)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/udata_mask.bin",udatamask)
 udatamask.=ntoh.(udatamask)
 
 vdatamask=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_vdatamask_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",vdatamask)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/vdata_mask.bin",vdatamask)
 vdatamask.=ntoh.(vdatamask)
 
 #pre-select points not near data gaps:  
@@ -238,10 +237,10 @@ println("nnz in udatamask is " ,count(!iszero, udatamask))
 println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
 println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
 
-gmres_reltol=0.05
+gmres_reltol=0.5
 gmres_abstol=0.01
-gmres_maxiter=2000
-gmres_restart =200
+gmres_maxiter=100
+gmres_restart =100
 βgrounded_start=1.e4
 βfloating_start=1.0e-4
 ηstart_guess = 1.0e7
@@ -263,7 +262,7 @@ inversion_params = InversionParams(gmres_reltol = gmres_reltol,
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 20
+max_JKV_iterations = 30
 n_iter_chkpt = 100
 n_iter_pchkpt= 5
 
@@ -300,7 +299,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "outputs_8km_inversion_slim_test"
+folder = "Mask_1_2km_inversion_slim_lowertol"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
