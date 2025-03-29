@@ -7,36 +7,30 @@ function JKVstep!(inversion_simulation)
     
     @unpack model, inversion, JKVstepping_params, output_params, clock = inversion_simulation
    
-    println("iteration number is" ,clock.n_iter)
-   
-  #  if clock.n_iter==0
-     #   println("We're allowed to update betaeff")
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
- 
     model_inversion_links!(model,inversion)
-  #  end
-
     update_rheological_operators!(model)
 
-   # println( "mean of β is ",mean(model.fields.gh.β[model.fields.gh.mask] ))
-  #  println( "mean of βeff is ",mean(model.fields.gh.βeff[model.fields.gh.mask] ))
-  #  println( "mean of quad_f2 is ",mean(model.fields.gh.quad_f2[model.fields.gh.mask] ))
-
-    # get_neumann_velocs
-   # solve_neumann_velocities!(model,inversion,clock)
-  #  #get_dirichlet_velocs
   #  solve_dirichelt_velocities!(model,inversion,clock)
 
-    solve_dirichelt_neumann_velocities!(model, inversion,clock) 
-
-    println("      mean  inversion.fields.gu.u[gu.mask] is" ,mean(inversion.fields.gu.u[inversion.fields.gu.mask]))
-    println("      mean  inversion.fields.gv.v[gv.mask] is" ,mean(inversion.fields.gv.v[inversion.fields.gv.mask]))
-    println("      mean  inversion.fields.gu.τsurf[gu.mask] is" ,mean(inversion.fields.gu.τsurf[inversion.fields.gu.mask]))
-    println("      mean  inversion.fields.gv.τsurf[gv.mask] is" ,mean(inversion.fields.gv.τsurf[inversion.fields.gv.mask]))
-    println("      mean  inversion.fields.gh.σzzsurf[gh.mask] is" ,mean(inversion.fields.gh.σzzsurf[inversion.fields.gh.mask]))
-    println("      mean  model.fields.gh.ηav[gh.mask] is" ,mean(model.fields.gh.ηav[inversion.fields.gh.mask]))
-     #do updates update_velocity does for both Neumann and Dirichlet velocities:
+ #   t_start=time()  
+ #   mem_usage = @allocated  solve_dirichelt_neumann_velocities!(model, inversion,clock) 
+ #   println("     Memory allocated in solving dirichlet and neumann velocs is : ", mem_usage, " bytes") 
+ #   t_end = time()  # Get end time
+ #   println("     Solving dirichlet and neumann velocs took: ", t_end - t_start, " seconds")
+ #   GC.gc()
+    t_start=time()  
+    println("         Memory before function call model: ", Base.summarysize(model))
+    println("         Memory before function call inversion: ", Base.summarysize(inversion))
+    solve_dirichelt_neumann_velocities!(model, inversion, clock)
+    println("         Memory after function call model: ", Base.summarysize(model))
+    println("         Memory after function call inversion: ", Base.summarysize(inversion))
+    t_end = time()  # Get end time
+    println(" Solving dirichlet and neumann velocs took: ", t_end - t_start, " seconds")
+    GC.gc()
+    
+    #do updates update_velocity does for both Neumann and Dirichlet velocities:
     update_surf_stress_dirichelt!(inversion)
      
     ###ISSUE is that gh.quad are only on model grid and not also inversion, but I don't want to copy them, or to call model and inversion to all these functions...
@@ -62,7 +56,6 @@ function JKVstep!(inversion_simulation)
     update_basal_drag_components!(inversion)
     #
     update_dhdt!(model)
-   # println("nnz basal melt rate is" ,count(!iszero, model.fields.gh.basal_melt[:]))
     #
     update_shelf_heating!(model)
     update_shelf_heating_dirichlet!(model,inversion)
@@ -81,15 +74,12 @@ function JKVstep!(inversion_simulation)
     update_glen_b!(model)
 
     inner_update_viscosity!(model)
-     update_av_viscosity!(model)
-   #  update_quadrature_falpha_direct!(model)
-     update_quadrature_falpha!(model)
+    update_av_viscosity!(model)
+    update_quadrature_falpha!(model)
   
- 
     update_JKV!(model,inversion,clock)
     update_JRMS!(model,inversion,clock)
     println("Completed iteration number " ,clock.n_iter)
-
     update_clock_inversion!(inversion_simulation)
 
     return inversion_simulation

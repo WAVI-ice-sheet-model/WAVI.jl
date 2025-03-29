@@ -239,8 +239,8 @@ println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
 
 gmres_reltol=0.5
 gmres_abstol=0.01
-gmres_maxiter=100
-gmres_restart =100
+gmres_maxiter=1000
+gmres_restart =50
 βgrounded_start=1.e4
 βfloating_start=1.0e-4
 ηstart_guess = 1.0e7

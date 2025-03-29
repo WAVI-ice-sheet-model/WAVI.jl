@@ -3,7 +3,6 @@
 using WAVI 
 using Printf
 using ImageFiltering
-using Profile
 
 function inverse_driver_8km()
 
@@ -241,7 +240,7 @@ println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
 gmres_reltol=0.05
 gmres_abstol=0.01
 gmres_maxiter=2000
-gmres_restart =200
+gmres_restart =50
 βgrounded_start=1.e4
 βfloating_start=1.0e-4
 ηstart_guess = 1.0e7
@@ -263,7 +262,7 @@ inversion_params = InversionParams(gmres_reltol = gmres_reltol,
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 20
+max_JKV_iterations = 30
 n_iter_chkpt = 100
 n_iter_pchkpt= 5
 
@@ -300,7 +299,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "outputs_8km_inversion_slim_test"
+folder = "outputs_8km_inversion_slim_play"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
