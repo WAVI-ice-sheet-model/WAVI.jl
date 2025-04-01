@@ -13,7 +13,7 @@ struct InversionParams{T <: Real, A, W, G}
                     Bpower_shelf :: T
                     Bpower_grounded :: T
                     inner_tol ::T 
-                    inner_maxiters:: T
+                    inner_maxiters:: Int
 end
 
 """

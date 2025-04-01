@@ -293,7 +293,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         true_rel_resid_norm = norm(residpD)/norm(bSchur)
         #compute total number of iterations:
         #  iter_total=total_iters+(i-1)*inversion_params.gmres_restart
-         println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
+         println("Loop $i : True Relative Residual Norm = $true_rel_resid_norm")
        # println("True Relative Residual Norm = $true_rel_resid_norm")
         #  println("Total allocated memory for pD, bSchur and Pl is: ", Base.summarysize(pD) + Base.summarysize(bSchur) + Base.summarysize(Pl), " bytes") 
         if  true_rel_resid_norm  < inversion_params.gmres_reltol
