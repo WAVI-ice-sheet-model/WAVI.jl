@@ -79,7 +79,6 @@ function JKVstep!(inversion_simulation)
   
     update_JKV!(model,inversion,clock)
     update_JRMS!(model,inversion,clock)
-    println("Completed iteration number " ,clock.n_iter)
     update_clock_inversion!(inversion_simulation)
 
     return inversion_simulation
@@ -114,13 +113,8 @@ function run_inversion_simulation!(inversion_simulation)
     start_guess_β_inversion!(model,inversion)
     start_guess_η_inversion!(model,inversion)
 
-
-  #  quadrature_falpha_start!(model)
     update_quadrature_falpha!(model)
     update_av_viscosity!(model)
-
-   # converged::Bool = false
-   # i_JKV = 0
 
    # while !converged && (inversion_simulation.clock.n_iter+1 < inversion.inversion_params.max_JKV_iterations+1)
      for   i = (inversion_simulation.clock.n_iter+1): JKVstepping_params.n_iter_total
@@ -129,7 +123,7 @@ function run_inversion_simulation!(inversion_simulation)
       #  i=inversion_simulation.clock.n_iter+1
 
         JKVstep!(inversion_simulation)
-        
+
         #check if we have hit a temporary checkpoint
         if mod(i,JKVstepping_params.n_iter_chkpt) == 0
             #output a temporary checkpoint
@@ -143,7 +137,7 @@ function run_inversion_simulation!(inversion_simulation)
         if mod(i,inversion_simulation.JKVstepping_params.n_iter_pchkpt) == 0
             #output a permanent checkpoint
             n_iter_string =  lpad(inversion_simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-            fname = string("PChkpt_",n_iter_string, ".jld2")
+            fname = string(output_params.output_path, "PChkpt_",n_iter_string, ".jld2")
             @save fname inversion_simulation
             println("making permanent checkpoint at timestep number $(inversion_simulation.clock.n_iter)")
         end

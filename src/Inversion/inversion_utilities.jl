@@ -120,8 +120,8 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         #get rhs f1, and get rhsf2:
         #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
-        #NEED TO CHECK SCHUR HERE!!!
         f1=get_rhs_dirichlet_inversion(model)
+
         
         #Contruct A:
         op_A=get_op_A(model)
@@ -132,6 +132,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         op_C=get_op_C(model,inversion)
 
         #using inbuilt function op_diag:
+        #pre-allocate??
         A_diag_vals=get_op_diag(model,op_A)
         M1 = Diagonal(A_diag_vals)
         M2=[]
@@ -171,7 +172,11 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         f2=get_rhs_dirichlet_inverse_data(model,inversion)
       #  f2=get_rhs_neumann_data_check(model,inversion)
 
-        f=[f1;f2]
+#        println("f2 1:10 are ...." ,f2[1:10])
+#        println("size f1 is" ,size(f1))
+#        println("size f2 is" ,size(f2))
+
+       # f=[f1;f2]
 
         # Define MSchur as a linear operator
         t_start = time()  # Get start time
@@ -199,8 +204,9 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         println("   Relative Residual for RHS for Schur is: ", relative_residual)
 
         # Define tolerance for inner iterative solver
-        inner_tol = 1.0e-4
-        inner_maxiters=1000;
+        ####NEED MOVING TO STRUCTURE!!!!!!
+        inner_tol = inversion_params.inner_tol
+        inner_maxiters=inversion_params.inner_maxiters
 
      #   bSchur=-op_B*u0+f2;
         bSchur = similar(f2,size(op_B, 1))  # Preallocate bSchur with the same size as f2
@@ -213,7 +219,8 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         residBu = similar(bSchur,size(op_B, 1))  # Buffer for intermediate residuals
     #    SchurOp = LinearMap(x -> schurVec(x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params), size(op_C, 1), size(op_C, 2))
       #  SchurOp = LinearMap(x -> schurVec(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu))
-        SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inner_tol, inner_maxiters)), size(op_C, 1), size(op_C, 2))
+       
+      SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inner_tol, inner_maxiters)), size(op_C, 1), size(op_C, 2))
 
       #  mem_schur = @allocated schurVec!(schur_output, bSchur, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu)
        # println("Memory allocated by schurVec!: ", mem_schur, " bytes")
@@ -224,7 +231,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         pD = similar(xD_guess, ni - (gu.ni + gv.ni))  # Preallocate correct size
         pD=xD_guess[gu.ni+gv.ni+1:ni]
-        fill!(pD,0)
+  #      fill!(pD,0)
 
  #=############################################################### CHECKING mul allocation for each op
                 uN=get_start_guess(model)
@@ -258,25 +265,37 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         # this one works:
         # pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, abstol=abstol, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
         # this one is to try and control stopping criteria:
+
         num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
         Pl = Diagonal(MSchur_new)  # Store once outside loop
         for i in 1:num_restarts
         #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
-        mem_usage = @allocated gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=false)
+        mem_usage = @allocated gmres!(pD,SchurOp,bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=false)
         # println("Memory allocated: ", mem_usage, " bytes") 
         # total_iters = ch.iters
         # Compute true residual norm
         if !@isdefined residpD
             residpD = similar(bSchur)  # Allocate once
-        end
+        end 
+
+      #= Pl = Diagonal(MSchur_new)  # Store once outside loop
+     #   for i in 1:num_restarts
+        #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
+       pD, ch =  cg!(pD,SchurOp, bSchur,  abstol=0.05, maxiter=1000, Pl=Pl,verbose=false,log=true)
+        # println("Memory allocated: ", mem_usage, " bytes") 
+         total_iters = ch.iters
+        # Compute true residual norm
+        if !@isdefined residpD
+            residpD = similar(bSchur)  # Allocate once
+        end =#
+
         get_resid!(residpD, pD, SchurOp, bSchur)  # In-place operation
         true_rel_resid_norm = norm(residpD)/norm(bSchur)
         #compute total number of iterations:
         #  iter_total=total_iters+(i-1)*inversion_params.gmres_restart
-        #     println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
-        println("Loop $i: True Relative Residual Norm = $true_rel_resid_norm")
-        #  println("Total allocated memory for pD, bSchur and Pl is: ", Base.summarysize(pD) + Base.summarysize(bSchur) + Base.summarysize(Pl), " bytes")
- 
+         println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
+       # println("True Relative Residual Norm = $true_rel_resid_norm")
+        #  println("Total allocated memory for pD, bSchur and Pl is: ", Base.summarysize(pD) + Base.summarysize(bSchur) + Base.summarysize(Pl), " bytes") 
         if  true_rel_resid_norm  < inversion_params.gmres_reltol
              println("Stopping early: Relative Residual below tolerance.")
             break
@@ -407,7 +426,7 @@ end  =#
 #function schurVec(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu)
     function schurVec!(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu, inner_tol, inner_maxiters)
 
-    # Solve A * u = B' * x using PCG (preconditioned CG)
+    # Solve A * u = B' * x 
     mem_BT_x = @allocated mul!(b, BT, x)
   #  println("Memory allocated inside BT * x mul: ", mem_BT_x, " bytes")
 
@@ -754,7 +773,7 @@ function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
             h_d_extra_dx .= vec(gu.h).*d_extra_dx
             h_d_extra_dy .= vec(gv.h).*d_extra_dy
 
-            #Resistive forces resolved in x anf y directions
+            #Resistive forces resolved in x and y directions
             fx .= d_rxx_dx .+ d_rxy_dy .- taubx 
             #.- h_d_extra_dx
             fy .= d_ryy_dy .+ d_rxy_dx .- tauby 
@@ -1227,8 +1246,8 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
       #   end
       #   println("Memory allocated in P block: ", allocated_memory_P, " bytes")
 
-
          allocated_memory_px = @allocated begin
+            
         @!  tausspreadu_crop=gu.crop*tausspreadu
         @!  tauspreadu_on_h=gu.cent*tausspreadu_crop
         @!  tauspreadu_on_h_crop=gh.crop*tauspreadu_on_h

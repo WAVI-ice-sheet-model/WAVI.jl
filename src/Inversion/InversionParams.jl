@@ -12,6 +12,8 @@ struct InversionParams{T <: Real, A, W, G}
                     βpower :: T
                     Bpower_shelf :: T
                     Bpower_grounded :: T
+                    inner_tol ::T 
+                    inner_maxiters:: T
 end
 
 """
@@ -35,7 +37,9 @@ function InversionParams(; gmres_reltol = 1e-6,
                     ηstart_guess = 1.0e7,
                     βpower = 0.1,
                     Bpower_shelf = 0.1,
-                    Bpower_grounded = 0.01 )
+                    Bpower_grounded = 0.01,
+                    inner_tol = 1.e-4,
+                    inner_maxiters=1000 )
                       
   return InversionParams(gmres_reltol,
                   gmres_abstol, 
@@ -49,6 +53,8 @@ function InversionParams(; gmres_reltol = 1e-6,
                   ηstart_guess,
                   βpower,
                   Bpower_shelf,
-                  Bpower_grounded
+                  Bpower_grounded,
+                  inner_tol, 
+                  inner_maxiters
                   )
 end

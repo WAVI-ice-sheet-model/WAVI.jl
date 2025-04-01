@@ -242,7 +242,7 @@ gmres_abstol=0.01
 gmres_maxiter=2000
 gmres_restart =50
 βgrounded_start=1.e4
-βfloating_start=1.0e-4
+βfloating_start=1.0e-10
 ηstart_guess = 1.0e7
 βpower = 0.1
 Bpower_shelf = 0.1
@@ -264,7 +264,7 @@ niter0 = 0
 n_iter_out=1
 max_JKV_iterations = 30
 n_iter_chkpt = 100
-n_iter_pchkpt= 5
+n_iter_pchkpt= 2
 
 JKVstepping_params = JKVsteppingParams(niter0 = niter0, 
                                         n_iter_chkpt = n_iter_chkpt,
@@ -299,7 +299,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "outputs_8km_inversion_slim_play"
+folder = "outputs_8km_inversion_neg"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
