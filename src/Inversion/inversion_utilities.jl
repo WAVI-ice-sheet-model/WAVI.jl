@@ -176,7 +176,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 #        println("size f1 is" ,size(f1))
 #        println("size f2 is" ,size(f2))
 
-       # f=[f1;f2]
+        f=[f1;f2]
 
         # Define MSchur as a linear operator
         t_start = time()  # Get start time
@@ -203,8 +203,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         relative_residual = norm(residu0) / norm(f1)
         println("   Relative Residual for RHS for Schur is: ", relative_residual)
 
-        # Define tolerance for inner iterative solver
-        ####NEED MOVING TO STRUCTURE!!!!!!
+        # Pass tolerance for inner iterative solver
         inner_tol = inversion_params.inner_tol
         inner_maxiters=inversion_params.inner_maxiters
 
@@ -230,8 +229,8 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
        ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
 
         pD = similar(xD_guess, ni - (gu.ni + gv.ni))  # Preallocate correct size
-        pD=xD_guess[gu.ni+gv.ni+1:ni]
-  #      fill!(pD,0)
+       # pD=xD_guess[gu.ni+gv.ni+1:ni]
+        fill!(pD,0)
 
  #=############################################################### CHECKING mul allocation for each op
                 uN=get_start_guess(model)
@@ -270,7 +269,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         Pl = Diagonal(MSchur_new)  # Store once outside loop
         for i in 1:num_restarts
         #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
-        mem_usage = @allocated gmres!(pD,SchurOp,bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=false)
+        mem_usage = @allocated gmres!(pD,SchurOp, bSchur, abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=false)
         # println("Memory allocated: ", mem_usage, " bytes") 
         # total_iters = ch.iters
         # Compute true residual norm

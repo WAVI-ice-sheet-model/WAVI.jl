@@ -110,7 +110,7 @@ initial_conditions = InitialConditions(initial_thickness = h,
 #
 maxiter_picard = 1
 tol_picard = 1.0e-4
-n_iter_viscosity = 2
+n_iter_viscosity = 10
 
 solver_params = SolverParams(maxiter_picard = maxiter_picard,
                             tol_picard = tol_picard,
@@ -233,7 +233,7 @@ gmres_abstol=0.01
 gmres_maxiter=500
 gmres_restart =50
 βgrounded_start=1.e4
-βfloating_start=1.0e-10
+βfloating_start=1.0e-4
 ηstart_guess = 1.0e7
 βpower = 0.1
 Bpower_shelf = 0.1
@@ -290,7 +290,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "Y1990s_Mask_1_2km_inversion"
+folder = "Y1990s_Mask_1_2km_inversion_2"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,

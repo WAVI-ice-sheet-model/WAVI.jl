@@ -232,17 +232,13 @@ udatamask_combo = convert(Array{Bool,2}, udatamask_combo)
 vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
-println("nnz inmodel.fields.gu.mask is " ,count(!iszero, model.fields.gu.mask))
-println("nnz in udatamask is " ,count(!iszero, udatamask))
-println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
-println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
 
-gmres_reltol=0.05
+gmres_reltol=0.5
 gmres_abstol=0.01
 gmres_maxiter=2000
 gmres_restart =50
 βgrounded_start=1.e4
-βfloating_start=1.0e-10
+βfloating_start=1.0e-4
 ηstart_guess = 1.0e7
 βpower = 0.1
 Bpower_shelf = 0.1
@@ -264,7 +260,7 @@ niter0 = 0
 n_iter_out=1
 max_JKV_iterations = 30
 n_iter_chkpt = 100
-n_iter_pchkpt= 2
+n_iter_pchkpt= 5
 
 JKVstepping_params = JKVsteppingParams(niter0 = niter0, 
                                         n_iter_chkpt = n_iter_chkpt,
@@ -299,7 +295,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "outputs_8km_inversion_neg"
+folder = "outputs_8km_inversion_help_again"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
