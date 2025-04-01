@@ -132,14 +132,14 @@ params = Params(accumulation_rate = accumulation_rate,
 
 
  #build the model to use in the initialisation:
-@printf "Starting to make the model"
+println("Starting to make the model")
 model = Model(grid = grid,
               bed_elevation = bed, 
               params = params, 
               solver_params = solver_params,
               initial_conditions= initial_conditions) 
 #
-@sprintf "The model is made"
+ println("The model is made")
 
 #But now I don't want to do any timestepping, I want to initialise instead and produce new model, no simulation...
 
@@ -185,7 +185,7 @@ simulation = Simulation(model = model,
 @printf "The simulation has NOT been run" 
  =#
 
-@printf "The inversion test is about to be done"
+println("The inversion test is about to be done")
 #perform the inversion
 
 #First read in the data to be used for the inversion:
@@ -287,7 +287,7 @@ inversion = Inversion(grid = grid,
  #                   melt_rate=nothing,
  #                   parallel_spec=nothing)
 
- @printf "About to make inversion_simulation"
+println("About to make inversion_simulation")
 
  ##output parameters
 folder = "Y1990s_Mask_1_2km_inversion_2"

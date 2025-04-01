@@ -90,15 +90,6 @@ h.=ntoh.(h)
  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_dhdt_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",dhdt)
  dhdt.=ntoh.(dhdt)
 
- #Hope these aren't actually needed...
- #gu_u=Array{Float64}(undef,nx+1,ny);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_u_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gu_u)
- #gu_u.=ntoh.(gu_u)
-#
- #gv_v=Array{Float64}(undef,nx,ny+1);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_8km_v_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gv_v)
- #gv_v.=ntoh.(gv_v)
-
 initial_conditions = InitialConditions(initial_thickness = h,
 #                                        initial_viscosity = viscosity,
                                         initial_temperature = temp)
@@ -132,14 +123,14 @@ params = Params(accumulation_rate = accumulation_rate,
 
 
  #build the model to use in the initialisation:
-@printf "Starting to make the model"
+println("Starting to make the model")
 model = Model(grid = grid,
               bed_elevation = bed, 
               params = params, 
               solver_params = solver_params,
               initial_conditions= initial_conditions) 
 #
-@sprintf "The model is made"
+println("The model is made")
 
 #But now I don't want to do any timestepping, I want to initialise instead and produce new model, no simulation...
 
@@ -185,7 +176,7 @@ simulation = Simulation(model = model,
 @printf "The simulation has NOT been run" 
  =#
 
-@printf "The inversion test is about to be done"
+println("The inversion test is about to be done")
 #perform the inversion
 
 #First read in the data to be used for the inversion:
@@ -233,9 +224,9 @@ vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
 
-gmres_reltol=0.5
-gmres_abstol=0.01
-gmres_maxiter=2000
+reltol=0.5
+abstol=0.01
+maxiter=2000
 gmres_restart =50
 βgrounded_start=1.e4
 βfloating_start=1.0e-4
@@ -243,17 +234,19 @@ gmres_restart =50
 βpower = 0.1
 Bpower_shelf = 0.1
 Bpower_grounded = 0.01
-#max_JKV_iterations = 5
+cg=false
+gmres=true
 
-inversion_params = InversionParams(gmres_reltol = gmres_reltol,
-                                    gmres_maxiter = gmres_maxiter,
+inversion_params = InversionParams(reltol = reltol,
+                                    maxiter = maxiter,
+                                    abstol = abstol,
                                     gmres_restart = gmres_restart,
                                     βgrounded_start = βgrounded_start,
                                     βfloating_start = βfloating_start,
                                     ηstart_guess = ηstart_guess,
-                                    βpower = βpower)
-               #                     max_JKV_iterations = max_JKV_iterations)
-
+                                    βpower = βpower,
+                                    cg = cg,
+                                    gmres = gmres)
                                 
 #JKVstepping parameters
 niter0 = 0
@@ -292,7 +285,7 @@ inversion = Inversion(grid = grid,
  #                   melt_rate=nothing,
  #                   parallel_spec=nothing)
 
- @printf "About to make inversion_simulation"
+println("About to make inversion_simulation")
 
  ##output parameters
 folder = "outputs_8km_inversion_help_again"
@@ -375,7 +368,7 @@ run_inversion_simulation!(inversion_simulation)
 
 #run_inversion!(simulation,inversion)
 
-@printf "The inversion test has been run"
+println("The inversion test has been run")
 
 return model
 

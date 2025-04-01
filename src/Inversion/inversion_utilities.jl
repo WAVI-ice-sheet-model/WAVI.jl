@@ -83,8 +83,8 @@ function solve_dirichelt_velocities!(model, inversion,clock)
     relative_residual = norm(resid) / norm(f)
     println("Initial relative Residual: ", relative_residual)
 
-    x,ch =gmres!(x,Op_combo, f, abstol=inversion_params.gmres_reltol*1e6, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)  
-  #  x,ch =minres!(x,Op_combo, f, abstol=8, maxiter=inversion_params.gmres_maxiter, log=true,verbose=false)  
+    x,ch =gmres!(x,Op_combo, f, abstol=inversion_params.reltol*1e6, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)  
+  #  x,ch =minres!(x,Op_combo, f, abstol=8, maxiter=inversion_params.maxiter, log=true,verbose=false)  
    # Extract total iterations and final residual
     total_iters = ch.iters
     is_conv = ch.isconverged
@@ -142,12 +142,13 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         uN=get_start_guess(model)
     
         # trying to control stopping criteria directly
-        num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
+      #=  num_restarts = inversion_params.maxiter ÷ inversion_params.gmres_restart
         for i in 1:num_restarts
-            mem_usage_uN = @allocated  uN, ch1 = gmres!(uN, op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, log=true, verbose=false, Pl=M1)
+            mem_usage_uN = @allocated  uN, ch1 = gmres!(uN, op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, log=true, verbose=false, Pl=M1)
            # println("Memory allocated in uN solve is: ", mem_usage_uN, " bytes")   
             total_iters = ch1.iters
             # Compute true residual norm
+          
             if !@isdefined residuN
                 residuN = similar(f1)  # Allocate once
             end
@@ -159,24 +160,27 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
             println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
         
-            if  true_rel_resid_norm  < inversion_params.gmres_reltol*1e-5
+            if  true_rel_resid_norm  < inversion_params.reltol*1e-5
                 println("Stopping early: Relative Residual below tolerance.")
                 break
             end
-        end     
-        println("solved for Neumann velocs")
+        end  =#
+        
+        uN, ch1 = cg!(uN, op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, log=true, verbose=false, Pl=M1)
+        if !@isdefined residuN
+            residuN = similar(f1)  # Allocate once
+        end
+        get_resid!(residuN, uN, op_A, f1)  # In-place operation
+        total_iters = ch1.iters
+        true_rel_resid_norm = norm(residuN)/norm(f1)
+        println("uN solved after $total_iters iterations, with True Relative Residual Norm = $true_rel_resid_norm")
+       # println("solved for Neumann velocs")
+
         #set Neumann velocites:
         set_velocities!(model,uN)
 
          #get f2
         f2=get_rhs_dirichlet_inverse_data(model,inversion)
-      #  f2=get_rhs_neumann_data_check(model,inversion)
-
-#        println("f2 1:10 are ...." ,f2[1:10])
-#        println("size f1 is" ,size(f1))
-#        println("size f2 is" ,size(f2))
-
-        f=[f1;f2]
 
         # Define MSchur as a linear operator
         t_start = time()  # Get start time
@@ -186,22 +190,25 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         #  MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
         MSchur_new=get_op_diag_inversion(inversion, model, MSchur_op)
         t_end = time()  # Get end time
-        println("MSchur_new linearmap computation took: ", t_end - t_start, " seconds")
+     #   println("MSchur_new linearmap computation took: ", t_end - t_start, " seconds")
 
         xD_guess=get_start_guess_dirichlet(inversion)
 
         #Dirichlet solve
         #Define right hand side for Schur (pressure) solve
         u0=xD_guess[1:gu.ni+gv.ni]
-       # cg!(u0,op_A,f1,reltol=inversion_params.gmres_reltol*1e-3, maxiter=inversion_params.gmres_maxiter)
-        u0 = gmres!(u0,op_A, f1,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=false,verbose=false,Pl=M1)
-    #    println("Made right hand side for Schur (pressure) solve")
+       # cg!(u0,op_A,f1,reltol=inversion_params.reltol*1e-3, maxiter=inversion_params.maxiter)
+      #  u0 = gmres!(u0,op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=false,verbose=false,Pl=M1)
+        u0, chu0 = cg!(u0,op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, log=true,verbose=false,Pl=M1)
+        #    println("Made right hand side for Schur (pressure) solve")
         if !@isdefined residu0
             residu0 = similar(f1)  # Allocate once
         end
         get_resid!(residu0,u0,op_A,f1)
         relative_residual = norm(residu0) / norm(f1)
-        println("   Relative Residual for RHS for Schur is: ", relative_residual)
+        total_iters_u0 = chu0.iters
+        true_rel_resid_norm_u0 = norm(residuN)/norm(f1)
+        println("u0 solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
 
         # Pass tolerance for inner iterative solver
         inner_tol = inversion_params.inner_tol
@@ -216,93 +223,61 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         u = similar(bSchur,size(op_BT, 1))  # Buffer for PCG solve
         b = similar(bSchur,size(op_BT, 1))  # Buffer for right-hand side
         residBu = similar(bSchur,size(op_B, 1))  # Buffer for intermediate residuals
-    #    SchurOp = LinearMap(x -> schurVec(x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params), size(op_C, 1), size(op_C, 2))
-      #  SchurOp = LinearMap(x -> schurVec(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu))
-       
-      SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inner_tol, inner_maxiters)), size(op_C, 1), size(op_C, 2))
+ 
+      SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inversion_params.inner_tol, inversion_params.inner_maxiters)), size(op_C, 1), size(op_C, 2))
 
-      #  mem_schur = @allocated schurVec!(schur_output, bSchur, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu)
-       # println("Memory allocated by schurVec!: ", mem_schur, " bytes")
-        
-        # Solve Schur complement system using BICGSTAB
-       # pD = bicgstabl(SchurOp, bSchur, 2, reltol=inversion_params.gmres_reltol, Pl=MSchur, verbose=true)
        ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
-
         pD = similar(xD_guess, ni - (gu.ni + gv.ni))  # Preallocate correct size
        # pD=xD_guess[gu.ni+gv.ni+1:ni]
         fill!(pD,0)
 
- #=############################################################### CHECKING mul allocation for each op
-                uN=get_start_guess(model)
-                #Contruct original op for testing:
-                op_ori=get_op(model)
-                ressy=similar(uN, size(op_ori,1))
-                mem_ori = @allocated mul!(ressy, op_ori, uN)
-                println("       Memory allocated inside ori mul test is: ", mem_ori, " bytes")
-                uN=get_start_guess(model)
-                ressy2=similar(uN, size(op_A,1))
-                mem_opA = @allocated mul!(ressy2, op_A, uN)
-                println("       Memory allocated inside op_A mul test is: ", mem_opA, " bytes")
-        
-                u0=xD_guess[1:gu.ni+gv.ni]
-                ressyb=similar(u0, size(op_B,1))
-                mem_B_test = @allocated mul!(ressyb, op_B, u0)
-                println("       Memory allocated inside mul B test: ", mem_B_test, " bytes")
-
-                ressybt=similar(pD, size(op_BT,1))
-                mem_BT_test = @allocated mul!(ressybt, op_BT, pD)
-                println("       Memory allocated inside BT test: ", mem_BT_test, " bytes")
-                
-          #      pD.=xD_guess[gu.ni+gv.ni+1:ni]
-                ressyc=similar(pD, size(op_C,1))
-                mem_C_test = @allocated mul!(ressyc, op_C, pD)
-                println("       Memory allocated inside C mul test: ", mem_C_test, " bytes")
-################################################################################################## =#
-
-        ch = nothing
+        ch_pD = nothing
         t_start=time()  
         # this one works:
-        # pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.gmres_maxiter, abstol=abstol, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
-        # this one is to try and control stopping criteria:
-
-        num_restarts = inversion_params.gmres_maxiter ÷ inversion_params.gmres_restart
+        # pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.maxiter, abstol=abstol, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
+  
+        num_restarts = inversion_params.maxiter ÷ inversion_params.gmres_restart
         Pl = Diagonal(MSchur_new)  # Store once outside loop
-        for i in 1:num_restarts
-        #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
-        mem_usage = @allocated gmres!(pD,SchurOp, bSchur, abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=false)
-        # println("Memory allocated: ", mem_usage, " bytes") 
-        # total_iters = ch.iters
-        # Compute true residual norm
-        if !@isdefined residpD
-            residpD = similar(bSchur)  # Allocate once
-        end 
 
-      #= Pl = Diagonal(MSchur_new)  # Store once outside loop
-     #   for i in 1:num_restarts
-        #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.gmres_abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
-       pD, ch =  cg!(pD,SchurOp, bSchur,  abstol=0.05, maxiter=1000, Pl=Pl,verbose=false,log=true)
-        # println("Memory allocated: ", mem_usage, " bytes") 
-         total_iters = ch.iters
-        # Compute true residual norm
-        if !@isdefined residpD
-            residpD = similar(bSchur)  # Allocate once
-        end =#
-
-        get_resid!(residpD, pD, SchurOp, bSchur)  # In-place operation
-        true_rel_resid_norm = norm(residpD)/norm(bSchur)
-        #compute total number of iterations:
-        #  iter_total=total_iters+(i-1)*inversion_params.gmres_restart
-         println("Loop $i : True Relative Residual Norm = $true_rel_resid_norm")
-       # println("True Relative Residual Norm = $true_rel_resid_norm")
-        #  println("Total allocated memory for pD, bSchur and Pl is: ", Base.summarysize(pD) + Base.summarysize(bSchur) + Base.summarysize(Pl), " bytes") 
-        if  true_rel_resid_norm  < inversion_params.gmres_reltol
-             println("Stopping early: Relative Residual below tolerance.")
-            break
-        end
+        if inversion_params.gmres
+                  # this one is to try and control stopping criteria:
+            for i in 1:num_restarts
+                #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
+                pD, ch_pD =  gmres!(pD,SchurOp, bSchur, abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
+                # println("Memory allocated: ", mem_usage, " bytes") 
+                 total_iters_pD = ch_pD.iters
+                # Compute true residual norm
+                if !@isdefined residpD
+                residpD = similar(bSchur)  # Allocate once
+                end 
+                get_resid!(residpD, pD, SchurOp, bSchur)  # In-place operation
+                true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
+                #compute total number of iterations:
+                iter_total_pD=total_iters_pD+(i-1)*inversion_params.gmres_restart
+                println("Loop $i : True Relative Residual Norm = $true_rel_resid_norm_pD")
+                if  true_rel_resid_norm  < inversion_params.reltol
+                println("Stopping early: Relative Residual below tolerance.")
+                println("pD solved after $iter_total_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
+                    break
+                end
+                
+            end
+            elseif inversion_params.cg              
+                pD, ch_pD =  cg!(pD,SchurOp, bSchur,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, Pl=Pl,verbose=false,log=true)
+                total_iters = ch_pD.iters
+                # Compute true residual norm
+                if !@isdefined residpD
+                residpD = similar(bSchur)  # Allocate once
+                end 
+                get_resid!(residpD, pD, SchurOp, bSchur)  # In-place operation
+                true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
+                total_iters_pD = ch_pD.iters
+                println("pD solved after $total_iters_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
+            else
+                error("Error: iterative solver for pD isn't specified. Exiting..")
         end
         t_end = time()  # Get end time
-        println("gmres pD computation took: ", t_end - t_start, " seconds")
-        #println("Solved Schur complement system using gmres")
+        println("pD computation took: ", t_end - t_start, " seconds")
 
         #Define right hand side for velocity solve
 #        b=f1-op_BT*pD;
@@ -312,15 +287,15 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         #Solve for velocity
         uD=xD_guess[1:gu.ni+gv.ni]
-        cg!(uD,op_A,brhs,reltol=inversion_params.gmres_reltol*1e-6, maxiter=inversion_params.gmres_maxiter,Pl=M1,log=true)
-        #,M1,M2);
-        println("Solved for Dirichelt velocities")
+#        uD, ch_uD= cg!(uD,op_A,brhs,reltol=inversion_params.abstol, maxiter=inversion_params.maxiter,Pl=M1,log=true)
+        uD, ch_uD= cg!(uD,op_A,brhs,abstol=inversion_params.abstol, maxiter=inversion_params.maxiter,Pl=M1,log=true)
         if !@isdefined residuD
             residuD = similar(brhs)  # Allocate once
         end
         residuD=get_resid!(residuD,uD,op_A,brhs)
-        relative_residual = norm(residuD) / norm(b)
-        println("   Relative Residual for Dirichelt system is: ", relative_residual)
+        true_rel_resid_norm_uD = norm(residuD) / norm(b)
+        total_iters_uD = ch_uD.iters
+        println("uD solved after $total_iters_uD iterations, with True Relative Residual Norm = $true_rel_resid_norm_uD")
 
         x_output=[uD;pD]
 
@@ -329,10 +304,6 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         #set pressues:
         set_inversion_pressure!(model,inversion,x_output)
-    
-        println("Solved for Neumann and Dirichlet velocites")
-    
-  #  return inversion
 end
 
 """
@@ -531,12 +502,12 @@ function solve_neumann_velocities!(model,inversion,clock)
     println("Initial relative Residual: ", relative_residual)
 
     #    if clock.n_iter==0
-        x, ch = gmres!(x,Op, f, abstol=0.0001, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+        x, ch = gmres!(x,Op, f, abstol=0.0001, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
     #     else
-    #      gmres!(x,Op, f, reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+    #      gmres!(x,Op, f, reltol=inversion_params.reltol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
     #    end
     #    x_output=x[1] 
-    #   x = gmres!(x0,Op, f, reltol=inversion_params.gmres_reltol, maxiter=inversion_params.gmres_maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
+    #   x = gmres!(x0,Op, f, reltol=inversion_params.reltol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
     #    x_output=x[1]
     #    println("Check convergence:"  ,x[2])
         
