@@ -1,8 +1,3 @@
-#include("HGrid.jl")
-#include("CGrid.jl")
-#include("VGrid.jl")
-#include("UGrid.jl")
-#include("SigmaGrid.jl")
 
 """
     Structure to hold all dirichlet field variables in WAVI.jl

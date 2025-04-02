@@ -288,7 +288,7 @@ inversion = Inversion(grid = grid,
 println("About to make inversion_simulation")
 
  ##output parameters
-folder = "outputs_8km_inversion_help_again"
+folder = "outputs_8km_inversion_test_commit"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
@@ -365,8 +365,6 @@ inversion_simulation = InversionSimulation(model = model,
 
 #Then run the inversion:
 run_inversion_simulation!(inversion_simulation)
-
-#run_inversion!(simulation,inversion)
 
 println("The inversion test has been run")
 

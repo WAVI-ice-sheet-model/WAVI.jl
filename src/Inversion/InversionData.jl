@@ -33,23 +33,6 @@ Throws:
 =======
 - `DimensionMismatch` if any array does not match the expected grid size.
 """
-function InversionData(; 
-    speed_u, 
-    speed_v, 
-    dhdt, 
-    accumulation_rate
-) 
-
-    # Check sizes of inputs
-    #size(speed_u) == (nxu, nyu) || throw(DimensionMismatch("speed_u size must be (nxu x nyu), got $(size(speed_u))"))
-   # size(speed_v) == (nxv, nyv) || throw(DimensionMismatch("speed_v size must be (nxv x nyv), got $(size(speed_v))"))
-   # size(dhdt) == (nxh, nyh) || throw(DimensionMismatch("dhdt size must be (nxh x nyh), got $(size(dhdt))"))
-   # size(accumulation_rate) == (nxh, nyh) || throw(DimensionMismatch("accumulation_rate size must be (nxh x nyh), got $(size(accumulation_rate))"))
-
-    # Return the constructed object
-    return InversionData(
-                        speed_u, speed_v, dhdt, accumulation_rate)
-end
  =#
 function InversionData(; udi = nothing,
     vdi = nothing,

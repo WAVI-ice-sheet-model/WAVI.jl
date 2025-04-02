@@ -96,9 +96,4 @@ function Inversion(;
     return inversion
 end
 
-#include("run_inversion.jl")
 include("inversion_utilities.jl")
-#include("InversionData.jl")
-#include("InversionDataUGrid.jl")
-#include("InversionDataVGrid.jl")
-#include("InversionDataHGrid.jl")

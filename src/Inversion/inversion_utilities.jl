@@ -51,66 +51,6 @@ function start_guess_η_inversion!(model::AbstractModel, inversion)
 end
 
 
-function solve_dirichelt_velocities!(model, inversion,clock) 
-
-    @unpack params,solver_params=model
-    @unpack gu,gv,wu,wv,gh = model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
-    @unpack inversion_params=inversion
-
-    #get the ops needed:
-    Op_combo=get_op_combo(model,inversion)
-
-    #get rhs f1, and get rhsf2:
-    #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
-    #NEED TO CHECK SCHUR HERE!!!
-    f1=get_rhs_dirichlet_inversion(model)
-
-    #get f2
-    f2=get_rhs_dirichlet_inverse_data(model,inversion)
-   # f2=get_rhs_neumann_data_check(model,inversion)
-  #  f2=get_rhs_neumann_check_data(model,inversion)
-
-    f=[f1;f2]
-
-    x=get_start_guess_dirichlet(inversion)
-  #  if clock.n_iter==0
-     #   x=[gu.samp_inner*gu.u[:];gv.samp_inner*gv.v[:]; zeros(gudata.ni); zeros(gvdata.ni); zeros(ghdata.n)]
-   #     x=x
-   # end
-
-    resid=get_resid(x,Op_combo,f)
-    relative_residual = norm(resid) / norm(f)
-    println("Initial relative Residual: ", relative_residual)
-
-    x,ch =gmres!(x,Op_combo, f, abstol=inversion_params.reltol*1e6, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)  
-  #  x,ch =minres!(x,Op_combo, f, abstol=8, maxiter=inversion_params.maxiter, log=true,verbose=false)  
-   # Extract total iterations and final residual
-    total_iters = ch.iters
-    is_conv = ch.isconverged
-    resid=get_resid(x,Op_combo,f)
-    relative_residual = norm(resid) / norm(f)
-    println("gmres finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
- 
-    #xN=[gu.samp_inner*gu.u[:];gv.samp_inner*gv.v[:]; zeros(gudata.ni); zeros(gvdata.ni); zeros(ghdata.n)]
-    #resid_N=get_resid(xN,Op_combo,f)
-   # relative_residual_N = norm(resid_N) / norm(f)
- 
-   # println("GMRES finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
-  #  println("Convergence with Neumann guess would be rel resid $relative_residual_N")
-
-    set_residual_inversion!(model,inversion,resid)
-#    set_residual_inversion!(model,inversion,resid_N)
-
-    set_velocities!(inversion,x)
-
-    set_inversion_pressure!(model,inversion,x)
-    
-    println("Solved for Dirichlet velocites")
-    
-    return inversion
-end
-
 function solve_dirichelt_neumann_velocities!(model, inversion,clock) 
 
     @unpack params,solver_params=model
@@ -122,7 +62,6 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
         f1=get_rhs_dirichlet_inversion(model)
 
-        
         #Contruct A:
         op_A=get_op_A(model)
         #Constuct B:
@@ -138,33 +77,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         M2=[]
 
         #Neumann solve:
-        #abstol=0.001
         uN=get_start_guess(model)
-    
-        # trying to control stopping criteria directly
-      #=  num_restarts = inversion_params.maxiter ÷ inversion_params.gmres_restart
-        for i in 1:num_restarts
-            mem_usage_uN = @allocated  uN, ch1 = gmres!(uN, op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, log=true, verbose=false, Pl=M1)
-           # println("Memory allocated in uN solve is: ", mem_usage_uN, " bytes")   
-            total_iters = ch1.iters
-            # Compute true residual norm
-          
-            if !@isdefined residuN
-                residuN = similar(f1)  # Allocate once
-            end
-            get_resid!(residuN, uN, op_A, f1)  # In-place operation
-        
-            true_rel_resid_norm = norm(residuN)/norm(f1)
-            #compute total number of iterations:
-            iter_total=total_iters+(i-1)*inversion_params.gmres_restart
-
-            println("Loop $i at Iteration $iter_total: True Relative Residual Norm = $true_rel_resid_norm")
-        
-            if  true_rel_resid_norm  < inversion_params.reltol*1e-5
-                println("Stopping early: Relative Residual below tolerance.")
-                break
-            end
-        end  =#
         
         uN, ch1 = cg!(uN, op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, log=true, verbose=false, Pl=M1)
         if !@isdefined residuN
@@ -174,8 +87,6 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         total_iters = ch1.iters
         true_rel_resid_norm = norm(residuN)/norm(f1)
         println("uN solved after $total_iters iterations, with True Relative Residual Norm = $true_rel_resid_norm")
-       # println("solved for Neumann velocs")
-
         #set Neumann velocites:
         set_velocities!(model,uN)
 
@@ -197,10 +108,8 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         #Dirichlet solve
         #Define right hand side for Schur (pressure) solve
         u0=xD_guess[1:gu.ni+gv.ni]
-       # cg!(u0,op_A,f1,reltol=inversion_params.reltol*1e-3, maxiter=inversion_params.maxiter)
       #  u0 = gmres!(u0,op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=false,verbose=false,Pl=M1)
         u0, chu0 = cg!(u0,op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, log=true,verbose=false,Pl=M1)
-        #    println("Made right hand side for Schur (pressure) solve")
         if !@isdefined residu0
             residu0 = similar(f1)  # Allocate once
         end
@@ -233,9 +142,6 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         ch_pD = nothing
         t_start=time()  
-        # this one works:
-        # pD, ch = gmres!(pD,SchurOp, bSchur, maxiter=inversion_params.maxiter, abstol=abstol, restart=inversion_params.gmres_restart, Pl=Diagonal(MSchur_new),verbose=false,log=true)
-  
         num_restarts = inversion_params.maxiter ÷ inversion_params.gmres_restart
         Pl = Diagonal(MSchur_new)  # Store once outside loop
 
@@ -285,7 +191,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         mul!(brhs, op_BT, vec(pD))  # Computes b = op_BT * pD in-place
         brhs .= f1 .- b # b=f1-b          Element-wise subtraction
 
-        #Solve for velocity
+        #Solve for Dirichlet velocity
         uD=xD_guess[1:gu.ni+gv.ni]
 #        uD, ch_uD= cg!(uD,op_A,brhs,reltol=inversion_params.abstol, maxiter=inversion_params.maxiter,Pl=M1,log=true)
         uD, ch_uD= cg!(uD,op_A,brhs,abstol=inversion_params.abstol, maxiter=inversion_params.maxiter,Pl=M1,log=true)
@@ -316,8 +222,6 @@ function get_op_diag_inversion(inversion::AbstractModel,model::AbstractModel,op:
     @unpack gudata,gvdata, ghdata=inversion.data_fields
     @unpack params,solver_params=model
     mi,ni = size(op)
-   # print("mi is" ,mi)
-  #  print("ni is" ,ni)
     
     @assert mi == ni == gudata.ni + gvdata.ni + ghdata.n
     op_diag=zeros(eltype(op),ni)
@@ -341,8 +245,6 @@ end
  # Define the schur_apply! function to accept the preallocated arrays
 function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
 
-   # temp = op_BT * x  # Compute B^T * x
-
     # Preallocate the arrays based on the size of `x` (input vector)
     temp = similar(x,size(op_BT, 1))         # Preallocate temp, the same size as x
     result = similar(x, size(op_B, 1))       # Preallocate result, the same size as x
@@ -356,13 +258,7 @@ function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
     A_inv .= 1.0 ./ A_diag_vals  # Inverse of diagonal, A_inv is updated in place
     
     # Compute the final result: -B * (A_inv * (B^T * x))
-    #temp_scaled=Diagonal(A_inv)*temp  # Store A_inv * temp in temp_scaled
     mul!(temp_scaled, Diagonal(A_inv), temp)  # In-place scaling
-
-   # mul!(result, -op_B, vec(temp_scaled))           # Compute -B * temp_scaled
-    ## Add diagonal contribution of op_C (if needed)
-    #mul!(resultC, op_C, vec(x))  # Add C * x to result (if required)
-    #result .+= resultC
 
     # Compute -B * (A_inv * (B^T * x))
     mul!(result, op_B, temp_scaled, -1.0, 0.0)  # Scale and overwrite
@@ -370,32 +266,11 @@ function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
     # Add diagonal contribution of op_C directly to result
     mul!(result, op_C, vec(x), 1.0, 1.0)  # Efficient accumulation
 
-
     return result
 end 
  
 
-#= # Define the Schur complement linear operator
-function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
-
-    temp = op_BT * x  # Compute B^T * x
- #  temp_scaled = temp ./ A_diag_vals  # Scale by A_diag_vals (element-wise)
-    A_inv = 1.0 ./ A_diag_vals  # Inverse of diagonal
-    A_diag_inv = Diagonal(A_inv)
-    temp_scaled = A_diag_inv * temp   # Scale by A_diag_vals (element-wise)
-    result = -op_B * temp_scaled  # Compute B * (A_diag_inv * (B^T * x))
-    
-    # Add diagonal contribution of op_C (if needed)
-    result .+= op_C * x
-   
-    return result
-end  =#
-
-
-
-#function schurVec(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu)
     function schurVec!(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu, inner_tol, inner_maxiters)
-
     # Solve A * u = B' * x 
     mem_BT_x = @allocated mul!(b, BT, x)
   #  println("Memory allocated inside BT * x mul: ", mem_BT_x, " bytes")
@@ -403,138 +278,17 @@ end  =#
     fill!(u,0)
     # Solve using CG with preconditioners M1 and M2 (if provided)
     cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
- # println("Memory allocated in CG solve: ", mem_cg, " bytes")
-   # if !@isdefined residu0
-   # residu = similar(b)  # Allocate once
-   # end
-   # get_resid!(residu,u,A,b)
-   # relative_residual = norm(residu0) / norm(f1)
-   # total_iters_u = ch.iters
-    #true_rel_resid_norm_u = norm(residuN)/norm(f1)
-   # println("u solved after $total_iters_u iterations")
-   # println("u solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
 
     # Compute final Schur complement operation
-  #  return -B * u + C * x
-        # Compute Schur complement operation in-place
-        mem_mul2 = @allocated  mul!(residBu, B, u)   # resid = B * u
-    #    println("Memory allocated in B * u mul: ", mem_mul2, " bytes")
+    #  return -B * u + C * x
+        mul!(residBu, B, u)   # resid = B * u
         residBu .*= -1        # resid = -B * u
     #    uc=similar(x,  size(C, 1))
-        mem_mul3 = @allocated  mul!(uc, C, x)       # uC = C * x
-  #  println("Memory allocated in C * x mul: ", mem_mul3, " bytes")
+         mul!(uc, C, x)       # uC = C * x
         uc .+= residBu         # u = -B * u + C * x
     
 end
 
-function solve_Adiag_approx(x)
-    # Apply an approximate inverse of A_diag to x
-    # This could be a simple Jacobi preconditioner (diagonal inverse)
-    return x ./ diag_entries_of_A  # Assuming `diag_entries_of_A` is available
-end
-
-# Function to add noise proportional to the initial guess (scaled by a proportion)
-function perturb_initial_guess_proportional(x0, noise_proportion)
-    noise = noise_proportion .* x0 .* randn(length(x0))  # Add noise scaled by the magnitude of x0
-    return x0 + noise
-end
-
-# Manually extract diagonal from a LinearMap (op_A)
-function extract_diagonal(LM::LinearMap)
-    n = size(LM, 1)  # Assuming the linear map is square (adjust for non-square if needed)
-    diag_vals = Float64[]  # Initialize an empty array to store diagonal values
-    
-    # Generate standard basis vectors and apply LM to them
-    for i in 1:n
-        e_i = zeros(n)  # Create a zero vector of length n
-        e_i[i] = 1.0     # Set the i-th element to 1 (standard basis vector)
-        result = LM(e_i)  # Apply the LinearMap to the standard basis vector
-        push!(diag_vals, result[i])  # The diagonal element is the i-th element of the result
-    end
-    return diag_vals
-end
-
-# Function to estimate the diagonal (without explicitly forming A)
-function estimate_diagonal(op_A, n)
-    e = zeros(n)
-    diag_est = zeros(n)
-    for i in 1:n
-        e[i] = 1.0
-        diag_est[i] = op_A(e)[i]  # Apply A to unit basis vector
-        e[i] = 0.0
-    end
-    return diag_est
-end
-
-# Define diagonal preconditioner as a LinearMap
-function diagonal_preconditioner(op_A, n)
-    diag_est = estimate_diagonal(op_A, n)  # Approximate diagonal
-    return LinearMap(x -> x ./ diag_est, n, n)  # Jacobi preconditioner
-end
-
-
-function solve_neumann_velocities!(model,inversion,clock) 
-
-
-    @unpack params,solver_params=model
-    @unpack gu,gv,wu,wv = model.fields
-    @unpack inversion_params=inversion
-
-    x=get_start_guess(model)
-
-    #get the ops needed:
-    Op=get_op_A(model)
-   # Op=get_op(model)
-#
-   #  ni=gu.ni+gv.ni
- #   x0m=Vector{Float64}(undef,ni);
- #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_xNguess.bin",x0m)
- #   x0m.=ntoh.(x0m)
-    #
- #   nirhsn=gu.ni+gv.ni
- #   rhsn=Vector{Float64}(undef,nirhsn);
- #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_RHSN.bin",rhsn)
- #   rhsn.=ntoh.(rhsn) 
-    #get rhs f1, and get rhsf2:
-    #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
-    #NEED TO CHECK SCHUR HERE!!!
-    f1=get_rhs_dirichlet_inversion(model)
-  #  println("Size of f1 (rhs) is," ,size(f1))
-
-    f=f1
- #   fm=rhsn
-
-    resid=get_resid(x,Op,f)
-
-  #  println("Initial residual norm: ", norm(resid))
-    relative_residual = norm(resid) / norm(f)
-    println("Initial relative Residual: ", relative_residual)
-
-    #    if clock.n_iter==0
-        x, ch = gmres!(x,Op, f, abstol=0.0001, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-    #     else
-    #      gmres!(x,Op, f, reltol=inversion_params.reltol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-    #    end
-    #    x_output=x[1] 
-    #   x = gmres!(x0,Op, f, reltol=inversion_params.reltol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=true,verbose=false)
-    #    x_output=x[1]
-    #    println("Check convergence:"  ,x[2])
-        
-    # Extract total iterations and final residual
-    total_iters = ch.iters
-    is_conv = ch.isconverged
-
-    resid=get_resid(x,Op,f)
-    relative_residual = norm(resid) / norm(f)
-   println("gmres finished in $total_iters iterations and convergence was $is_conv with rel resid $relative_residual")
-
-
-    set_velocities!(model,x)
-
-    println("Solved for Neumann velocites")
-    
-    return model
-end
 
 """
     get_start_guess_dirichlet(model::AbstractModel)
@@ -549,61 +303,6 @@ function get_start_guess_dirichlet(inversion)
     @assert eltype(gu.u)==eltype(gv.v)
     x=[gu.samp_inner*gu.u[:];gv.samp_inner*gv.v[:]; gudata.samp_inner*gu.τsurf[:]; gvdata.samp_inner*gv.τsurf[:]; ghdata.samp*gh.σzzsurf[:]]
     return x
-end
-
-function get_op_combo(model::AbstractModel{T,N}, inversion) where {T,N}
-    @unpack gu,gv,gh=model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
-    ni = gu.ni + gv.ni+gudata.ni + gvdata.ni+ghdata.n
-    op_fun_combo! = get_op_fun_combo(model,inversion)
-    op_combo=LinearMap{T}(op_fun_combo!,ni;issymmetric=true,ismutating=true,ishermitian=true,isposdef=true)
-end
-
-function get_op_fun_combo(model::AbstractModel{T,N}, inversion) where {T,N}
-    @unpack gh,gu,gv,gc=model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
-
-        
-    #Preallocate intermediate variables used by op_fun_combo
-    nxnyh :: N = gh.nxh*gh.nyh
-    nxnyu :: N = gu.nxu*gu.nyu
-    nxnyv :: N = gv.nxv*gv.nyv
-    nxnyc :: N = gc.nxc*gc.nyc
-    uvsampi :: Vector{T} = zeros(gu.ni+gv.ni);                               @assert length(uvsampi) == gu.ni+gv.ni
-    pisampi :: Vector{T} = zeros(gudata.ni+gvdata.ni+ghdata.n);              @assert length(pisampi) == gudata.ni+gvdata.ni+ghdata.n
-    f1 :: Vector{T} = zeros(gu.ni+gv.ni);                                    @assert length(f1) == gu.ni+gv.ni
-    f2 :: Vector{T} = zeros(gudata.ni+gvdata.ni+ghdata.n);                   @assert length(f2) == gudata.ni+gvdata.ni+ghdata.n
-    opvecprod :: Vector{T} = zeros(gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n);         @assert length(opvecprod) == gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
-
-    function op_fun_combo!(opvecprod::AbstractArray,inputVector::AbstractVector;vecSampled::Bool=true)
-        @assert length(inputVector)==(gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n)
-
-         #Split vector into u- and v-components for tau and h- for sigma
-         uvsampi .= @view inputVector[1:(gu.ni+gv.ni)]
-         pisampi .= @view inputVector[(gu.ni+gv.ni+1):(gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n)]
-
-        #Contruct A:
-        op_A=get_op_A(model)
-     
-        #Constuct B:
-        op_B=get_op_B(model,inversion)
-
-        #Constuct B-transpose:
-        op_BT=get_op_BT(model,inversion)
-
-        op_C=get_op_C(model,inversion)
-
-
-        f1 = op_A*uvsampi .+ op_BT*pisampi 
-        f2 = op_B*uvsampi .+ op_C*pisampi
-
-        opvecprod[1:gu.ni+gv.ni] .= f1
-        opvecprod[(gu.ni+gv.ni+1):(gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n)] .= f2
-
-        return opvecprod
-    end
-    #Return op_fun_combo as a closure
-    return op_fun_combo!
 end
 
 
@@ -716,6 +415,7 @@ function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
      #   @!  r_xy = gh.dneghηav[]*r_xy_strain_rate_sum
      #   @.  r_xy = -r_xy
      #   @!  r_xy_c = gc.centᵀ*r_xy
+     #CORRECT code for julia:
         @!  r_xy_c = gc.dneghηav[]*r_xy_strain_rate_sum_crop_c
         @.  r_xy_c = -r_xy_c
         @!  r_xy_crop_c = gc.crop*r_xy_c
@@ -861,7 +561,6 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
         end
     
         #Compute R from Arthern et al 2015 and build the R term from equation (28):
-        
      #   R[gh.mask] .= (1.0 .+ gh.β[gh.mask].*gh.quad_f1[gh.mask])./ (1.0 .+ gh.β[gh.mask].*gh.quad_f2[gh.mask])
       #  @! R_crop=gh.crop*vec(R)
          #R .= (1.0 .+ vec(gh.β).*vec(gh.quad_f1))./ (1.0 .+ vec(gh.β).*vec(gh.quad_f2))
@@ -1025,24 +724,14 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
         end
     
         #Compute R^T from Arthern et al 2015 and build the R^T term from equation (28):
-    #    println("I am in the function op_fun_BT!")
-
        # @. R = (1.0 + gh.β[:]*gh.quad_f1[:])/ (1.0 + gh.β[:]*gh.quad_f2[:])
 
-#allocated_memory = @allocated begin
         beta_f1 .= vec(gh.β).*vec(gh.quad_f1)
         beta_f1 .+=1
         beta_f2 .= vec(gh.β).*vec(gh.quad_f2)
         beta_f2 .+=1
        @. R = beta_f1 / beta_f2
-   # end
-
-  #  println("Memory allocated in R block: ", allocated_memory, " bytes")
-
        @! R_crop=gh.crop*R
-
-       allocated_memory_2 = @allocated begin
-
 
         @!  tauspreadu_c=gu.crop*(tausspreadu)
         @!  tauspreadu_on_h=gu.cent*(tauspreadu_c)
@@ -1055,24 +744,11 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
         @!  tauspreadv_c_on_h=gh.crop*(tauspreadv_on_h)
         @.  Rtauv_on_h=R_crop*tauspreadv_c_on_h
         @!  Rtauv_on_v=gv.centᵀ*Rtauv_on_h
-  
-    end
-
-  #  println("Memory allocated in Rtau block: ", allocated_memory_2, " bytes")
-
-#        @! fx1 = Rtauu_on_u
-     #   @! fy1 = Rtauv_on_v
-  
-        #sample these to only include masked points:
-     #   @!  fx1_sampi = gu.samp_inner*fx1
-      #  @!  fy1_sampi = gv.samp_inner*fy1
 
         @!  fx1_sampi = gu.samp_inner*Rtauu_on_u
         @!  fy1_sampi = gv.samp_inner*Rtauv_on_v
 
         #Then calculate grad term in the B matrix: hgrad(sigma_s)
-    
-        allocated_memory_3 = @allocated begin
         @!  sigmasspread_crop=gh.crop*sigmasspread
         @!  dsigmadx=gu.∂xᵀ*sigmasspread_crop
    #    @.  dsigmadx = -dsigmadx
@@ -1088,21 +764,7 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
         @.  h_dsigmady.=vec_gvh*dsigmady_crop
         @!  h_dsigmady_crop=gv.crop*h_dsigmady
         @.  h_dsigmady_crop = -h_dsigmady_crop
-               
-    end
-
-  #  println("Memory allocated in sigma block: ", allocated_memory_3, " bytes")
-  
-        # fx2 =  -h_dsigmadx_crop
-        # fy2 =  -h_dsigmady_crop
-
-
-        #sample these to only include masked points:
-    #    @!  fx2_sampi = gu.samp_inner*fx2
-    #    @!  fy2_sampi = gv.samp_inner*fy2
-
     
-    allocated_memory_4 = @allocated begin
         @!  fx2_sampi = gu.samp_inner*h_dsigmadx_crop
         @!  fy2_sampi = gv.samp_inner*h_dsigmady_crop
 
@@ -1112,9 +774,6 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
 
         opvecprod[1:gu.ni] .= fx_sampi
         opvecprod[(gu.ni+1):(gu.ni+gv.ni)] .= fy_sampi
-    end
-  #  println("Memory allocated in final block: ", allocated_memory_4, " bytes")
-
         return opvecprod
     end
 
@@ -1205,27 +864,17 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
             #Compute R from Arthern et al 2015 and build the R term from equation (28):
      #   @.  R = (1.0 + gh.β[:]*gh.quad_f1[:])/ (1.0 + gh.β[:]*gh.quad_f2[:])
         
-
-        #allocated_memory = @allocated begin
         beta_f1 .= vec(gh.β).*vec(gh.quad_f1)
         beta_f1 .+=1
         beta_f2 .= vec(gh.β).*vec(gh.quad_f2)
         beta_f2 .+=1
        @. R = beta_f1 / beta_f2
-      #  end
-     #    println("Memory allocated in R block: ", allocated_memory, " bytes")
-     #    allocated_memory_P = @allocated begin
-     #  @.  P=gh.quad_f0[:]-(R+1)*gh.quad_f1[:]+R*gh.quad_f2[:]
 
          R_plus_1 .= R .+ 1  # Add 1 to each element of R
 
          term_1 .= R_plus_1 .* vec(gh.quad_f1)  # (R + 1) * gh.quad_f1
          term_2 .= R .* vec(gh.quad_f2)  # R * gh.quad_f2
           P .= vec(gh.quad_f0) .- term_1 .+ term_2  # Compute final P
-      #   end
-      #   println("Memory allocated in P block: ", allocated_memory_P, " bytes")
-
-         allocated_memory_px = @allocated begin
             
         @!  tausspreadu_crop=gu.crop*tausspreadu
         @!  tauspreadu_on_h=gu.cent*tausspreadu_crop
@@ -1245,23 +894,16 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
 
         fx1 = Ptauu_on_u_crop
         fy1 = Ptauv_on_v_crop
-        end
 
-    #    println("Memory allocated in Px block: ", allocated_memory_px, " bytes")
-
-        allocated_memory_final = @allocated begin
         #sample these to only include masked points:
         @!  fx1_sampi = gudata.samp_inner*fx1
         @!  fy1_sampi = gvdata.samp_inner*fy1
 
-#        fh_sampi=zeros(ghdata.n)
         fill!(fh_sampi, 0)
 
         opvecprod[1:gudata.ni] .= fx1_sampi
         opvecprod[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= fy1_sampi
         opvecprod[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)] .= fh_sampi
-    end
-   #    println("Memory allocated in final block: ", allocated_memory_final, " bytes")
         return opvecprod
     end
     #Return op_fun_C as a closure
@@ -1321,44 +963,6 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
           f1[1:gudata.ni] .= us_data_sampi
           f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
 
-        #  println("gudata.ni is " ,gudata.ni)
-      #    println("gvdata.ni is " ,gvdata.ni)
-
-  #   println("size of  us_data_sampi is " ,size( us_data_sampi))
-   #  println("size of  vs_data_sampi is " ,size( vs_data_sampi))
-#= 
-
-    # f1[1:gudata.ni] .= us_data_sampi
-   #  f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
-
-     gu_nearGap = imfilter((gu.mask .& .!gudata.mask) .|> Int, Kernel.ones(3,3)) .> 0
-     gv_nearGap = imfilter((gv.mask .& .!gvdata.mask) .|> Int, Kernel.ones(3,3)) .> 0
-
-     data_mask_u = .!gu_nearGap .& .!gu.u_isfixed .& gu.mask
-     data_mask_v = .!gv_nearGap .& .!gv.v_isfixed .& gv.mask
-     
-     println("size of gu_nearGap is " ,size(gu_nearGap))
-     println("size of gv_nearGap is " ,size(gv_nearGap))
-
-     println("size of Data_mask_u is " ,size(data_mask_u))
-     println("size of Data_mask_v is " ,size(data_mask_v))
-
-     println("nnz of Data_mask_u is " ,count(!iszero ,data_mask_u))
-     println("nnz of Data_mask_v is " ,count(!iszero ,data_mask_v))
-
-  
-        velDataRHS_smoothed_full_u=us_data_centT_crop[data_mask_u[:]]
-        velDataRHS_smoothed_full_v=vs_data_centT_crop[data_mask_v[:]]
-     
-        println("size of velDataRHS_smoothed_masked_u is " ,size(velDataRHS_smoothed_full_u))
-        println("size of velDataRHS_smoothed_masked_v is " ,size(velDataRHS_smoothed_full_v))
-        println("ghdata.n is " ,ghdata.n)
-   
-   
-          f1[1:gudata.ni] .= velDataRHS_smoothed_full_u
-          f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= velDataRHS_smoothed_full_v
- =#
-    
      dhdt_data = ghdata.dhdt
      accumulation_data = ghdata.accumulation_rate
       dhdtacc_data=dhdt_data[:] .- accumulation_data[:]
@@ -1787,10 +1391,7 @@ function update_JKV!(model::AbstractModel,inversion,clock)
     σzzsurf_comp=inversion.fields.gh.σzzsurf[gh.mask]'*(inversion.data_fields.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]).*(grid.dx*grid.dy) 
     τx_surf_comp=inversion.fields.gh.τx_surf[gh.mask]'*(inversion.fields.gh.us[gh.mask].-gh.us[gh.mask]).*(grid.dx*grid.dy)
     τy_surf_comp=inversion.fields.gh.τy_surf[gh.mask]'*(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask]).*(grid.dx*grid.dy)
-  #  println("mean of dhdt comp is " ,mean(inversion.data_fields.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]))
-  #  println("max of us comps is " ,maximum(abs.(inversion.fields.gh.us[gh.mask].-gh.us[gh.mask])))
-  #  println("max of vs comps is " ,maximum(abs.(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask])))
-    
+
     JKV=σzzsurf_comp .+ τx_surf_comp .+ τy_surf_comp
     inversion.inversion_output.JKV[clock.n_iter+1]=JKV
     println("   JKV is " ,inversion.inversion_output.JKV)
@@ -1815,9 +1416,6 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     us_data_spread =  gudata.crop*(gudata.spread*us_data)
     vs_data_spread =  gvdata.crop*(gvdata.spread*vs_data)
 
-  #  us_data_spread[us_data_spread .== 0] .= NaN
-   # vs_data_spread[vs_data_spread .== 0] .= NaN
-
     us_data_cent =gh.crop*(gu.cent*(us_data_spread))
     vs_data_cent =gh.crop*(gv.cent*(vs_data_spread))
 
@@ -1834,84 +1432,11 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     data_and_model_mask = surf_speed_data_on_h_mask .& gh.mask
     data_and_model_mask = convert(Array{Bool,2},data_and_model_mask)
 
-  #  mask = .!isnan.(surf_speed_data_on_h)
-  #  full_mask=mask .& gh.mask
-  #  println("the nnz in data_and_model_mask is  " ,count(!iszero, data_and_model_mask))
-   # println("the nnz in data_and_model_mask is  " ,count(!iszero, full_mask))
-#    mask_diff=full_mask-data_and_model_mask
- #   println("the nnz in mask_diff  " ,count(!iszero, mask_diff))
-
     JRMS=sqrt(mean((surf_speed_data_on_h[data_and_model_mask] .- gh.surf_speed[data_and_model_mask]).^2));
     inversion.inversion_output.JRMS[clock.n_iter+1]=JRMS
     println("   JRMS is " ,inversion.inversion_output.JRMS)
     return model
 end
-
-
-function update_quadrature_falpha_direct!(model::AbstractModel)
-    @unpack gh,g3d=model.fields
-    gh.quad_f0 .= zero(gh.quad_f0)
-    gh.quad_f1 .= zero(gh.quad_f1)
-    gh.quad_f2 .= zero(gh.quad_f2)
-
-    f0=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_F0.bin",f0)
-    f0.=ntoh.(f0)
-    f1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_F1.bin",f1)
-    f1.=ntoh.(f1)
-    f2=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_F2.bin",f2)
-    f2.=ntoh.(f2)
-
-    visc_av=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-    read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_visc_av.bin",visc_av)
-    visc_av.=ntoh.(visc_av)
-
-   # visc_av=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_visc_av_Neumann.bin",visc_av)
-   # visc_av.=ntoh.(visc_av)
-
-   # beta_i1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_visc_av.bin",visc_av)
-  #  visc_av.=ntoh.(visc_av)
-
-  #  betai1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
-  #  read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_betai1.bin",betai1)
- #   betai1.=ntoh.(betai1)
-
- #   preBi1=Array{Float64}(undef,model.fields.gh.nxh,model.fields.gh.nyh);
- #   read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_github/WAVI-WAIS-setups/inversion_data/bedmachinev3/full_stripe_fix_8km/Inverse_preBi1.bin",preBi1)
- #   preBi1.=ntoh.(preBi1)
-    
-    #    gh.quad_f0.=f0
-    #    gh.quad_f1.=f1
-    #    gh.quad_f2.=f2
-         gh.ηav.=visc_av
-     #   gh.preBfactor.=preBi1
-     #   gh.β.=betai1
-
-    return model
-end
-
-"""
-    quadrature_falpha_start!(model::AbstractModel)
-
-Use quadrature_falpha_start to compute initial falpha functions
-"""
-function quadrature_falpha_start!(model::AbstractModel)
-    @unpack gh,g3d=model.fields
-    gh.quad_f0 .= zero(gh.quad_f0)
-    gh.quad_f1 .= zero(gh.quad_f1)
-    gh.quad_f2 .= zero(gh.quad_f2)
-  
-                gh.quad_f0[gh.mask] .= gh.h[gh.mask]./(1*1e7)
-                gh.quad_f1[gh.mask] .= gh.h[gh.mask]./(2*1e7)
-                gh.quad_f2[gh.mask] .= gh.h[gh.mask]./(3*1e7)
-
-    return model
-end
-
 
 function update_surface_velocities_on_uv_grid!(model)
     @unpack gh,gu,gv = model.fields
