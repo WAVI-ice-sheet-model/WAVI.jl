@@ -402,9 +402,18 @@ end  =#
 
     fill!(u,0)
     # Solve using CG with preconditioners M1 and M2 (if provided)
-    mem_cg = @allocated   cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
+    cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
  # println("Memory allocated in CG solve: ", mem_cg, " bytes")
-   
+   # if !@isdefined residu0
+   # residu = similar(b)  # Allocate once
+   # end
+   # get_resid!(residu,u,A,b)
+   # relative_residual = norm(residu0) / norm(f1)
+   # total_iters_u = ch.iters
+    #true_rel_resid_norm_u = norm(residuN)/norm(f1)
+   # println("u solved after $total_iters_u iterations")
+   # println("u solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
+
     # Compute final Schur complement operation
   #  return -B * u + C * x
         # Compute Schur complement operation in-place

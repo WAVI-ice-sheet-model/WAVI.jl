@@ -225,8 +225,8 @@ dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
 
 reltol=0.5
-abstol=0.01
-maxiter=2000
+abstol=0.1
+maxiter=500
 gmres_restart =50
 βgrounded_start=1.e4
 βfloating_start=1.0e-4

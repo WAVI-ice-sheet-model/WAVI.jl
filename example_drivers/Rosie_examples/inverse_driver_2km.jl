@@ -110,7 +110,7 @@ initial_conditions = InitialConditions(initial_thickness = h,
 #
 maxiter_picard = 1
 tol_picard = 1.0e-4
-n_iter_viscosity = 10
+n_iter_viscosity = 2
 
 solver_params = SolverParams(maxiter_picard = maxiter_picard,
                             tol_picard = tol_picard,
@@ -228,9 +228,9 @@ dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 #println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
 #println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
 
-gmres_reltol=0.5
-gmres_abstol=0.01
-gmres_maxiter=500
+reltol=0.5
+abstol=0.1
+maxiter=500
 gmres_restart =50
 βgrounded_start=1.e4
 βfloating_start=1.0e-4
@@ -238,18 +238,20 @@ gmres_restart =50
 βpower = 0.1
 Bpower_shelf = 0.1
 Bpower_grounded = 0.01
-inner_tol = 1.e-4
-inner_maxiters = 1000
+cg=false
+gmres=true
 
-inversion_params = InversionParams(gmres_reltol = gmres_reltol,
-                                    gmres_maxiter = gmres_maxiter,
+inversion_params = InversionParams(reltol = reltol,
+                                    maxiter = maxiter,
+                                    abstol = abstol,
                                     gmres_restart = gmres_restart,
                                     βgrounded_start = βgrounded_start,
                                     βfloating_start = βfloating_start,
                                     ηstart_guess = ηstart_guess,
                                     βpower = βpower,
-                                    inner_tol = inner_tol,
-                                    inner_maxiters = inner_maxiters)
+                                    cg = cg,
+                                    gmres = gmres)
+                                
 
 #JKVstepping parameters
 niter0 = 0
@@ -290,7 +292,7 @@ inversion = Inversion(grid = grid,
 println("About to make inversion_simulation")
 
  ##output parameters
-folder = "Y1990s_Mask_1_2km_inversion_2"
+folder = "Y1990s_Mask_1_2km_inversion_niter2"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
