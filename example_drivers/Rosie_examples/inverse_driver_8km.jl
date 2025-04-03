@@ -251,7 +251,7 @@ inversion_params = InversionParams(reltol = reltol,
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 30
+max_JKV_iterations = 15
 n_iter_chkpt = 100
 n_iter_pchkpt= 5
 
@@ -261,11 +261,10 @@ JKVstepping_params = JKVsteppingParams(niter0 = niter0,
                                         n_iter_total = max_JKV_iterations,
                                         n_iter_out = n_iter_out)
 
-JKV=zeros(max_JKV_iterations)
-JRMS=zeros(max_JKV_iterations)
+#JKV=Float64[]
+#JRMS=Float64[]
 
-inversion_output = InversionOutput(JKV=JKV,
-                                    JRMS=JRMS)
+inversion_output = InversionOutput()
 
                 
 inversion = Inversion(grid = grid,
@@ -288,9 +287,9 @@ inversion = Inversion(grid = grid,
 println("About to make inversion_simulation")
 
  ##output parameters
-folder = "outputs_8km_inversion_test_commit"
-isdir(folder) && rm(folder, force = true, recursive = true)
-mkdir(folder) #make a clean folder for outputs
+folder = "outputs_8km_inversion_test_2"
+#isdir(folder) && rm(folder, force = true, recursive = true)
+#mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
             u = model.fields.gu.u,
             uh = model.fields.gh.u,

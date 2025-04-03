@@ -1393,7 +1393,8 @@ function update_JKV!(model::AbstractModel,inversion,clock)
     τy_surf_comp=inversion.fields.gh.τy_surf[gh.mask]'*(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask]).*(grid.dx*grid.dy)
 
     JKV=σzzsurf_comp .+ τx_surf_comp .+ τy_surf_comp
-    inversion.inversion_output.JKV[clock.n_iter+1]=JKV
+  #  inversion.inversion_output.JKV[clock.n_iter+1]=JKV
+    push!(inversion.inversion_output.JKV, JKV)
     println("   JKV is " ,inversion.inversion_output.JKV)
     return model
 end
@@ -1433,7 +1434,8 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     data_and_model_mask = convert(Array{Bool,2},data_and_model_mask)
 
     JRMS=sqrt(mean((surf_speed_data_on_h[data_and_model_mask] .- gh.surf_speed[data_and_model_mask]).^2));
-    inversion.inversion_output.JRMS[clock.n_iter+1]=JRMS
+   # inversion.inversion_output.JRMS[clock.n_iter+1]=JRMS
+    push!(inversion.inversion_output.JRMS, JRMS)
     println("   JRMS is " ,inversion.inversion_output.JRMS)
     return model
 end

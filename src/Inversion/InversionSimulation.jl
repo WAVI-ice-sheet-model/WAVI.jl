@@ -45,7 +45,7 @@ function InversionSimulation(;
     inversion_simulation = InversionSimulation(model, inversion, JKVstepping_params, output_params, clock)
 
     #pickup? NOT SETUP FOR PICKUP YET!!!
-   # pickup!(inversion_simulation, pickup_output_update_flag)
+    pickup_inversion!(inversion_simulation, pickup_output_update_flag)
 
     return inversion_simulation 
     
@@ -53,25 +53,37 @@ end
 
 include("run_inversion_simulation.jl")
 
-#= function pickup!(simulation, pickup_output_update_flag)
+ function pickup_inversion!(inversion_simulation, pickup_output_update_flag)
     #@unpack model, JKVstepping_params, clock = simulation
 
-    if simulation.JKVstepping_params.niter0 > 0
-        n_iter_string =  lpad(simulation.JKVstepping_params.niter0, 10, "0"); #filename as a string with 10 digits
-        println("detected niter0 > 0 (niter0 = $(simulation.JKVstepping_params.niter0)). Looking for pickup...")
+    if inversion_simulation.JKVstepping_params.niter0 > 0
+        n_iter_string =  lpad(inversion_simulation.JKVstepping_params.niter0, 10, "0"); #filename as a string with 10 digits
+        println("detected niter0 > 0 (niter0 = $(inversion_simulation.JKVstepping_params.niter0)). Looking for pickup...")
         try 
-            sim_load = load(string("PChkpt_",n_iter_string, ".jld2"), "simulation")
-            println("Pickup successful")
+            #for running on vscode vis workstation:
+            #filename = string(inversion_simulation.output_params.output_path, "/PChkpt_", n_iter_string, ".jld2")
+            #for running with ensembler:
+            filename = string("PChkpt_", n_iter_string, ".jld2")
+            println("Looking for file: ", filename)
 
-            simulation.model = sim_load.model
-            simulation.clock = sim_load.clock
-            simulation.output_params = sim_load.output_params #pointer based outputting system means we have to use same output parameters after pickup
-        catch 
-            Throw(error("Pickup error, terminating run"))
+            if isfile(filename)
+                println("file exists")
+                sim_load = load(filename, "inversion_simulation")
+                println("Pickup successful")
+            else
+                error("File $filename not found!")
+            end
+            
+            inversion_simulation.model = sim_load.model
+            inversion_simulation.inversion = sim_load.inversion
+            inversion_simulation.clock = sim_load.clock
+            inversion_simulation.output_params = sim_load.output_params #pointer based outputting system means we have to use same output parameters after pickup
+
+        catch e
+            println("Error while loading: ", e)
+            rethrow()  # Re-throws the original error so you can see it
         end
     end
-    return simulation
+    return inversion_simulation
 end
     
-
- =#

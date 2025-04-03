@@ -104,25 +104,28 @@ function run_inversion_simulation!(inversion_simulation)
     @unpack model, inversion, JKVstepping_params, output_params = inversion_simulation
     chkpt_tag = "A"
 
-    update_surface_elevation!(model)
-    update_geometry_on_uv_grids!(model)
-    update_height_above_floatation!(model)
-    update_grounded_fraction_on_huv_grids!(model)
-    update_accumulation_rate!(model)
-  
-    start_guess_β_inversion!(model,inversion)
-    start_guess_η_inversion!(model,inversion)
 
-    update_quadrature_falpha!(model)
-    update_av_viscosity!(model)
 
    # while !converged && (inversion_simulation.clock.n_iter+1 < inversion.inversion_params.max_JKV_iterations+1)
      for   i = (inversion_simulation.clock.n_iter+1): JKVstepping_params.n_iter_total
         #      for i = (inversion_simulation.clock.n_iter+1):JKVstepping_params.n_iter_total
 
       #  i=inversion_simulation.clock.n_iter+1
+      if inversion_simulation.clock.n_iter == 0
+      update_surface_elevation!(model)
+      update_geometry_on_uv_grids!(model)
+      update_height_above_floatation!(model)
+      update_grounded_fraction_on_huv_grids!(model)
+      update_accumulation_rate!(model)
+      start_guess_β_inversion!(model,inversion)
+      start_guess_η_inversion!(model,inversion)
+      update_quadrature_falpha!(model)
+      update_av_viscosity!(model)
+      end
 
         JKVstep!(inversion_simulation)
+
+
 
         #check if we have hit a temporary checkpoint
         if mod(i,JKVstepping_params.n_iter_chkpt) == 0
