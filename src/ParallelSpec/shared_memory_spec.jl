@@ -37,7 +37,6 @@ function update_preconditioner!(model::AbstractModel, ::SharedMemorySpec)
             end
         end
     end
-    return model
 end
 
 

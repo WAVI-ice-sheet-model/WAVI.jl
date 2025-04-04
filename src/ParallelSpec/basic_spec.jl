@@ -9,7 +9,7 @@ Update the preconditioner. For Basic Parallel Specification no action is needed.
 
 """
 function update_preconditioner!(model::AbstractModel, ::BasicSpec)
-    return model
+
 end
 
 function precondition!(model::AbstractModel, ::BasicSpec)
