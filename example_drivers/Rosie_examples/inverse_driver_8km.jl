@@ -266,7 +266,8 @@ JKVstepping_params = JKVsteppingParams(niter0 = niter0,
 
 inversion_output = InversionOutput()
 
-                
+
+#### If you don't give it dhdt, accumulation_rate and dhdtaccmask, it uses just velocs.                
 inversion = Inversion(grid = grid,
                     bed_elevation=bed,
                     inversion_params=inversion_params,
@@ -275,9 +276,9 @@ inversion = Inversion(grid = grid,
                     speed_u_mask = udatamask_combo,
                     speed_v = vdata,
                     speed_v_mask = vdatamask_combo,
-                    dhdt = dhdt,
-                    accumulation_rate = accumulation_rate,
-                    dhdtacc_mask=dhdtaccmask_combo,
+              #     dhdt = dhdt,
+               #     accumulation_rate = accumulation_rate,
+               # dhdtacc_mask=dhdtaccmask_combo,
                     initial_conditions=initial_conditions,
                     params = params,
                     inversion_output=inversion_output)
@@ -287,9 +288,9 @@ inversion = Inversion(grid = grid,
 println("About to make inversion_simulation")
 
  ##output parameters
-folder = "outputs_8km_inversion_test_2"
-#isdir(folder) && rm(folder, force = true, recursive = true)
-#mkdir(folder) #make a clean folder for outputs
+folder = "outputs_8km_inversion_test_nodhdt"
+isdir(folder) && rm(folder, force = true, recursive = true)
+mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
             u = model.fields.gu.u,
             uh = model.fields.gh.u,

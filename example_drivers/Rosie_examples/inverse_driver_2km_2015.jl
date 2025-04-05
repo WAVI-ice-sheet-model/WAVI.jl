@@ -380,8 +380,6 @@ inversion_simulation = InversionSimulation(model = model,
 #Then run the inversion:
 run_inversion_simulation!(inversion_simulation)
 
-#run_inversion!(simulation,inversion)
-
 @printf "The inversion test has been run"
 
 return model

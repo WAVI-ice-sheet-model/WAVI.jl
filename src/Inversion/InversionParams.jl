@@ -43,7 +43,7 @@ function InversionParams(; reltol = 1e-6,
                     inner_tol = 1.e-4,
                     inner_maxiters=1000,
                     cg=false,
-                    gmres=true )
+                    gmres=true)
                       
   return InversionParams(reltol,
                   abstol, 

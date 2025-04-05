@@ -38,22 +38,38 @@ function InversionDataHGrid(;
                 nyh,
                 mask = trues(nxh,nyh),
                 h_isfixed = falses(nxh,nxy),
-                dhdt = zeros(nxh,nyh),
+                dhdt = nothing,
                 accumulation_rate = zeros(nxh,nyh),
                 residual = zeros(nxh,nyh)
                 )
 
     #check the sizes of inputs
-    (size(mask) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to InversionDataHGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+   
+    if dhdt !== nothing
     (size(dhdt) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to InversionDataHGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    else
+        dhdt = dhdt === nothing ? fill(NaN, nxh, nyh) : dhdt
+        println("WARNING: dhdt is not provided and is set as NaNs")
+    end
+    if mask !== nothing
+        (size(mask) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to InversionDataHGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    else 
+            mask = mask === nothing ? fill(false, nxh, nyh) : mask
+            println("WARNING: dhdtacc_mask is not provided: only velocities will be used in inversion")
+        end
+        if accumulation_rate !== nothing
     (size(accumulation_rate) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to InversionDataHGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+        else
+                accumulation_rate = accumulation_rate === nothing ? fill(NaN, nxh, nyh) : accumulation_rate
+                println("WARNING: accumulation is not provided as is set as NaNs")
+        end
+
 
     #construct operators
     n = count(mask)
     crop = Diagonal(float(mask[:]))
     samp = sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
     spread = sparse(samp')
-
 
     #size assertions
     @assert n == count(mask)

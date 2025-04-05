@@ -95,7 +95,9 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
 
         # Define MSchur as a linear operator
         t_start = time()  # Get start time
+       
         mi=gudata.ni+gvdata.ni+ghdata.n
+
         # Define the LinearMap with the modified schur_apply
         MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
         #  MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
@@ -135,6 +137,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
  
       SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inversion_params.inner_tol, inversion_params.inner_maxiters)), size(op_C, 1), size(op_C, 2))
 
+    
        ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
         pD = similar(xD_guess, ni - (gu.ni + gv.ni))  # Preallocate correct size
        # pD=xD_guess[gu.ni+gv.ni+1:ni]
@@ -536,8 +539,8 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
   #  div_huv :: Vector{T} = zeros(nxnyh);                            @assert length(div_huv) == nxnyh 
   #  div_huv_samp :: Vector{T} = zeros(gh.n);                        @assert length(div_huv_samp) == gh.n 
     fx :: Vector{T} = zeros(nxnyh);                                 @assert length(fx) == nxnyh
-    fx_sampi :: Vector{T} = zeros(ghdata.n);                            @assert length(fx_sampi) == ghdata.n
-    opvecprod :: Vector{T} = zeros(gudata.ni+gvdata.ni+ghdata.n);               @assert length(opvecprod) == gudata.ni + gvdata.ni + ghdata.n
+    fx_sampi :: Vector{T} = zeros(ghdata.n);                        @assert length(fx_sampi) == ghdata.n
+    opvecprod :: Vector{T} = zeros(gudata.ni+gvdata.ni+ghdata.n);   @assert length(opvecprod) == gudata.ni + gvdata.ni + ghdata.n
 #    opvecprod :: Vector{T} = zeros(udi + vdi + hdi);                @assert length(opvecprod) == udi + vdi + hdi
 
     function op_fun_B!(opvecprod::AbstractVector,inputVector::AbstractVector;vecSampled::Bool=true)
@@ -916,7 +919,7 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
     @unpack gh,gu,gv,gc=model.fields
     @unpack params, solver_params = model
     @unpack gudata, gvdata, ghdata=inversion.data_fields 
-       
+    
      #Preallocate intermediate variables used 
      nxnyh = gh.nxh*gh.nyh
      nxnyu = gu.nxu*gu.nyu
@@ -925,15 +928,16 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
      us_data= zeros(gu.nxu,gu.nyu);                          
      vs_data= zeros(gv.nxv,gv.nyv);                               
      us_data_sampi  = zeros(gudata.ni);                      
-     vs_data_sampi  = zeros(gvdata.ni);                    
+     vs_data_sampi  = zeros(gvdata.ni);     
+
+    
      dhdt_data = zeros(gh.nxh,gh.nyh);                              
      accumulation_data = zeros(gh.nxh,gh.nyh);     
-
      dhdtacc_data= zeros(nxnyh);                         
      dhdtacc_data_sampi= zeros(ghdata.n);                 
      f1 = zeros(gudata.ni+gvdata.ni+ghdata.n);            
      rhs_dirichlet = zeros(gudata.ni+gvdata.ni+ghdata.n);
-    
+     
      us_data = gudata.speed_u
      vs_data = gvdata.speed_v  
 
@@ -963,6 +967,7 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
           f1[1:gudata.ni] .= us_data_sampi
           f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
 
+        
      dhdt_data = ghdata.dhdt
      accumulation_data = ghdata.accumulation_rate
       dhdtacc_data=dhdt_data[:] .- accumulation_data[:]
@@ -1388,7 +1393,12 @@ Find JKV and store
 function update_JKV!(model::AbstractModel,inversion,clock)
     @unpack gh=model.fields
     @unpack grid=model
+    if inversion.data_fields.ghdata.n==0
+        σzzsurf_comp=0
+     #   println("Not using dhdt so setting  σzzsurf_comp=0 ")
+    else
     σzzsurf_comp=inversion.fields.gh.σzzsurf[gh.mask]'*(inversion.data_fields.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]).*(grid.dx*grid.dy) 
+    end
     τx_surf_comp=inversion.fields.gh.τx_surf[gh.mask]'*(inversion.fields.gh.us[gh.mask].-gh.us[gh.mask]).*(grid.dx*grid.dy)
     τy_surf_comp=inversion.fields.gh.τy_surf[gh.mask]'*(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask]).*(grid.dx*grid.dy)
 
@@ -1457,6 +1467,7 @@ Set residuals to particular values.
 function set_residual_inversion!(model::AbstractModel,inversion,residual)
     @unpack gu,gv=model.fields
     @unpack gudata,gvdata,ghdata=inversion.data_fields
+#### WILL ERROR if dhdt not provided!!!!! 
 
     @views inversion.fields.gu.residual[gu.mask_inner] .= residual[1:gu.ni]
     @views inversion.fields.gv.residual[gv.mask_inner] .= residual[(gu.ni+1):(gu.ni+gv.ni)]
