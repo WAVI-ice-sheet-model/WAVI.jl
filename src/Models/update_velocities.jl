@@ -6,7 +6,7 @@ update_velocities!(model::AbstractModel)
 Solve momentum equation to update the velocities, plus Picard iteration for non-linear rheology.
 
 """
-function update_velocities!(model::AbstractModel{T,N}) where {T,N}
+function update_velocities!(model::AbstractModel{T,N,M,PS}) where {T,N,M,PS}
     @unpack params,solver_params=model
     @unpack gu,gv,wu,wv = model.fields
 

@@ -1,10 +1,15 @@
-export MPISpec, update_preconditioner!, precondition!
+export MPISpec, update_preconditioner!, precondition!, update_velocities!
 
 """
-Naive implementation of a workflow for coordination of domain decomposition solving 
-across MPI workers
+VERY naive implementation of a workflow for coordination of domain decomposition solving 
+across MPI workers 
 
-See GH#91
+TODO: What we really need to do is initialise the global model split across members
+TODO: this might (?) be best achieved leveraging uniform buffers
+TODO: Currently, we're looking at sequential, per-iteration transfer of velocities
+TODO: and a copy per process of the global model (which at present is probably out of date each time)
+
+See GH#91 for high level tasks
 
 """
 
@@ -12,9 +17,9 @@ using MPI
 MPI.Init()
 
 comm = MPI.COMM_WORLD
-rank = MPI.Comm_rank(comm) + 1
+rank = MPI.Comm_rank(comm)
 comm_size = MPI.Comm_size(comm)
-root_rank = 1
+root_rank = 0
 
 @with_kw struct MPISpec{T <: Real, N <: Integer} <: AbstractParallelSpec
     ngridsx::N = 1 
@@ -25,51 +30,14 @@ root_rank = 1
     mpiModelArray::Array{AbstractModel,2} = Array{AbstractModel,2}(undef,ngridsx,ngridsy)
 end
 
-"""
-update_velocities! for MPISpec
-
-Solve momentum equation to update the velocities on rank, coordinate BC transfer from root
-
-"""
-function update_velocities!(model::AbstractModel{T,N,M,PS}) where {T<:Real, N<:Integer, M<:AbstractMeltRate, PS<:MPISpec}
-    @unpack params,solver_params=model
-    @unpack gu,gv,wu,wv = model.fields
-
-    # 1. Prepare all "mini-WAVI" instances across the domain, initialise our global domain representation
-    if (rank == root_rank)
-        @info "update_veloctities! for MPI, adapting conditioner"
-        update_preconditioner!(model)
-    end
-
-    MPI.barrier()
-
-    # 2. Solve independently across the subdomains and send back to the root domain
-    # TODO: refactor for communication of 
-    # TODO: incorporate transfer of halos between iterations
-    if (rank != root_rank)
-        converged::Bool = false
-        i_picard::Int64 = 0
-        rel_resid = Inf
-
-        while !converged && (i_picard < solver_params.maxiter_picard)
-            i_picard = i_picard + 1
-            inner_update!(model)
-            converged, rel_resid = precondition!(model)
-        end
-
-        println("Solved momentum equation on rank $(rank)/$(comm_size) with residual ", 
-            round(rel_resid, sigdigits=3)," at iteration ", i_picard)
-    end
-
-    MPI.barrier()
-
-    if (rank == root_rank)
-
-    end
-    
-    return model
+# TODO: review partitioning of the field
+function get_model_loc(parallel_spec::MPISpec)::Tuple{Integer, Integer}
+    @unpack ngridsx, ngridsy = parallel_spec
+    rank == root_rank && throw("Cannot retrieve model on root rank, you're doing something wrong")
+    igrid = (rank%ngridsx)+1
+    jgrid = (rank%ngridsy)+1
+    return (igrid, jgrid)
 end
-
 
 function update_preconditioner!(model::AbstractModel, ::MPISpec)
     @unpack ngridsx, ngridsy, overlap = model.parallel_spec
@@ -82,6 +50,7 @@ function update_preconditioner!(model::AbstractModel, ::MPISpec)
         jgrid = (rank%ngridsy)+1
         @info "Initialising sub domain model in rank $(rank)/$(comm_size) - $(igrid)x$(jgrid)"
 
+        # TODO: revise grid assignment structure for MPI and BC exchange
         model.parallel_spec.mpiModelArray[igrid,jgrid] = schwarzModel(model;
                                                                       igrid=igrid,
                                                                       jgrid=jgrid,
@@ -90,10 +59,70 @@ function update_preconditioner!(model::AbstractModel, ::MPISpec)
                                                                       overlap=overlap)
        
     end
+    MPI.Barrier(comm)
 
     return model
 end
 
 function precondition!(model::AbstractModel, ::MPISpec)
+    @unpack ngridsx, ngridsy, overlap, niterations, mpiModelArray, damping = model.parallel_spec
+    @unpack solver_params = model
 
+    # @info "Preconditioning in rank $(rank)/$(comm_size)"
+    if rank == root_rank
+        x = WAVI.get_start_guess(model)  
+        op = WAVI.get_op(model)
+        b = WAVI.get_rhs(model)
+        resid = WAVI.get_resid(x,op,b)
+        WAVI.set_residual!(model,resid)
+        rel_resid = norm(resid)/norm(b)
+        converged = rel_resid < solver_params.tol_picard
+
+        model_u_vbuf = UBuffer(model.fields.gu.u, 1)
+        model_v_vbuf = UBuffer(model.fields.gv.v, 1)
+
+        MPI.bcast(converged, root_rank, comm)
+        model.fields.gu.u[] .= MPI.Scatter!(model_u_vbuf, zeros(size(model.fields.gu.u)), root_rank, comm)
+        model.fields.gv.v .= MPI.Scatter!(model_v_vbuf, zeros(size(model.fields.gv.v)), root_rank, comm)
+    else
+        converged = false
+        model_u_vbuf = nothing
+        model_v_vbuf = nothing
+    end
+
+    if ! converged && rank != root_rank
+        igrid, jgrid = get_model_loc(model.parallel_spec)
+        model_g = mpiModelArray[igrid, jgrid]
+
+        for iteration = 1:niterations
+            schwarzRestrictVelocities!(
+                model_g::AbstractModel,
+                model::AbstractModel;
+                igrid=igrid,
+                jgrid=jgrid,
+                ngridsx=ngridsx,
+                ngridsy=ngridsy,
+                overlap=overlap)
+
+            WAVI.update_state!(model_g)
+
+            schwarzProlongVelocities!(
+                model::AbstractModel,
+                model_g::AbstractModel;
+                igrid=igrid,
+                jgrid=jgrid,
+                ngridsx=ngridsx,
+                ngridsy=ngridsy,
+                overlap=overlap,
+                damping=damping)
+        end
+    end
+
+    MPI.Barrier(comm)
+
+    if rank == root_rank
+        MPI.Gather!(MPI.IN_PLACE, model_u_vbuf, root_rank, comm)
+        MPI.Gather!(MPI.IN_PLACE, model_v_vbuf, root_rank, comm)
+    end
+    return converged, rel_resid
 end

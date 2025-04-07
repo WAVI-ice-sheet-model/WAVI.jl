@@ -22,4 +22,4 @@ driver_updated.jl
 *.data
 **/Attribution_driver
 /melt_rate_parametrizations/
-/benchmarks/LocalPreferences.json
+/benchmarks/LocalPreferences.toml

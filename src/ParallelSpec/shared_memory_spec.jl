@@ -50,7 +50,6 @@ function precondition!(model::AbstractModel, ::SharedMemorySpec)
     @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.parallel_spec
     @unpack solver_params = model
 
-    x = WAVI.get_start_guess(model)  
     op = WAVI.get_op(model)
     b = WAVI.get_rhs(model)
     resid = WAVI.get_resid(x,op,b)

@@ -8,7 +8,7 @@ include("SchwarzDecomposition/SchwarzDecomposition.jl")
 """
 get_parallel_spec(model::AbstractModel)
 
-Function to return the parallel specification of a model, used for the multiple dispatch
+Function to return the parallel specification of a model, used for multiple dispatch
 
 """
 get_parallel_spec(model::AbstractModel) = model.parallel_spec
