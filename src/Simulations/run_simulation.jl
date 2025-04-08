@@ -77,7 +77,8 @@ function run_simulation!(simulation)
         if mod(i,simulation.timestepping_params.n_iter_pchkpt) == 0
             #output a permanent checkpoint
             n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-            fname = string("PChkpt_",n_iter_string, ".jld2")
+           # fname = string(output_params.output_path, "PChkpt_",n_iter_string, ".jld2")
+           fname = string("PChkpt_",n_iter_string, ".jld2")
             @save fname simulation
             println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
         end

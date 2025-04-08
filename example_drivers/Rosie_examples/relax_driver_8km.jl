@@ -5,9 +5,9 @@ using WAVI
 function relax_driver_8km()
 
 #Load up the model from the inversion:
-n_iter_inversion=15;
+n_iter_inversion=5;
   
-file_path="/data/glacio/icesheets/shelf_thin/wip/chll1/WAVI_inversion/WAVI.jl/outputs_8km_inversion_test/"
+file_path="/data/glacio/icesheets/shelf_thin/wip/chll1/WAVI_inversion/WAVI.jl/outputs_8km_inversion_test_speed_store"
 #PChkpt_0000000015.jld2"
 
     n_iter_string =  lpad(n_iter_inversion, 10, "0"); #filename as a string with 10 digits
@@ -92,9 +92,9 @@ println("The model is made")
  #timestepping parameters
 niter0 = 0
 dt = 0.1
-end_time = 10.0
+end_time = 2.0
 chkpt_freq = 25.0
-pchkpt_freq = 25.0
+pchkpt_freq = 1.0
 timestepping_params = TimesteppingParams(niter0 = niter0, 
                                            dt = dt, 
                                            end_time = end_time, 
@@ -113,7 +113,7 @@ outputs = (h = model.fields.gh.h,
             h_mask = model.fields.gh.mask)
              #output velocities and thickness
              
-output_freq = 5.0
+output_freq = 1.0
 output_params = OutputParams(outputs = outputs, 
                            output_path = folder,
                            output_freq = output_freq,

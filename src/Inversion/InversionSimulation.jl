@@ -61,9 +61,9 @@ include("run_inversion_simulation.jl")
         println("detected niter0 > 0 (niter0 = $(inversion_simulation.JKVstepping_params.niter0)). Looking for pickup...")
         try 
             #for running on vscode vis workstation:
-            #filename = string(inversion_simulation.output_params.output_path, "/PChkpt_", n_iter_string, ".jld2")
+            filename = string(inversion_simulation.output_params.output_path, "/PChkpt_", n_iter_string, ".jld2")
             #for running with ensembler:
-            filename = string("PChkpt_", n_iter_string, ".jld2")
+            #filename = string("PChkpt_", n_iter_string, ".jld2")
             println("Looking for file: ", filename)
 
             if isfile(filename)
