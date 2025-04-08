@@ -232,11 +232,6 @@ udatamask_combo = convert(Array{Bool,2}, udatamask_combo)
 vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
-println("nnz inmodel.fields.gu.mask is " ,count(!iszero, model.fields.gu.mask))
-println("nnz in udatamask is " ,count(!iszero, udatamask))
-println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
-println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
-
 reltol=0.5
 abstol=0.1
 maxiter=500
@@ -265,9 +260,9 @@ inversion_params = InversionParams(reltol = reltol,
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 30
+max_JKV_iterations = 1
 n_iter_chkpt = 100
-n_iter_pchkpt= 5
+n_iter_pchkpt= 1
 
 JKVstepping_params = JKVsteppingParams(niter0 = niter0, 
                                         n_iter_chkpt = n_iter_chkpt,
@@ -275,11 +270,7 @@ JKVstepping_params = JKVsteppingParams(niter0 = niter0,
                                         n_iter_total = max_JKV_iterations,
                                         n_iter_out = n_iter_out)
 
-JKV=zeros(max_JKV_iterations)
-JRMS=zeros(max_JKV_iterations)
-
-inversion_output = InversionOutput(JKV=JKV,
-                                    JRMS=JRMS)
+inversion_output = InversionOutput()
 
                 
 inversion = Inversion(grid = grid,
@@ -302,7 +293,7 @@ inversion = Inversion(grid = grid,
  @printf "About to make inversion_simulation"
 
  ##output parameters
-folder = "Y2015_Mask_1_2km_inversion_niter10"
+ folder = "Y2015_Mask_0_2km_inversion_speed_save"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
@@ -332,6 +323,10 @@ outputs = (h = model.fields.gh.h,
             vdata_mask = inversion.data_fields.gvdata.mask,
             dhdt_data = inversion.data_fields.ghdata.dhdt,
             dhdtaccdata_mask = inversion.data_fields.ghdata.mask,
+            us_data = inversion.data_fields.ghdata.us,
+            vs_data = inversion.data_fields.ghdata.vs,
+            surf_speed_data = inversion.data_fields.ghdata.surf_speed,
+            surf_speed_data_mask = inversion.data_fields.ghdata.surf_speed_mask,
             u_d = inversion.fields.gu.u,
             u_dh = inversion.fields.gh.u,
             v_d = inversion.fields.gv.v,

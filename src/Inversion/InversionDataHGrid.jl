@@ -8,8 +8,12 @@ struct InversionDataHGrid{T <: Real, N <: Integer}
                  samp :: SparseMatrixCSC{T,N}                  # Sampling matrix: take full domain to model domain 
                spread :: SparseMatrixCSC{T,N}                  # Spread matrix: take model domain to full domain
                   dhdt :: Array{T,2}                            # dhdt data on h
-     accumulation_rate :: Array{T,2}                            # accumulation rate data on h
-             residual :: Array{T,2}                            # residuals on h
+    accumulation_rate  :: Array{T,2}                            # accumulation rate data on h
+                    us :: Array{T,2}                            # u speed data (surf)  on h
+                    vs :: Array{T,2}                            # v speed data (surf)  on h
+            surf_speed :: Array{T,2}                            # speed data (surf)  on h
+       surf_speed_mask :: Array{Bool,2}                            # surf speed data mask of valid point on h
+             residual  :: Array{T,2}                            # residuals on h
 end
     
 """
@@ -37,9 +41,13 @@ function InversionDataHGrid(;
                 nxh,
                 nyh,
                 mask = trues(nxh,nyh),
-                h_isfixed = falses(nxh,nxy),
+                h_isfixed = falses(nxh,nyh),
                 dhdt = nothing,
                 accumulation_rate = zeros(nxh,nyh),
+                us=zeros(nxh,nyh),
+                vs=zeros(nxh,nyh),
+                surf_speed=zeros(nxh,nyh),
+                surf_speed_mask=falses(nxh,nyh),
                 residual = zeros(nxh,nyh)
                 )
 
@@ -81,6 +89,7 @@ function InversionDataHGrid(;
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
     h_isfixed = convert(Array{Bool,2}, h_isfixed)
+    surf_speed_mask = convert(Array{Bool,2}, surf_speed_mask)
 
     return InversionDataHGrid(
                 nxh,
@@ -93,6 +102,10 @@ function InversionDataHGrid(;
                 spread,
                 dhdt,
                 accumulation_rate,
+                us,
+                vs,
+                surf_speed,
+                surf_speed_mask,
                 residual
                 )
 end

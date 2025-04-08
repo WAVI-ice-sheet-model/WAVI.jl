@@ -276,9 +276,9 @@ inversion = Inversion(grid = grid,
                     speed_u_mask = udatamask_combo,
                     speed_v = vdata,
                     speed_v_mask = vdatamask_combo,
-              #     dhdt = dhdt,
-               #     accumulation_rate = accumulation_rate,
-               # dhdtacc_mask=dhdtaccmask_combo,
+                   dhdt = dhdt,
+                    accumulation_rate = accumulation_rate,
+                dhdtacc_mask=dhdtaccmask_combo,
                     initial_conditions=initial_conditions,
                     params = params,
                     inversion_output=inversion_output)
@@ -288,7 +288,7 @@ inversion = Inversion(grid = grid,
 println("About to make inversion_simulation")
 
  ##output parameters
-folder = "outputs_8km_inversion_test_nodhdt"
+folder = "outputs_8km_inversion_test_speed_store"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,
@@ -318,6 +318,10 @@ outputs = (h = model.fields.gh.h,
             vdata_mask = inversion.data_fields.gvdata.mask,
             dhdt_data = inversion.data_fields.ghdata.dhdt,
             dhdtaccdata_mask = inversion.data_fields.ghdata.mask,
+            us_data = inversion.data_fields.ghdata.us,
+            vs_data = inversion.data_fields.ghdata.vs,
+            surf_speed_data = inversion.data_fields.ghdata.surf_speed,
+            surf_speed_data_mask = inversion.data_fields.ghdata.surf_speed_mask,
             u_d = inversion.fields.gu.u,
             u_dh = inversion.fields.gh.u,
             v_d = inversion.fields.gv.v,

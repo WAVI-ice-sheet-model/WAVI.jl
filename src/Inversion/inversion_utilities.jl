@@ -1432,6 +1432,11 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
 
     surf_speed_data_on_h[:]=sqrt.(us_data_cent[:].^2 .+ vs_data_cent[:].^2)
 
+    #save into ghdata structure:
+    ghdata.us[:] .= us_data_cent
+    ghdata.vs[:] .= vs_data_cent
+    ghdata.surf_speed .= surf_speed_data_on_h
+
     # Assume u_mask and v_mask are boolean arrays (true = valid, false = invalid)
     surf_speed_data_on_h_mask = falses(size(gh.mask))  # Initialize h_mask with all false
 
@@ -1442,6 +1447,9 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
 
     data_and_model_mask = surf_speed_data_on_h_mask .& gh.mask
     data_and_model_mask = convert(Array{Bool,2},data_and_model_mask)
+
+    #save mask on h for which surf data is valid in the ghdata structure:
+    ghdata.surf_speed_mask .= surf_speed_data_on_h_mask
 
     JRMS=sqrt(mean((surf_speed_data_on_h[data_and_model_mask] .- gh.surf_speed[data_and_model_mask]).^2));
    # inversion.inversion_output.JRMS[clock.n_iter+1]=JRMS
