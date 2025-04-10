@@ -4,7 +4,7 @@ module WAVI
 export
     #Structures
     Model, Params, TimesteppingParams, Grid, SolverParams, InitialConditions, OutputParams, Simulation, 
-    BasicSpec, SharedMemorySpec, MPISpec, SlurmSpec,
+    BasicSpec, SharedMemorySpec, MPISpec, SlurmSpec, DistributedSpec,
 
     #Simulation controls
     update_state!, timestep!, run_simulation!,
@@ -23,7 +23,7 @@ export
 using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
       IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
       NetCDF, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
-      NonlinearSolve,SciMLNLSolve
+      NonlinearSolve, SciMLNLSolve
 
 #Import functions so they can be modified in this module.
 import Base: *, size, eltype
