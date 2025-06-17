@@ -1,20 +1,42 @@
 """
     timestep!(simulation)
 
-Perform one timestep of the simulation
+Perform one timestep of the simulation. 
 """
 function timestep!(simulation)
     @unpack model,timestepping_params, output_params, clock = simulation
-    update_state!(model, clock)
+
+    if mod(clock.n_iter, timestepping_params.ntimesteps_velocity_update) == 0 #if we're on a velocity + thickness update output step
+        update_state!(model, clock)
+        if timestepping_params.verbose
+            println("Completed main timestep (velocity and thickness updated), t = ", clock.time)
+        end
+
+        if timestepping_params.step_thickness
+            update_thickness!(simulation)
+        end
+
+    else #just a thickness update step
+        update_state_novelocity!(model, clock)
+
+        if timestepping_params.step_thickness
+            update_thickness!(simulation)
+        end
+
+        if timestepping_params.verbose
+            println("Completed sub-timestep (thickness only updated), t = ", clock.time)
+        end
+    end
+
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
     if (output_params.output_start) && (simulation.clock.n_iter == 0)
         write_output(simulation)
     end
-    if timestepping_params.step_thickness
-        update_thickness!(simulation)
-    end
+
     update_clock!(simulation)
+
 end
+
 
 """
 update_thickness!(model::AbstractModel)
@@ -77,8 +99,8 @@ function run_simulation!(simulation)
         if mod(i,simulation.timestepping_params.n_iter_pchkpt) == 0
             #output a permanent checkpoint
             n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-           # fname = string(output_params.output_path, "PChkpt_",n_iter_string, ".jld2")
-           fname = string("PChkpt_",n_iter_string, ".jld2")
+            fname = string(output_params.output_path, "PChkpt_",n_iter_string, ".jld2")
+           #fname = string("PChkpt_",n_iter_string, ".jld2")
             @save fname simulation
             println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
         end

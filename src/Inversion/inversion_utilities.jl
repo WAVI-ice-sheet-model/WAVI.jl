@@ -98,6 +98,12 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
        
         mi=gudata.ni+gvdata.ni+ghdata.n
 
+        println("mi is " ,mi)
+        println("gudata.ni is" ,gudata.ni)
+        println("gvdata.ni is" ,gvdata.ni)
+        println("ghdata.ni is" ,gudata.n)
+        println("size of f2 is" ,size(f2))
+
         # Define the LinearMap with the modified schur_apply
         MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
         #  MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
@@ -944,28 +950,34 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
      us_data_vec=us_data[gudata.mask]
      vs_data_vec=vs_data[gvdata.mask]
 
-     us_data_spread=gudata.spread*us_data_vec
-    us_data_crop = gu.crop * us_data_spread[:]  
-    us_data_cent = gu.cent * us_data_crop 
-    us_data_cent_samp = gh.samp  * us_data_cent
-    us_data_cent_samp_spread= gh.spread*us_data_cent_samp
+#     us_data_spread=gudata.spread*us_data_vec
+#    us_data_crop = gu.crop * us_data_spread[:]  
+#    us_data_cent = gu.cent * us_data_crop 
+#    us_data_cent_samp = gh.samp  * us_data_cent
+#    us_data_cent_samp_spread= gh.spread*us_data_cent_samp
     #
-    us_data_centT = gu.centᵀ*us_data_cent_samp_spread
-    us_data_centT_crop = gu.crop*us_data_centT
+ #   us_data_centT = gu.centᵀ*us_data_cent_samp_spread
+ #   us_data_centT_crop = gu.crop*us_data_centT
 
-    vs_data_spread=gvdata.spread*vs_data_vec
-    vs_data_crop = gv.crop * vs_data_spread[:]    
-    vs_data_cent = gv.cent * vs_data_crop 
-    vs_data_cent_samp = gh.samp  * vs_data_cent 
-    vs_data_cent_samp_spread= gh.spread*vs_data_cent_samp
-    vs_data_centT = gv.centᵀ*vs_data_cent_samp_spread
-    vs_data_centT_crop = gv.crop*vs_data_centT
+  #  vs_data_spread=gvdata.spread*vs_data_vec
+  #  vs_data_crop = gv.crop * vs_data_spread[:]    
+  #  vs_data_cent = gv.cent * vs_data_crop 
+  #  vs_data_cent_samp = gh.samp  * vs_data_cent 
+  #  vs_data_cent_samp_spread= gh.spread*vs_data_cent_samp
+   # vs_data_centT = gv.centᵀ*vs_data_cent_samp_spread
+  #  vs_data_centT_crop = gv.crop*vs_data_centT
 
-     us_data_sampi = gudata.samp_inner*us_data_centT_crop
-     vs_data_sampi =gvdata.samp_inner*vs_data_centT_crop
+   
+    # us_data_sampi = gudata.samp_inner*us_data_centT_crop
+    # vs_data_sampi =gvdata.samp_inner*vs_data_centT_crop
+
+    us_data_sampi = us_data_vec
+     vs_data_sampi = vs_data_vec
 
           f1[1:gudata.ni] .= us_data_sampi
           f1[(gudata.ni+1):(gudata.ni+gvdata.ni)] .= vs_data_sampi
+
+
 
         
      dhdt_data = ghdata.dhdt

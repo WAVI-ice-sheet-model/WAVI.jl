@@ -3,6 +3,7 @@
 using WAVI 
 using Printf
 using ImageFiltering
+using SparseArrays
 
 function inverse_driver_2km()
 
@@ -18,23 +19,23 @@ dx = 2000.0
 dy = 2000.0
 
 h_mask=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/h_mask.bin",h_mask)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/h_mask.bin",h_mask)
 h_mask.=ntoh.(h_mask)
 
 u_iszero=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/u_iszero.bin",u_iszero)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/u_iszero.bin",u_iszero)
 u_iszero.=ntoh.(u_iszero)
 
 v_iszero=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/v_iszero.bin",v_iszero)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/v_iszero.bin",v_iszero)
 v_iszero.=ntoh.(v_iszero)
 
 sigma_grid=Array{Float64}(undef,nσ);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/sigma_grid.bin",sigma_grid)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/sigma_grid.bin",sigma_grid)
 sigma_grid.=ntoh.(sigma_grid)
 
 basin_ID=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/basinID.bin",basin_ID)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/basinID.bin",basin_ID)
 basin_ID.=ntoh.(basin_ID)
 
 
@@ -54,49 +55,49 @@ grid = Grid(nx = nx,
 #Bed 
 #
 bed=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/bed.bin",bed)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/bed.bin",bed)
 bed.=ntoh.(bed)
 
 h=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/thickness.bin",h)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/thickness.bin",h)
 h.=ntoh.(h) 
 
 #this should read in from inversion, because is necessary for julia setup,but is it used???
 # viscosity=Array{Float64}(undef,nx,ny,nσ);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_viscosity3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",viscosity)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/Inverse_2km_viscosity3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",viscosity)
  #viscosity.=ntoh.(viscosity)
 
  temp=Array{Float64}(undef,nx,ny,nσ);
- read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/temps.bin",temp)
+ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/temps.bin",temp)
  temp.=ntoh.(temp)
 
  #check this comes in as all zeros...
 # damage=Array{Float64}(undef,nx,ny,nσ);
- # read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_damage3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",damage)
+ # read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/Inverse_2km_damage3D_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",damage)
 # damage.=ntoh.(damage)
 
 #all zeros and isn't used?? Does it actually need to be here?
  #weertman_c=Array{Float64}(undef,nx,ny);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_WeertmanC_clip_adjusted_noNan_BedmachineV3_FULL_stripe_fix.bin",weertman_c)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/Inverse_2km_WeertmanC_clip_adjusted_noNan_BedmachineV3_FULL_stripe_fix.bin",weertman_c)
  #weertman_c.=ntoh.(weertman_c)
 
  #same as accumulation data? Redundant??
  accumulation_rate=Array{Float64}(undef,nx,ny);
- read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/accumulation_data.bin",accumulation_rate)
+ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/accumulation_data.bin",accumulation_rate)
  accumulation_rate.=ntoh.(accumulation_rate)
 
 #This is from data
  dhdt=Array{Float64}(undef,nx,ny);
- read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/dhdt_data.bin",dhdt)
+ read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/dhdt_data.bin",dhdt)
  dhdt.=ntoh.(dhdt)
 
  #Hope these aren't actually needed...
  #gu_u=Array{Float64}(undef,nx+1,ny);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_u_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gu_u)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/Inverse_2km_u_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gu_u)
  #gu_u.=ntoh.(gu_u)
 #
  #gv_v=Array{Float64}(undef,nx,ny+1);
- #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/Inverse_2km_v_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gv_v)
+ #read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/Inverse_2km_v_velocs_clip_noNan_BedmachineV3_FULL_stripe_fix.bin",gv_v)
  #gv_v.=ntoh.(gv_v)
 
 initial_conditions = InitialConditions(initial_thickness = h,
@@ -191,41 +192,111 @@ println("The inversion test is about to be done")
 #First read in the data to be used for the inversion:
 
 dhdtaccmask=Array{Float64}(undef,nx,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/dhdt_acc_mask.bin",dhdtaccmask)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/dhdt_acc_mask.bin",dhdtaccmask)
 dhdtaccmask.=ntoh.(dhdtaccmask)
 
 udata=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/udata.bin",udata)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/udata.bin",udata)
 udata.=ntoh.(udata)
 
 vdata=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/vdata.bin",vdata)
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/vdata.bin",vdata)
 vdata.=ntoh.(vdata)
 
-udatamask=Array{Float64}(undef,nx+1,ny);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/udata_mask.bin",udatamask)
-udatamask.=ntoh.(udatamask)
+udatamask_raw=Array{Float64}(undef,nx+1,ny);
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/udata_mask.bin",udatamask_raw)
+udatamask_raw.=ntoh.(udatamask_raw)
 
-vdatamask=Array{Float64}(undef,nx,ny+1);
-read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_1_2km/vdata_mask.bin",vdatamask)
-vdatamask.=ntoh.(vdatamask)
+vdatamask_raw=Array{Float64}(undef,nx,ny+1);
+read!("/data/hpcdata/users/chll1/WAVI_Initial_Data_1990s/Mask_2_2km/vdata_mask.bin",vdatamask_raw)
+vdatamask_raw.=ntoh.(vdatamask_raw)
 
-#pre-select points not near data gaps:  
+
+#refine masks to only include points in the model mask:
+
+udatamask = ((udatamask_raw .== 1) .& (model.fields.gu.mask .== 1))
+vdatamask = ((vdatamask_raw .== 1) .& (model.fields.gv.mask .== 1))
+
+udatamask=convert(Array{Bool,2}, udatamask)
+vdatamask=convert(Array{Bool,2}, vdatamask)
+
+u_n = count(udatamask)
+u_mask_inner = udatamask .& .! model.fields.gu.u_isfixed
+u_ni = count(u_mask_inner)
+#crop = Diagonal(float(udatamask[:]))
+u_samp = sparse(1:u_n,(1:(model.fields.gu.nxu*model.fields.gu.nyu))[udatamask[:]],ones(u_n),u_n,model.fields.gu.nxu*model.fields.gu.nyu)
+u_samp_inner = sparse(1:u_ni,(1:(model.fields.gu.nxu*model.fields.gu.nyu))[u_mask_inner[:]],ones(u_ni),u_ni,model.fields.gu.nxu*model.fields.gu.nyu)
+u_spread = sparse(u_samp')
+u_spread_inner = sparse(u_samp_inner')
+
+v_n = count(vdatamask)
+v_mask_inner = vdatamask .& .! model.fields.gv.v_isfixed
+v_ni = count(v_mask_inner)
+#crop = Diagonal(float(udatamask[:]))
+v_samp = sparse(1:v_n,(1:(model.fields.gv.nxv*model.fields.gv.nyv))[vdatamask[:]],ones(v_n),v_n,model.fields.gv.nxv*model.fields.gv.nyv)
+v_samp_inner = sparse(1:v_ni,(1:(model.fields.gv.nxv*model.fields.gv.nyv))[v_mask_inner[:]],ones(v_ni),v_ni,model.fields.gv.nxv*model.fields.gv.nyv)
+v_spread = sparse(v_samp')
+v_spread_inner = sparse(v_samp_inner')
+
+    #Do smoothing here:
+    us_data_vec=udata[udatamask]
+    us_data_spread=u_spread*us_data_vec
+    #
+    us_data_crop = model.fields.gu.crop * us_data_spread[:]  
+  #  us_data_crop = model.fields.gu.crop * udata[:]  
+    us_data_cent = model.fields.gu.cent * us_data_crop 
+    us_data_cent_samp = model.fields.gh.samp  * us_data_cent
+    us_data_cent_samp_spread= model.fields.gh.spread*us_data_cent_samp
+   #
+    us_data_centT =  model.fields.gu.centᵀ*us_data_cent_samp_spread
+    us_data_centT_crop =  model.fields.gu.crop*us_data_centT
+    #
+    us_data_sampi = u_samp_inner*us_data_centT_crop
+
+    us_data_smoothed=zeros(model.fields.gu.nxu,model.fields.gu.nyu)
+    us_data_smoothed[udatamask]=us_data_sampi
+
+#v smoothing:
+vs_data_vec=vdata[vdatamask]
+vs_data_spread=v_spread*vs_data_vec
+#
+vs_data_crop = model.fields.gv.crop * vs_data_spread[:]  
+#  us_data_crop = model.fields.gu.crop * udata[:]  
+vs_data_cent = model.fields.gv.cent * vs_data_crop 
+vs_data_cent_samp = model.fields.gh.samp  * vs_data_cent
+vs_data_cent_samp_spread= model.fields.gh.spread*vs_data_cent_samp
+#
+vs_data_centT =  model.fields.gv.centᵀ*vs_data_cent_samp_spread
+vs_data_centT_crop =  model.fields.gv.crop*vs_data_centT
+#
+vs_data_sampi = v_samp_inner*vs_data_centT_crop
+
+vs_data_smoothed=zeros(model.fields.gv.nxv,model.fields.gv.nyv)
+vs_data_smoothed[vdatamask]=vs_data_sampi
+
+ #   println("size of us_data_smoothed" ,size(us_data_smoothed))
+    println("size of us_data_sampi" ,size(us_data_sampi))
+  #  println("nnz of udatamask" ,count(!iszero, udatamask))
+
+
+
+##pre-select points not near data gaps:  
 u_neargap = imfilter((model.fields.gu.mask .& .!(udatamask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
 v_neargap = imfilter((model.fields.gv.mask .& .!(vdatamask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
-#data_mask_u = .!gudata.neargap .& .!gu.u_isfixed .& gu.mask
+##data_mask_u = .!gudata.neargap .& .!gu.u_isfixed .& gu.mask
 
 udatamask_combo = ((udatamask .== 1) .& (model.fields.gu.mask .== 1) .& (u_neargap .== 0))
 vdatamask_combo = ((vdatamask .== 1) .& (model.fields.gv.mask .== 1) .& (v_neargap .== 0))
 dhdtaccmask_combo = ((dhdtaccmask .== 1) .& (model.fields.gh.mask .== 1))
+
 #
 udatamask_combo = convert(Array{Bool,2}, udatamask_combo)
 vdatamask_combo = convert(Array{Bool,2}, vdatamask_combo)
 dhdtaccmask_combo = convert(Array{Bool,2},dhdtaccmask_combo)
 
 #println("nnz inmodel.fields.gu.mask is " ,count(!iszero, model.fields.gu.mask))
-#println("nnz in udatamask is " ,count(!iszero, udatamask))
-#println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
+println("nnz in udatamask is " ,count(!iszero, udatamask))
+println("nnz in udatamask_combo is " ,count(!iszero, udatamask_combo))
 #println("nnz in vdatamask_combo is " ,count(!iszero, vdatamask_combo))
 
 reltol=0.5
@@ -256,9 +327,9 @@ inversion_params = InversionParams(reltol = reltol,
 #JKVstepping parameters
 niter0 = 0
 n_iter_out=1
-max_JKV_iterations = 1
+max_JKV_iterations = 20
 n_iter_chkpt = 100
-n_iter_pchkpt= 1
+n_iter_pchkpt= 5
 
 JKVstepping_params = JKVsteppingParams(niter0 = niter0, 
                                         n_iter_chkpt = n_iter_chkpt,
@@ -275,9 +346,11 @@ inversion = Inversion(grid = grid,
                     bed_elevation=bed,
                     inversion_params=inversion_params,
                     solver_params=solver_params,
-                    speed_u = udata,
+#                    speed_u = udata,
+                    speed_u = us_data_smoothed,
                     speed_u_mask = udatamask_combo,
-                    speed_v = vdata,
+#                    speed_v = vdata,
+                    speed_v = vs_data_smoothed,
                     speed_v_mask = vdatamask_combo,
                     dhdt = dhdt,
                     accumulation_rate = accumulation_rate,
@@ -291,7 +364,7 @@ inversion = Inversion(grid = grid,
 println("About to make inversion_simulation")
 
  ##output parameters
-folder = "Y1990s_Mask_1_2km_inversion_speed_save"
+folder = "Y1990s_Mask_2_2km_inversion_speed_smooth_test"
 isdir(folder) && rm(folder, force = true, recursive = true)
 mkdir(folder) #make a clean folder for outputs
 outputs = (h = model.fields.gh.h,

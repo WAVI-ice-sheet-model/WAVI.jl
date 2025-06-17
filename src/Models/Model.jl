@@ -6,6 +6,7 @@ struct Model{T <: Real, N <: Integer,A,W, G, M <:AbstractMeltRate, PS <: Abstrac
     fields::Fields{T,N}
     melt_rate::M
     parallel_spec::PS
+    verbose :: Bool
 end
 
 """
@@ -16,19 +17,22 @@ end
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
         melt_rate = UniformMeltRate(),
-        parallel_spec = BasicParallelSpec())
+        parallel_spec = BasicParallelSpec(),
+        verbose = true)
 
 Construct a WAVI.jl model object.
 
 Keyword arguments
 =================
-- `grid`: (required) an instance of a `Grid` object, which defines the computational grid
-- `bed_elevation`: (required) an array of size `grid.nx` x `grid.ny` which defines the bed elevation
-- `params`: a `Params` object that defines physical parameters 
-- `solver_params`: a `SolverParams` object that defines parameters relating to the numerical scheme
-- `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, and damage
-- `melt_rate`: a melt rate model, responsible for controlling/setting the basal melt rate
-- `parallel_spec`: specification of parallel computation method.
+
+    - `grid`: (required) an instance of a `Grid` object, which defines the computational grid
+    - `bed_elevation`: (required) an array of size `grid.nx` x `grid.ny` which defines the bed elevation
+    - `params`: a `Params` object that defines physical parameters 
+    - `solver_params`: a `SolverParams` object that defines parameters relating to the numerical scheme
+    - `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, and damage
+    - `melt_rate`: a melt rate model, responsible for controlling/setting the basal melt rate
+    - `parallel_spec`: specification of parallel computation method.
+    - `verbose`: specifies whether to output information about the solve and residuals
 
 """
 function Model(;
@@ -38,7 +42,8 @@ function Model(;
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
     melt_rate = UniformMeltRate(),
-    parallel_spec = BasicParallelSpec())
+    parallel_spec = BasicParallelSpec(),
+    verbose = true)
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
@@ -87,7 +92,7 @@ function Model(;
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec)
+    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec, verbose)
 
     return model
 end
