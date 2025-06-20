@@ -18,7 +18,7 @@ end
 Acts as a constructor for the datafields (no explicit constructor as datafields `only ever called when setting up a model)
 """
 
-function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate, dhdtacc_mask)
+function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate, dhdtacc_mask, model)
     #Define masks for points on h-, u-, v- and c-grids that lie in model domain.
     h_mask = dhdtacc_mask 
     u_mask = speed_u_mask
@@ -45,7 +45,8 @@ function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,ac
     nyu=grid.ny,
     mask=u_mask,
     u_isfixed=grid.u_isfixed,
-    speed_u=speed_u
+    speed_u=speed_u,
+    model=model
     )
 
     #v-grid
@@ -54,7 +55,8 @@ function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,ac
     nyv=grid.ny+1,
     mask=v_mask,
     v_isfixed=grid.v_isfixed,
-    speed_v=speed_v
+    speed_v=speed_v,
+    model=model
     )
 
     return DataFields(ghdata,gudata,gvdata)

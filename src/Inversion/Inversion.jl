@@ -44,13 +44,14 @@ function Inversion(;
     parallel_spec = BasicParallelSpec(),
     initial_conditions = InitialConditions(),
     params = Params(),
-    inversion_output = InversionOutput())
+    inversion_output = InversionOutput(),
+    model = Model())
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
 
     #Setup the fields 
-    data_fields = setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate,dhdtacc_mask)
+    data_fields = setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate,dhdtacc_mask,model)
 
 
     bed_array = zeros(grid.nx,grid.nx) #initialize a bed array

@@ -41,13 +41,58 @@ function InversionDataVGrid(;
                 mask = trues(nxv,nyv),
                 v_isfixed = falses(nxv,nyv),
                 speed_v = zeros(nxv,nyv),
-                residual = zeros(nxv,nyv)
+                residual = zeros(nxv,nyv),
+                model = model
                 )
+
+    @unpack gu,gv,gh = model.fields
 
     #check the sizes of inputs
     (size(mask) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to InversionDataVGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
     (size(v_isfixed) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to InversionDataVGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
     (size(speed_v) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to InversionDataVGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
+
+
+    #refine masks to only include points in the model mask:
+    mask = ((mask .== 1) .& (gv.mask .== 1))
+    mask=convert(Array{Bool,2}, mask)
+
+
+    #construct operators
+    n = count(mask)
+    mask_inner = mask .& .! v_isfixed
+    ni = count(mask_inner)
+    crop = Diagonal(float(mask[:]))
+    samp = sparse(1:n,(1:(nxv*nyv))[mask[:]],ones(n),n,nxv*nyv)
+    samp_inner = sparse(1:ni,(1:(nxv*nyv))[mask_inner[:]],ones(ni),ni,nxv*nyv)
+    spread = sparse(samp')
+    spread_inner = sparse(samp_inner')
+
+    #Do smoothing here:
+    vs_data_vec=speed_v[mask]
+    vs_data_spread=spread*vs_data_vec
+    #
+    vs_data_crop = gv.crop * vs_data_spread[:]  
+  #  vs_data_crop = gv.crop * vdata[:]  
+    vs_data_cent = gv.cent * vs_data_crop 
+    vs_data_cent_samp = gh.samp  * vs_data_cent
+    vs_data_cent_samp_spread= gh.spread*vs_data_cent_samp
+   #
+    vs_data_centT =  gv.centᵀ*vs_data_cent_samp_spread
+    vs_data_centT_crop =  gv.crop*vs_data_centT
+    #
+    vs_data_sampi = samp_inner*vs_data_centT_crop
+
+    vs_data_smoothed=zeros(gv.nxv,gv.nyv)
+    vs_data_smoothed[mask]=vs_data_sampi
+    speed_v=vs_data_smoothed
+
+    ##pre-select points not near data gaps:  
+    v_neargap = imfilter((gv.mask .& .!(mask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+
+    mask = ((mask .== 1) .& (gv.mask .== 1) .& (v_neargap .== 0))
+    #
+
 
     #construct operators
     n = count(mask)

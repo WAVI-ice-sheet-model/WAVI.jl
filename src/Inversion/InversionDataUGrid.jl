@@ -42,12 +42,53 @@ function InversionDataUGrid(;
                 u_isfixed = falses(nxu,nyu),
                 speed_u = zeros(nxu,nyu),
                 residual = zeros(nxu,nyu),
+                model = model,
                 )
+
+    @unpack gu,gv,gh = model.fields
 
     #check the sizes of inputs
     (size(mask) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
     (size(u_isfixed) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
     (size(speed_u) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
+
+    #refine masks to only include points in the model mask:
+    mask = ((mask .== 1) .& (gu.mask .== 1))
+    mask=convert(Array{Bool,2}, mask)
+
+    #construct operators
+    n = count(mask)
+    mask_inner = mask .& .! u_isfixed
+    ni = count(mask_inner)
+    crop = Diagonal(float(mask[:]))
+    samp = sparse(1:n,(1:(nxu*nyu))[mask[:]],ones(n),n,nxu*nyu)
+    samp_inner = sparse(1:ni,(1:(nxu*nyu))[mask_inner[:]],ones(ni),ni,nxu*nyu)
+    spread = sparse(samp')
+    spread_inner = sparse(samp_inner')
+
+    #Smooth velocities:
+    us_data_vec=speed_u[mask]
+    us_data_spread=spread*us_data_vec
+    #
+    us_data_crop = gu.crop * us_data_spread[:]  
+    us_data_cent = gu.cent * us_data_crop 
+    us_data_cent_samp = gh.samp  * us_data_cent
+    us_data_cent_samp_spread= gh.spread*us_data_cent_samp
+   #
+    us_data_centT =  gu.centᵀ*us_data_cent_samp_spread
+    us_data_centT_crop =  gu.crop*us_data_centT
+    #
+    us_data_sampi = samp_inner*us_data_centT_crop
+
+    us_data_smoothed=zeros(gu.nxu,gu.nyu)
+    us_data_smoothed[mask]=us_data_sampi
+    speed_u=us_data_smoothed
+
+    ##pre-select points not near data gaps:  
+    u_neargap = imfilter((gu.mask .& .!(mask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+
+    mask = ((mask .== 1) .& (gu.mask .== 1) .& (u_neargap .== 0))
+    #
 
     #construct operators
     n = count(mask)
