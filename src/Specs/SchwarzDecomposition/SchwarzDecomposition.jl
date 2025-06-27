@@ -1,7 +1,8 @@
 module SchwarzDecomposition
 
-using WAVI
+using WAVI: AbstractModel
 using Parameters
+using Setfield
 
 export  schwarzModel, 
         schwarzRestrictVelocities!, 
