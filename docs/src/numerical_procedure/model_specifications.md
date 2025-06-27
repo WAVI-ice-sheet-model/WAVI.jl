@@ -24,3 +24,7 @@ Depending on specifications, some considerations need to be taken into account:
 
 * Examples in the docs
 * How you use `Model` interface changes in a distributed setting, to a fully functional interface
+
+## Executing distributed WAVI
+
+`mpiexecjl --project -np <num> julia <path to driver> <driver args...>`
