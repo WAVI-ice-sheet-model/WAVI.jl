@@ -71,7 +71,7 @@ function HGrid(;
                 nxh, 
                 nyh,
                 mask = trues(nxh,nyh),
-                h_isfixed = falses(nxh,nxy),
+                h_isfixed = falses(nxh,nyh),
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
