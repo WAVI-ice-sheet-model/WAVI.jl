@@ -9,6 +9,7 @@ SigmaGrid(;
         η,
         θ,
         Φ,
+        tesile_strain_history,
         glen_b
         )
 
@@ -28,6 +29,7 @@ Keyword arguments
 - 'η' : (required) three dimensional viscosity field
 - 'θ' : (required) three dimensional temperature field
 - 'Φ' : (required) three dimensional damage field
+- 'tensile_strain_history' : (required) tensile_strain energy history field (Pa)
 - 'glen_b': (required) three dimensional field of glen_b values in viscosity calcluations
 """
 
@@ -41,5 +43,6 @@ quadrature_weights :: Vector{T} = 0.5*[ σ[2] .- σ[1] ; σ[3:end] .- σ[1:end-2
 η :: Array{T,3}; @assert size(η)==(nxs,nys,nσs)
 θ :: Array{T,3}; @assert size(θ)==(nxs,nys,nσs)
 Φ :: Array{T,3}; @assert size(Φ)==(nxs,nys,nσs)
+tensile_strain_history :: Array{T,3}; @assert size(tensile_strain_history)==(nxs,nys,nσs)
 glen_b :: Array{T,3} = glen_b.(θ,Φ); @assert size(glen_b)==(nxs,nys,nσs)
 end
