@@ -1,3 +1,15 @@
+module Utilities
+
+using InplaceOps
+using Parameters
+
+using WAVI: AbstractModel
+using WAVI.KroneckerProducts
+
+export get_op_fun, get_restrict_fun, get_prolong_fun, pos_fraction, mismip_plus_bed,
+    get_glx, glen_b, get_u_mask, get_v_mask, get_c_mask, clip, get_resid, get_resid!, 
+    icedraft, height_above_floatation, volume_above_floatation, spI, ∂1d, c, χ
+
 #1D Matrix operator utility functions.
 spI(n) = spdiagm(n,n, 0 => ones(n))
 ∂1d(n,dx) = spdiagm(n,n+1,0 => -ones(n), 1 => ones(n))/dx
@@ -154,7 +166,7 @@ end
 Returns a function that restricts a vector from the fine grid to the coarse grid, 
 used in multigrid preconditioner.
 """
-function get_restrict_fun(model::AbstractModel{T,N}) where {T,N}
+function get_restrict_fun(model::AbstractModel)
     @unpack wu,wv,gu,gv=model.fields
 
     #Preallocate intermediate variables used by restrict_fun
@@ -199,7 +211,7 @@ end
 Returns a function that prolongs a vector from the coarse grid to the fine grid, 
 used in multigrid preconditioner.
 """
-function get_prolong_fun(model::AbstractModel{T,N}) where {T,N}
+function get_prolong_fun(model::AbstractModel)
     @unpack wu,wv,gu,gv=model.fields
 
     #Preallocate intermediate variables used by prolong_fun
@@ -551,3 +563,4 @@ function get_resid!(resid,x,op,b)
     resid .= b .- resid
 end
 
+end

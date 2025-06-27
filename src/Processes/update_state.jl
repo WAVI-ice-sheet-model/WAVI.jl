@@ -1,10 +1,19 @@
+export update_state!
+
+using Parameters
+
+using WAVI: AbstractModel
+using WAVI.KroneckerProducts
+using WAVI.Time
+using WAVI.Utilities
 
 """
 update_state!(model::AbstractModel, clock)
 
 Update the model to the current time dependent situation
 """
-function update_state!(model, clock)
+function update_state!(model::AbstractModel, clock::Clock) 
+    @debug "Updating state at $(clock)"
     update_surface_elevation!(model)
     update_geometry_on_uv_grids!(model)
     update_height_above_floatation!(model)
@@ -25,13 +34,14 @@ update_state!(model::AbstractModel)
 
 Update the model to the current time-indepdent situation
 """
-function update_state!(model)
+function update_state!(model::AbstractModel) 
+    @debug "Resolving state without time"
     update_surface_elevation!(model)
     update_geometry_on_uv_grids!(model)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
-    update_basal_melt!(model, WAVI.Clock())
+    update_basal_melt!(model, Clock())
     update_weertman_c!(model)
     update_dsdh!(model)
     update_model_velocities!(model)
@@ -161,7 +171,7 @@ end
 
 Update the velocities (depth averaged, surface and bed) on the h grid 
 """
-function update_velocities_on_h_grid!(model)
+function update_velocities_on_h_grid!(model::AbstractModel)
     @unpack gh,gu,gv = model.fields
     #depth averaged velocities
     gh.u[:] .= gu.cent*gu.u[:] #(gu.u[1:end-1,:] + gu.u[2:end,:])./2

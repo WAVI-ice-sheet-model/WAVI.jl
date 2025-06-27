@@ -1,3 +1,5 @@
+using WAVI: MapOrMatrix
+
 #Struct to hold information about wavelet-based multigrid preconditioner.
 @with_kw struct Preconditioner{T <: Real, N <: Integer, O <:MapOrMatrix{T}, C <: MapOrMatrix{T}, 
          R <: MapOrMatrix{T}, P <: MapOrMatrix{T}} <: AbstractPreconditioner{T,N}

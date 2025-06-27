@@ -1,4 +1,12 @@
-using WAVI.ParallelSpec: precondition!, update_preconditioner!
+using InplaceOps
+using LinearMaps
+
+using WAVI
+using WAVI.KroneckerProducts
+using WAVI.Parameters
+using WAVI.Utilities
+
+export update_velocities!
 
 """
 update_velocities!(model::AbstractModel)
@@ -6,9 +14,8 @@ update_velocities!(model::AbstractModel)
 Solve momentum equation to update the velocities, plus Picard iteration for non-linear rheology.
 
 """
-function update_velocities!(model::AbstractModel{T,N,M,PS}) where {T,N,M,PS}
-    @unpack params,solver_params=model
-    @unpack gu,gv,wu,wv = model.fields
+function update_velocities!(model::AbstractModel)
+    @unpack solver_params = model
 
     update_preconditioner!(model)
 
@@ -17,10 +24,12 @@ function update_velocities!(model::AbstractModel{T,N,M,PS}) where {T,N,M,PS}
     rel_resid = Inf
     while !converged && (i_picard < solver_params.maxiter_picard)
         i_picard = i_picard + 1
+        @debug "Updating velocities, picard iteration $(i_picard)"
         inner_update!(model)
         converged, rel_resid = precondition!(model)
     end
-    println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
+    # TODO: this used to rely on Thread.thread_id() but we should overload this somehow
+    println("Solved momentum equation with residual ", 
         round(rel_resid,sigdigits=3)," at iteration ",i_picard)
 
     return model

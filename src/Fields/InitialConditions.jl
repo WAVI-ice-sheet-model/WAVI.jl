@@ -1,3 +1,5 @@
+using Parameters
+
 """
 InitialConditions(; 
                     initial_thickness = fill!(Array{Float64}(undef,1,1),NaN),
@@ -24,6 +26,7 @@ Keyword arguments
 - 'initial_temperature': (nx x ny x nz) matrix defining temperature on sigma levels at t = 0
 - 'initial_damage': (nx x ny x nz) matrix defining ice damage at t = 0
 """
+# TODO: this should be in Configuration.jl? 
 @with_kw struct InitialConditions{T <: Real}
     initial_thickness::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_grounded_fraction::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)

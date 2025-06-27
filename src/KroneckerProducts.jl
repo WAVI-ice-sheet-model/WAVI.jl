@@ -1,3 +1,13 @@
+module KroneckerProducts
+
+using LinearAlgebra
+using LinearMaps
+using Parameters
+using SparseArrays
+
+import LinearAlgebra: ldiv!, mul!
+
+export KronType, KroneckerProduct, ⊗, mul!, *, size
 
 #Type to allow non-allocating multiplication by Kronecker products
 
@@ -84,3 +94,4 @@ The matrix is never constructed, but K can multiply a vector.
 #Type alias for abreviation
 const KronType{T,N} = KroneckerProduct{T, SparseMatrixCSC{T, N}, Adjoint{T,SparseMatrixCSC{T, N}}} where {T,N}
 
+end

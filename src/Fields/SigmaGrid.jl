@@ -31,10 +31,10 @@ Keyword arguments
 - 'glen_b': (required) three dimensional field of glen_b values in viscosity calcluations
 """
 
-@with_kw struct SigmaGrid{T <: Real, N <: Integer}
-        nxs :: N
-        nys :: N
-        nσs :: N
+@with_kw struct SigmaGrid{T <: Real}
+        nxs :: Integer
+        nys :: Integer
+        nσs :: Integer
         σ :: Vector{T} 
         ζ :: Vector{T} = one(eltype(σ)) .- σ ; @assert length(ζ) == nσs
         quadrature_weights :: Vector{T} = 0.5*[ σ[2] .- σ[1] ; σ[3:end] .- σ[1:end-2] ; σ[end] .- σ[end-1] ] ; @assert length(quadrature_weights) == nσs
