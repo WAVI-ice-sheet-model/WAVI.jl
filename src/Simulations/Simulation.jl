@@ -6,7 +6,10 @@ using JLD2
 using Parameters
 using Setfield
 
-mutable struct Simulation{M,TS,O,C} 
+using WAVI: AbstractModel
+using WAVI.Time
+
+mutable struct Simulation{M,TS,O,C}
     model::M
     timestepping_params::TS
     output_params::O
@@ -30,7 +33,7 @@ Keyword arguments
 - `pickup_output_update_flag`: a flag which specifies whether to update the output_params upon picking up.
 """
 function Simulation(;
-                    model = nothing,
+                    model::AbstractModel = nothing,
                     timestepping_params = nothing,
                     output_params = OutputParams(),
                     pickup_output_update_flag = false)
@@ -52,10 +55,7 @@ function Simulation(;
     #pickup?
     pickup!(simulation, pickup_output_update_flag)
 
-    return simulation 
-
-  
-    
+    return simulation    
 end
 
 include("run_simulation.jl")

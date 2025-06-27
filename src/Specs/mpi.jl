@@ -151,11 +151,11 @@ function Model(grid::AbstractGrid,
     return model
 end
 
-Base.propertynames(model::Model{T,N,MPISpec,F,G}, private::Bool) where {T,N,F,G} = (fieldnames(typeof(model)..., :global_fields))
+Base.propertynames(model::Model{T,N,MPISpec,F,G,M}, private::Bool) where {T,N,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
 
 # TODO: override @debug, @info, @warn and @error for MPI based logging, with the rank out of size and / or grid location
 
-function Base.getproperty(model::Model{T,N,MPISpec,F,G}, s::Symbol) where {T,N,F,G}
+function Base.getproperty(model::Model{T,N,MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
     if s == :global_fields
         fields = collate_global_fields(model.fields, model.spec)
         return fields

@@ -3,7 +3,7 @@ module Models
 using Parameters
 using Setfield
 
-using WAVI: AbstractGrid, AbstractMeltRate, AbstractModel, AbstractSpec
+using WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel, AbstractSpec
 using WAVI.Fields
 using WAVI.Grids
 using WAVI.MeltRates
@@ -24,7 +24,7 @@ struct Model{T,N,S,F,G,M} <: AbstractModel{T,N,S,F,G,M}
     params  ::  Params
     solver_params :: SolverParams
     spec   ::  S
-    melt_rate :: M
+    melt_rate :: M    
 end
 
 """
@@ -36,7 +36,7 @@ end
 function Model(grid::AbstractGrid, 
                bed_elevation::Union{Integer, Function}, 
                thickness::Integer,
-               spec::BasicSpec;
+               spec::AbstractSpec;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
@@ -50,6 +50,8 @@ function Model(grid::AbstractGrid,
 end
 
 Model(grid, bed_elev, thickness; kw...) = Model(grid, bed_elev, thickness, BasicSpec(); kw...)
+# This is to enable use of Setfield, which derives a parameter setup from the fields of an existing structure via JuliaObjects
+Model(g, f, p, sp, s, m) = Model{Real, Integer, AbstractSpec, AbstractField, AbstractGrid, AbstractMeltRate}(g, f, p, sp, s, m)
 
 include("utils.jl")
 

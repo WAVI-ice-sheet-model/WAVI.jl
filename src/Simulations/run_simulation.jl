@@ -1,5 +1,8 @@
 export run_simulation!, timestep!, update_clock!, update_thickness!, write_vel
 
+using WAVI.Outputs: write_output
+using WAVI.Processes: update_state!
+
 """
     timestep!(simulation)
 

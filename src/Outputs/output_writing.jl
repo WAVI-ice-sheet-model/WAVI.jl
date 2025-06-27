@@ -1,6 +1,9 @@
 
 export fetch_output, write_output
 
+using JLD2
+using MAT
+
 #file containing outputting functions
 """
     write_output(simulation)

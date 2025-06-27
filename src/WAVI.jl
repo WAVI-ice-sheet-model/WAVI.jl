@@ -5,8 +5,8 @@ abstract type AbstractField{T <: Real} end
 abstract type AbstractGrid{T <: Real} end
 abstract type AbstractMeltRate end
 abstract type AbstractSpec end
-abstract type AbstractModel{T <: Real, 
-                            N <: Integer, 
+abstract type AbstractModel{T <: Real,
+                            N <: Integer,
                             S <: AbstractSpec,
                             F <: AbstractField,
                             G <: AbstractGrid,
@@ -72,7 +72,8 @@ export BasicSpec, ThreadedSpec, MPISpec
 
 # TODO: there is outstanding work to detach from jld2 for transfer of model data
 using .Outputs
-export fetch_output, 
+export OutputParams,
+    fetch_output, 
     get_spatiotemporal_var_atts, get_spatial_dimensions, get_times, get_output_as_dict, 
     make_ncfile, make_ncfile_from_filenames, 
     write_output, zip_output
