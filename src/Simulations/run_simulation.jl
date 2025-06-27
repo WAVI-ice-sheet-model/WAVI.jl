@@ -1,6 +1,6 @@
 export run_simulation!, timestep!, update_clock!, update_thickness!, write_vel
 
-using WAVI.Outputs: write_output
+using WAVI.Outputs: write_output, zip_output
 using WAVI.Processes: update_state!
 
 """
@@ -28,17 +28,25 @@ Update thickness using rate of change of thickness and apply minimum thickness c
 """
 function update_thickness!(simulation)
     @unpack model,timestepping_params=simulation
-    hUpdate=zeros(model.grid.nx,model.grid.ny)
-    aground=zeros(model.grid.nx,model.grid.ny)
-    hUpdate[model.fields.gh.mask]=max.(model.params.minimum_thickness .- model.fields.gh.h[model.fields.gh.mask],timestepping_params.dt*model.fields.gh.dhdt[model.fields.gh.mask])
+
+    hUpdate = zeros(model.grid.nx,model.grid.ny)
+    aground = zeros(model.grid.nx,model.grid.ny)
+    hUpdate[model.fields.gh.mask] = max.(
+        model.params.minimum_thickness .- model.fields.gh.h[model.fields.gh.mask],
+        timestepping_params.dt * model.fields.gh.dhdt[model.fields.gh.mask])
+    
     #Specify whether to evolve the shelves:
     if !model.params.evolveShelves
-        hUpdate[model.fields.gh.mask]=max.(model.params.smallHAF.-(model.params.density_ocean./model.params.density_ice).*model.fields.gh.b[model.fields.gh.mask].-model.fields.gh.h[model.fields.gh.mask],hUpdate[model.fields.gh.mask])
+        hUpdate[model.fields.gh.mask] = max.(
+            model.params.smallHAF .- (
+                model.params.density_ocean ./ model.params.density_ice
+            ) .* model.fields.gh.b[model.fields.gh.mask] .- model.fields.gh.h[model.fields.gh.mask], 
+            hUpdate[model.fields.gh.mask])
         aground=(model.fields.gh.haf.>=0)
         wc=[1 1 1; 1 1 1; 1 1 1]
         w=centered(wc)
-        nearfloat_mask=imfilter(model.fields.gh.mask.&.!aground,reflect(w),Fill(0,w))
-        nearfloat_mask=iszero.(iszero.(nearfloat_mask))
+        nearfloat_mask = imfilter(model.fields.gh.mask.&.!aground,reflect(w),Fill(0,w))
+        nearfloat_mask = iszero.(iszero.(nearfloat_mask))
         hUpdate[nearfloat_mask].=0
     end
     hUpdate[model.fields.gh.h_isfixed] .= 0
@@ -74,7 +82,7 @@ function run_simulation!(simulation)
         #check if we have hit a temporary checkpoint
         if mod(i,timestepping_params.n_iter_chkpt) == 0
             #output a temporary checkpoint
-            fname = string("Chkpt",chkpt_tag, ".jld2")
+            fname = string("Chkpt", chkpt_tag, ".jld2")
             @save fname simulation
             chkpt_tag = (chkpt_tag == "A") ? "B" : "A"
             println("making temporary checkpoint at timestep number $(simulation.clock.n_iter)")
@@ -84,7 +92,7 @@ function run_simulation!(simulation)
         if mod(i,simulation.timestepping_params.n_iter_pchkpt) == 0
             #output a permanent checkpoint
             n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-            fname = string("PChkpt_",n_iter_string, ".jld2")
+            fname = string("PChkpt_", n_iter_string,  ".jld2")
             @save fname simulation
             println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
         end
@@ -123,7 +131,7 @@ function write_vel(simulation::Simulation)
     v_out .= hton.(v_out)
 
     ufileID =  open(uVel_file_string,"w")
-      write(ufileID, u_out[:,:])
+    write(ufileID, u_out[:,:])
     close(ufileID) 
     vfileID =  open(vVel_file_string,"w")
     write(vfileID, v_out[:,:])
