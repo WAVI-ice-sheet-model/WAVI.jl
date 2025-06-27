@@ -5,9 +5,11 @@ using LinearMaps
 using Parameters
 using SparseArrays
 
+import Base: *, size
 import LinearAlgebra: ldiv!, mul!
+import LinearMaps: ⊗
 
-export KronType, KroneckerProduct, ⊗, mul!, *, size
+export KronType, KroneckerProduct, *, size
 
 #Type to allow non-allocating multiplication by Kronecker products
 

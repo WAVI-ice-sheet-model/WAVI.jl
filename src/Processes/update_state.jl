@@ -4,8 +4,10 @@ using Parameters
 
 using WAVI: AbstractModel
 using WAVI.KroneckerProducts
+using WAVI.MeltRates
 using WAVI.Time
 using WAVI.Utilities
+using WAVI.Wavelets
 
 """
 update_state!(model::AbstractModel, clock)

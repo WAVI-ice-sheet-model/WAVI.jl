@@ -3,7 +3,7 @@ module Models
 using Parameters
 using Setfield
 
-using WAVI: AbstractGrid, AbstractModel, AbstractSpec
+using WAVI: AbstractGrid, AbstractMeltRate, AbstractModel, AbstractSpec
 using WAVI.Fields
 using WAVI.Grids
 using WAVI.MeltRates
@@ -46,7 +46,7 @@ function Model(grid::AbstractGrid,
     
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array, thickness; initial_conditions, params, solver_params)
-    model = Model{Real, Integer, BasicSpec, GridField, AbstractGrid}(grid, fields, Params(), SolverParams(), spec)
+    model = Model{Real, Integer, BasicSpec, GridField, AbstractGrid, AbstractMeltRate}(grid, fields, Params(), SolverParams(), spec, melt_rate)
 end
 
 Model(grid, bed_elev, thickness; kw...) = Model(grid, bed_elev, thickness, BasicSpec(); kw...)

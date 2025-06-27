@@ -26,8 +26,8 @@ include("Grids.jl")
 include("Utilities.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
-include("Processes/Processes.jl")
 include("MeltRates/MeltRates.jl")
+include("Processes/Processes.jl")
 include("Models/Models.jl")
 include("Specs/Specs.jl")
 include("Outputs/Outputs.jl")
@@ -43,7 +43,7 @@ using .Parameters
 export Params, SolverParams, TimesteppingParams
 
 using .KroneckerProducts
-export KronType, KroneckerProduct, ⊗
+export KronType, KroneckerProduct
 
 using .Grids
 export Grid
@@ -57,11 +57,11 @@ export Preconditioner
 using .Fields
 export GridField, InitialConditions
 
-using .Processes
-export update_state!, update_velocities!
-
 using .MeltRates
 export PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins
+
+using .Processes
+export update_state!, update_velocities!
 
 using .Models
 export AbstractModel, Model,

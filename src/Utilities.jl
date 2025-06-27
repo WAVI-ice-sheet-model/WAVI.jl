@@ -1,6 +1,7 @@
 module Utilities
 
 using InplaceOps
+using LinearAlgebra
 using Parameters
 
 using WAVI: AbstractModel
