@@ -6,11 +6,13 @@ using MPI
 
 using WAVI.Parameters
 
-import WAVI: AbstractField, AbstractGrid, AbstractModel
+import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel
 import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 import WAVI.Grids: Grid
+import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!
+import WAVI.Wavelets: UWavelets, VWavelets
 
 struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
     # MPI Specification information
@@ -73,7 +75,8 @@ function Model(grid::AbstractGrid,
                spec::MPISpec;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
-               solver_params::SolverParams = SolverParams())
+               solver_params::SolverParams = SolverParams(),
+               melt_rate = UniformMeltRate())
     @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left = spec
 
     @info "[$(rank+1)/$(global_size)] - $(coords) - creating Grid and Model for MPI rank $(rank)"
@@ -144,7 +147,7 @@ function Model(grid::AbstractGrid,
 
     bed_array = get_bed_elevation(bed_elevation, local_grid)
     fields = GridField(local_grid, bed_array, thickness; initial_conditions=conditions, params, solver_params)
-    model = Model{Real, Integer, MPISpec, GridField, AbstractGrid}(local_grid, fields, Params(), SolverParams(), spec)
+    model = Model{Real, Integer, MPISpec, GridField, AbstractGrid, AbstractMeltRate}(local_grid, fields, Params(), SolverParams(), spec, melt_rate)
     return model
 end
 
@@ -290,7 +293,10 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
         Φ = zeros(grid.nx, grid.ny, grid.nσ),
         glen_b = zeros(grid.nx, grid.ny, grid.nσ),
         quadrature_weights = grid.quadrature_weights
-    )
+    )    
+    # Wavelet-grids
+    wu = UWavelets(nxuw=grid.nx+1, nyuw=grid.ny, levels=local_fields.gu.levels)
+    wv = VWavelets(nxvw=grid.nx, nyvw=grid.ny+1, levels=local_fields.gv.levels)
 
     ## TODO: duplicated from above
     th, rh, bh, lh = top > -1 ? halo : 0, right > -1 ? halo : 0, bottom > -1 ? halo : 0, left > -1 ? halo : 0
@@ -306,7 +312,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
 
     #Wavelet-grid, v-component.
     # wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=solver_params.levels)
-    global_fields = GridField(gh,gu,gv,gc,g3d)
+    global_fields = GridField(gh,gu,gv,gc,g3d,wu,wv)
 
     MPI.Barrier(comm)  
     @info "[$(rank+1)/$(global_size)] - LOCAL U $(size(local_fields.gu.u)) GLOBAL [$(x_start):$(x_end+1), $(y_start):$(y_end)]"

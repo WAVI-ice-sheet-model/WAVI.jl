@@ -36,7 +36,7 @@ end
 function Model(grid::AbstractGrid, 
                bed_elevation::Union{Integer, Function}, 
                thickness::Integer,
-               spec::AbstractSpec;
+               spec::BasicSpec;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
