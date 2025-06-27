@@ -4,13 +4,13 @@ using Parameters
 using Plots
 using MPI
 
-using MiniWAVI.Parameters
+using WAVI.Parameters
 
-import MiniWAVI: AbstractField, AbstractGrid, AbstractModel
-import MiniWAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
-import MiniWAVI.Grids: Grid
-import MiniWAVI.Models: BasicSpec, Model, get_bed_elevation
-import MiniWAVI.Processes: update_state!, update_model_velocities!, update_velocities!
+import WAVI: AbstractField, AbstractGrid, AbstractModel
+import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
+import WAVI.Grids: Grid
+import WAVI.Models: BasicSpec, Model, get_bed_elevation
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!
 
 struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
     # MPI Specification information

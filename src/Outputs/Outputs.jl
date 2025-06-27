@@ -1,3 +1,9 @@
+module Outputs
+
+export OutputParams
+
+using Parameters
+
 #structure that contains outputting info
 struct OutputParams{T <: Real, R <: Real, O}
     outputs::O         #tuple of entries defining names and quantities to be outputted
@@ -76,3 +82,5 @@ end
 
 include("output_writing.jl")
 include("zipping_output.jl")
+
+end

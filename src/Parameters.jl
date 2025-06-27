@@ -1,8 +1,9 @@
 module Parameters
 
 using Parameters
+using WAVI.Time: compute_iterations_and_end_time
 
-export Params, SolverParams
+export Params, SolverParams, TimesteppingParams
 
 # TODO: A W G? Assuming these could be functions as well as reals?
 struct Params{T <: Real, A, W, G}

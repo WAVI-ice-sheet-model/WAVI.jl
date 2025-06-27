@@ -2,7 +2,7 @@ module Time
 
 import Base: show
 
-export Clock
+export Clock, compute_iterations_and_end_time
 
 #mutable clock structure to store time info
 mutable struct Clock{T <: Real, N <: Integer}

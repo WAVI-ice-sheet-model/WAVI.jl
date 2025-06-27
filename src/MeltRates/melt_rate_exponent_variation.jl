@@ -1,3 +1,5 @@
+export MeltRateExponentVariation, set_melt_rate_exponent_variation!
+
 struct MeltRateExponentVariation{T <: Real} <: AbstractMeltRate
     γT :: T                       #(calibrated) heat exchange velocity
     λ1 :: T                       #liquidus slope 

@@ -1,9 +1,11 @@
+export update_wavelets!, wavelet_matrix
+
 """
     update_wavelets!(model::AbstractModel)
 
 Compute wavelet transform of velocities to define the coarse grid used in multigrid preconditioner.
 """
-function update_wavelets!(model::AbstractModel{T,N}) where {T,N}
+function update_wavelets!(model::AbstractModel)
     @unpack wu,wv,gu,gv=model.fields
     @unpack params,solver_params=model
 

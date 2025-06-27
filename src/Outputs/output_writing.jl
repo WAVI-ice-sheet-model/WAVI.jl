@@ -1,3 +1,6 @@
+
+export fetch_output, write_output
+
 #file containing outputting functions
 """
     write_output(simulation)

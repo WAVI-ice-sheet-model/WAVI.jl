@@ -1,3 +1,5 @@
+export MeltRateExponentVariationBasins, set_melt_rate_exponent_variation_basins!
+
 struct MeltRateExponentVariationBasins{T <: Real} <: AbstractMeltRate
     γT1 :: T                       #(calibrated) heat exchange velocity in basin 1
     γT2 :: T                       #(calibrated) heat exchange velocity in basin 2

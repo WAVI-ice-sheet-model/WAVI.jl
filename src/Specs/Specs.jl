@@ -1,6 +1,6 @@
-module ParallelSpecs
+module Specs
 
-using MiniWAVI: AbstractSpec
+using WAVI: AbstractSpec
 
 export AbstractDecompSpec
 

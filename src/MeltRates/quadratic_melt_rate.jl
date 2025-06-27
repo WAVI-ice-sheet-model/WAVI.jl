@@ -1,3 +1,5 @@
+export QuadraticMeltRate 
+
 struct QuadraticMeltRate{T <: Real} <: AbstractMeltRate
     γT :: T                       #(calibrated) heat exchange velocity
     λ1 :: T                       #liquidus slope 

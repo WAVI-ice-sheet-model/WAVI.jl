@@ -1,10 +1,14 @@
+export apply_precondition!, gauss_seidel_smoother, get_correction_coarse, 
+    get_multigrid_ops, get_op_coarse_fun, get_op_diag, get_preconditioner,
+    set_correction_coarse!
+
 """
     get_preconditioner(model::AbstractModel{T,N},op::LinearMap{T}) where {T, N}
 
  Get precondtioner. Details are stored in a struct of type Preconditioner that can be passed to a solver.
 
 """
-function get_preconditioner(model::AbstractModel{T,N},op::LinearMap{T}) where {T, N}
+function get_preconditioner(model::AbstractModel, op::LinearMap{T}) where {T}
 
     @unpack gu,gv,wu,wv=model.fields
     @unpack params,solver_params=model

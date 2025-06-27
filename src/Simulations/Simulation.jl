@@ -1,3 +1,11 @@
+module Simulations
+
+export Simulation
+
+using JLD2
+using Parameters
+using Setfield
+
 mutable struct Simulation{M,TS,O,C} 
     model::M
     timestepping_params::TS
@@ -50,7 +58,6 @@ function Simulation(;
     
 end
 
-
 include("run_simulation.jl")
 
 function set_dt_in_model!(model, dt)
@@ -85,4 +92,4 @@ function pickup!(simulation, pickup_output_update_flag)
     return simulation
 end
     
-
+end

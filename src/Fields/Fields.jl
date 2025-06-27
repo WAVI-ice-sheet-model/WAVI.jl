@@ -5,11 +5,12 @@ using Parameters
 using Setfield          # TODO: InitialConditions using this, bit of an anti-pattern?
 using SparseArrays
 
-using MiniWAVI: AbstractField, AbstractGrid
-using MiniWAVI.Grids
-using MiniWAVI.KroneckerProducts
-using MiniWAVI.Parameters
-using MiniWAVI.Utilities
+using WAVI: AbstractField, AbstractGrid
+using WAVI.Grids
+using WAVI.KroneckerProducts
+using WAVI.Parameters
+using WAVI.Utilities
+using WAVI.Wavelets
 
 export GridField, InitialConditions
 
@@ -163,4 +164,6 @@ function GridField(grid::AbstractGrid, bed_array, thickness;
     #Wavelet-grid, v-component.
     wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=solver_params.levels)
     return Fields(gh,gu,gv,gc,g3d,wu,wv)
+end
+
 end

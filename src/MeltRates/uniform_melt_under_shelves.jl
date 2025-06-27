@@ -1,3 +1,5 @@
+export UniformMeltUnderShelves
+
 struct UniformMeltUnderShelves{T <: Real} <: AbstractMeltRate 
     melt_constant  :: T
     melt_partial_cell :: Bool

@@ -1,3 +1,5 @@
+export run_simulation!, timestep!, update_clock!, update_thickness!, write_vel
+
 """
     timestep!(simulation)
 

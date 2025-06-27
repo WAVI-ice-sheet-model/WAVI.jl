@@ -1,3 +1,5 @@
+export PICO
+
 struct PICO{T <: Real, N <: Int} <: AbstractMeltRate
     γT :: T                       #(calibrated) heat exchange velocity
     λ1 :: T                       #liquidus slope 

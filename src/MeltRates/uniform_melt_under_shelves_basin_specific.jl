@@ -1,3 +1,5 @@
+export UniformMeltUnderShelvesBasins
+
 struct UniformMeltUnderShelvesBasins{T <: Real} <: AbstractMeltRate 
     melt_constant_basin_1  :: T
     melt_constant_basin_2  :: T

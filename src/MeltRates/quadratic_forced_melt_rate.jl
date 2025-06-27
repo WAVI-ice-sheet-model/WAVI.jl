@@ -1,3 +1,5 @@
+export QuadraticForcedMeltRate
+
 using Dierckx
 
 struct QuadraticForcedMeltRate{T <: Real} <: AbstractMeltRate

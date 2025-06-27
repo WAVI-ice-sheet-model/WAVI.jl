@@ -1,3 +1,11 @@
+module MeltRates
+
+export update_melt_rate!, UniformMeltRate
+
+using Parameters
+
+using WAVI: AbstractMeltRate
+
 #add each of the individual melt rate models
 #include("./analytic_melt_rate_model.jl")
 include("./binfile_melt_rate.jl")
@@ -52,3 +60,4 @@ function update_melt_rate!(melt_rate::UniformMeltRate, fields, grid, clock)
     return nothing
 end
 
+end

@@ -1,3 +1,5 @@
+export BinfileMeltRate
+
 struct BinfileMeltRate <: AbstractMeltRate
     input_filename::String    #specify melt filename
 end

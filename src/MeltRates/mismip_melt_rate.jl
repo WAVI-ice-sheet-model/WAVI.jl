@@ -1,3 +1,5 @@
+export MISMIPMeltRateOne
+
 struct MISMIPMeltRateOne{T <: Real} <: AbstractMeltRate 
     α  :: T
     ρi :: T

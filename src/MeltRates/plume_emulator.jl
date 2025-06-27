@@ -1,3 +1,5 @@
+export PlumeEmulator
+
 struct PlumeEmulator{T <: Real} <: AbstractMeltRate
     α :: T         #calibration coefficient 
     λ1 :: T        #liquidus slope 

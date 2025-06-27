@@ -2,7 +2,7 @@ module Grids
 
 import Base: show, size
 
-using MiniWAVI: AbstractGrid
+using WAVI: AbstractGrid
 
 export Grid
 
