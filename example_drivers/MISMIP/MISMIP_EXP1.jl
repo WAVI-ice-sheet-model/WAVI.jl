@@ -3,7 +3,8 @@ using WAVI, Plots
     MISMIP Experiments EXP1_1: advance to a steady state on a linear slope
 
 """
-function MISMIP_EXP1_1(A = 4.6416e-24)
+function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
+                       A = 4.6416e-24)
     #grid and bc
     nx = 300
     ny = 2
@@ -57,7 +58,6 @@ function MISMIP_EXP1_1(A = 4.6416e-24)
                                             dt = dt, 
                                             end_time = end_time)
 
-    folder = "outputs_mismip_exp1"
     outputs = (h = model.fields.gh.h,       # Ice thickness 
                 u = model.fields.gh.u,      # EW velocity
                 v = model.fields.gh.v,      # NS velocity
@@ -112,11 +112,12 @@ function plot_evolution(outfolder = "outputs_mismip_exp1")
         u_out[:,i] = d["u"][:,1]
         v_out[:,i] = d["v"][:,1]
     end
-        
+
     #plot things
-    for i in [:h, :ib, :s, :t, :u, :v]
-        plot(x, bed, legend=False)
+    for i in [:h_out, :ib_out, :s_out, :u_out, :v_out]
+        plot(x, bed, legend=false)
+        println(i, size(eval(i)), size(u_out))
         plot!(x, eval(i))
-        savefig("$(:i).png")
+        savefig("$(outfolder)/$(i).png")
     end
 end
