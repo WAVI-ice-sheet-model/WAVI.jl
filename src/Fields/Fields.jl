@@ -26,15 +26,15 @@ include("utils.jl")
 """
     Structure to hold all field variables in WAVI.jl
 """
-struct GridField{T <: Real} <: AbstractField{T}
-    gh  :: HGrid{T}
-    gu  :: UGrid{T}
-    gv  :: VGrid{T}
-    gc  :: CGrid{T}
+struct GridField{T <: Real, N <: Integer} <: AbstractField{T, N}
+    gh  :: HGrid{T,N}
+    gu  :: UGrid{T,N}
+    gv  :: VGrid{T,N}
+    gc  :: CGrid{T,N}
     g3d :: SigmaGrid{T}
 
-    wu  :: UWavelets{T}
-    wv  :: VWavelets{T}    
+    wu  :: UWavelets{T,N}
+    wv  :: VWavelets{T,N}    
 end
 
 """

@@ -1,4 +1,4 @@
-export apply_precondition!, gauss_seidel_smoother, get_correction_coarse, 
+export apply_preconditioning!, gauss_seidel_smoother, get_correction_coarse, 
     get_multigrid_ops, get_op_coarse_fun, get_op_diag, get_preconditioner,
     set_correction_coarse!
 

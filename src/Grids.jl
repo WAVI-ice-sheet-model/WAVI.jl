@@ -6,10 +6,10 @@ using WAVI: AbstractGrid
 
 export Grid
 
-struct Grid{T <: Real} <: AbstractGrid{T}
-                    nx :: Integer       # Number of x gridpoints
-                    ny :: Integer       # Number of y gridpoints
-                    nσ :: Integer       # Number of levels in the vertical
+struct Grid{T <: Real, N <: Integer} <: AbstractGrid{T,N}
+                    nx :: N             # Number of x gridpoints
+                    ny :: N             # Number of y gridpoints
+                    nσ :: N             # Number of levels in the vertical
                     dx :: T             # Grid spacing in x
                     dy :: T             # Grid spacing in y
                     x0 :: T             # X co-ordinate of grid origin

@@ -53,6 +53,7 @@ Check whether initial conditions have been specified. Default them to standard v
 TODO: should be encapsulated via outer constructors in some way
 """
 function check_initial_conditions(initial_conditions, params, grid)
+    @info "Setting up initial conditions based on params"
     if all(isnan.(initial_conditions.initial_thickness))
         default_thickness = params.default_thickness
         #@info "Did not find a specified initial thickness, reverting to default value specified in params ($default_thickness m everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"

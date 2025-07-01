@@ -2,7 +2,7 @@ using LinearAlgebra
 using Parameters
 
 using WAVI: AbstractModel
-using WAVI.Wavelets: apply_preconditioning!
+using WAVI.Wavelets
 
 export update_preconditioner!, precondition!
 

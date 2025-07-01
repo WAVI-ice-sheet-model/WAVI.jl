@@ -1,8 +1,8 @@
 module WAVI
 
 # Abstract types
-abstract type AbstractField{T <: Real} end
-abstract type AbstractGrid{T <: Real} end
+abstract type AbstractField{T <: Real, N <: Integer} end
+abstract type AbstractGrid{T <: Real, N <: Integer} end
 abstract type AbstractMeltRate end
 abstract type AbstractSpec end
 abstract type AbstractModel{T <: Real,
@@ -11,7 +11,7 @@ abstract type AbstractModel{T <: Real,
                             F <: AbstractField,
                             G <: AbstractGrid,
                             M <: AbstractMeltRate} end
-abstract type AbstractPreconditioner{T <: Real,N <: Integer} end #,O,C,R,P} end
+abstract type AbstractPreconditioner{T <: Real,N <: Integer} end
 
 using LinearMaps
 #Type alias, just for abreviation
