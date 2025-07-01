@@ -44,7 +44,7 @@ function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
                     glen_a_ref = glen_a_ref)
      
     #make the model
-    model = Model(grid, b, Int32(default_thickness), BasicSpec();
+    model = Model(grid, b, BasicSpec();
                   params = params, 
                   solver_params = solver_params)
 

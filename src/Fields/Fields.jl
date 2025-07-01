@@ -43,7 +43,7 @@ end
 Acts as a constructor for the fields (no explicit constructor as fields `only ever called when setting up a model)
 """
 
-function GridField(grid::AbstractGrid, bed_array, thickness;
+function GridField(grid::AbstractGrid, bed_array;
                    initial_conditions::InitialConditions = InitialConditions(),
                    params::Params = Params(),
                    solver_params::SolverParams = SolverParams())

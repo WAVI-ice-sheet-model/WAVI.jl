@@ -35,7 +35,6 @@ end
 """
 function Model(grid::AbstractGrid, 
                bed_elevation::Union{Integer, Function}, 
-               thickness::Integer,
                spec::AbstractSpec;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
@@ -44,14 +43,15 @@ function Model(grid::AbstractGrid,
 
     bed_array = get_bed_elevation(bed_elevation, grid)
     
-    println("DEBUG: $(solver_params)")
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
-    fields = GridField(grid, bed_array, thickness; initial_conditions, params, solver_params)
+    fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
     model = Model(grid, fields, params, solver_params, spec, melt_rate)
     return model
 end
 
-Model(grid, bed_elev, thickness; kw...) = Model(grid, bed_elev, thickness, BasicSpec(); kw...)
+Model(grid, bed_elev; kw...) = Model(grid, bed_elev, BasicSpec(); kw...)
+Model(; grid, bed_elevation, parallel_spec, kw...) = Model(grid, bed_elevation, parallel_spec; kw...)
+
 # This is to enable use of Setfield, which derives a parameter setup from the fields of an existing structure via JuliaObjects
 # FIXME: this wasn't required in the original WAVI codebase. There is a constructor mapping issue somewhere.
 #  If we specify T as Real, the solver will stop working - there is too much passthrough

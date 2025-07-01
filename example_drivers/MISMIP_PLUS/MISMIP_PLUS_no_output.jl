@@ -31,7 +31,7 @@ function MISMIP_PLUS()
     solver_params = SolverParams(maxiter_picard = maxiter_picard, super_implicitness=super_implicitness)
 
     #parallel_spec = BasicSpec()
-    parallel_spec = SharedMemorySpec(ngridsx = 16,ngridsy=2,overlap=1,niterations=1)
+    parallel_spec = ThreadedSpec(ngridsx = 16,ngridsy=2,overlap=1,niterations=1)
 
     #Physical parameters
     default_thickness = 100.0 #set the initial condition this way
@@ -40,27 +40,23 @@ function MISMIP_PLUS()
                     accumulation_rate = accumulation_rate)
 
     #make the model
-    model = Model(grid = grid,
-                     bed_elevation = bed, 
-                     params = params, 
-                     solver_params = solver_params,
-                     parallel_spec = parallel_spec)
-
+    model = Model(grid,
+                  bed,
+                  parallel_spec; 
+                  params = params, 
+                  solver_params = solver_params)
+ 
     #timestepping parameters
     niter0 = 0
     dt = 0.1
-    end_time = 10000.0
+    end_time = 100.0
     timestepping_params = TimesteppingParams(niter0 = niter0, 
-                                            dt = dt, 
-                                            end_time = end_time)
+                                             dt = dt, 
+                                             end_time = end_time)
     
-    simulation = Simulation(model = model, 
-                        timestepping_params = timestepping_params)
+    simulation = Simulation(; model = model, timestepping_params = timestepping_params)
             
     #perform the simulation
     run_simulation!(simulation)
     return simulation
 end
-
-
-@time simulation = MISMIP_PLUS();

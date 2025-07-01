@@ -77,5 +77,3 @@ function MISMIP_PLUS()
     run_simulation!(simulation)
     return simulation
 end
-
-@time simulation = MISMIP_PLUS();

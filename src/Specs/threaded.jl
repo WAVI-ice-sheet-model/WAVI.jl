@@ -32,6 +32,8 @@ For shared memory parallelism, update the subdomain models used by restricted ad
 function update_preconditioner!(model::AbstractModel, ::ThreadedSpec)
     @unpack ngridsx, ngridsy, overlap = model.parallel_spec
 
+    @info "Spawning $(ngridsx * ngridsy) threads for preconditioning"
+
     @sync for igrid = 1:ngridsx
         for jgrid = 1:ngridsy
             Threads.@spawn begin

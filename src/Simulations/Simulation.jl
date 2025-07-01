@@ -7,6 +7,7 @@ using Parameters
 using Setfield
 
 using WAVI: AbstractModel
+using WAVI.Outputs: OutputParams
 using WAVI.Time
 
 mutable struct Simulation{M,TS,O,C}
