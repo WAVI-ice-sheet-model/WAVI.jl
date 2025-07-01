@@ -1,6 +1,9 @@
 module SchwarzDecomposition
 
-using WAVI: AbstractModel
+using WAVI
+import WAVI: AbstractModel
+using WAVI.Models: Model
+
 using Parameters
 using Setfield
 
@@ -97,9 +100,10 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     bed_elevation_g = model.fields.gh.b[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
     params_g = model.params
-    params_g = @set params_g.weertman_c = params_g.weertman_c[i_start_g:i_stop_g,j_start_g:j_stop_g]
-    params_g = @set params_g.accumulation_rate = params_g.accumulation_rate[i_start_g:i_stop_g,j_start_g:j_stop_g]
-    params_g = @set params_g.glen_a_ref = params_g.glen_a_ref[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    # FIXME: params might NOT be gridded at this point
+    #params_g = @set params_g.weertman_c = params_g.weertman_c[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    #params_g = @set params_g.accumulation_rate = params_g.accumulation_rate[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    #params_g = @set params_g.glen_a_ref = params_g.glen_a_ref[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
     solver_params_g=model.solver_params
 
@@ -122,14 +126,13 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     melt_rate_g=model.melt_rate
 
-    model_g = WAVI.Model(
-        grid = grid_g, 
-        bed_elevation = bed_elevation_g,
+    model_g = Model(
+        grid_g, 
+        bed_elevation_g;
+        initial_conditions = initial_conditions_g,
         params = params_g,
         solver_params = solver_params_g,
-        initial_conditions = initial_conditions_g,
-        melt_rate = melt_rate_g,
-        parallel_spec = BasicSpec())
+        melt_rate = melt_rate_g)
 
     return model_g
 end

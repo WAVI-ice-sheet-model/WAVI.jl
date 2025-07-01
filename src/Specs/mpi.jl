@@ -71,7 +71,6 @@ end
 
 function Model(grid::AbstractGrid, 
                bed_elevation, 
-               thickness,
                spec::MPISpec;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
@@ -146,8 +145,8 @@ function Model(grid::AbstractGrid,
         basin_ID = grid.basin_ID[x_start:x_end, y_start:y_end])
 
     bed_array = get_bed_elevation(bed_elevation, local_grid)
-    fields = GridField(local_grid, bed_array, thickness; initial_conditions=conditions, params, solver_params)
-    model = Model{Real, Integer, MPISpec, GridField, AbstractGrid, AbstractMeltRate}(local_grid, fields, Params(), SolverParams(), spec, melt_rate)
+    fields = GridField(local_grid, bed_array; initial_conditions=conditions, params, solver_params)
+    model = Model(local_grid, fields, params, solver_params, spec, melt_rate)
     return model
 end
 

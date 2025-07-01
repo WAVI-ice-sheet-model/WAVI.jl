@@ -2,11 +2,14 @@ export ThreadedSpec
 
 using Parameters
 
-using WAVI: AbstractModel, AbstractSpec
-
 include("SchwarzDecomposition/SchwarzDecomposition.jl")
 using .SchwarzDecomposition
 
+import WAVI: AbstractGrid, AbstractModel, AbstractSpec
+import WAVI.Fields: GridField, InitialConditions
+import WAVI.MeltRates: UniformMeltRate
+import WAVI.Models: Model
+import WAVI.Parameters: Params, SolverParams
 import WAVI.Processes: update_preconditioner!, precondition!
 
 """
@@ -22,22 +25,14 @@ Struct to represent the shared memory parallel specification of a model.
     schwarzModelArray::Array{AbstractModel,2} = Array{AbstractModel,2}(undef,ngridsx,ngridsy)
 end
 
-"""
-update_preconditioner!(model::AbstractModel, ::ThreadedSpec)
-
-Update the preconditioner. 
-For shared memory parallelism, update the subdomain models used by restricted additive Schwarz preconditioner (RAS).
-
-"""
-function update_preconditioner!(model::AbstractModel, ::ThreadedSpec)
-    @unpack ngridsx, ngridsy, overlap = model.parallel_spec
-
+function update_preconditioner!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
+    @unpack ngridsx, ngridsy, overlap = model.spec
     @info "Spawning $(ngridsx * ngridsy) threads for preconditioning"
 
     @sync for igrid = 1:ngridsx
         for jgrid = 1:ngridsy
             Threads.@spawn begin
-                model.parallel_spec.schwarzModelArray[igrid,jgrid] = schwarzModel(model;
+                model.spec.schwarzModelArray[igrid,jgrid] = schwarzModel(model;
                                                                                   igrid=igrid,
                                                                                   jgrid=jgrid,
                                                                                   ngridsx=ngridsx,
@@ -46,6 +41,7 @@ function update_preconditioner!(model::AbstractModel, ::ThreadedSpec)
             end
         end
     end
+    return model
 end
 
 
@@ -55,10 +51,11 @@ precondition!(model::AbstractModel,::ThreadedSpec)
 Apply restricted additive Schwarz preconditioner (RAS) using shared memory parallelism.
 
 """
-function precondition!(model::AbstractModel, ::ThreadedSpec)
-    @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.parallel_spec
+function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
+    @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.spec
     @unpack solver_params = model
 
+    @info "Preconditioning across the $(ngridsx * ngridsy) threads"
     op = WAVI.get_op(model)
     b = WAVI.get_rhs(model)
     resid = WAVI.get_resid(x,op,b)

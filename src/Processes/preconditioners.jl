@@ -1,16 +1,17 @@
 using LinearAlgebra
 using Parameters
 
-using WAVI: AbstractModel
+import WAVI: AbstractModel, AbstractSpec
 using WAVI.Wavelets
 
 export update_preconditioner!, precondition!
 
-function update_preconditioner!(model::AbstractModel)
+function update_preconditioner!(model::AbstractModel{T,N,<:AbstractSpec}) where {T,N}
+    @info "No additional preconditioning setup"
     return model
 end
 
-function precondition!(model::AbstractModel)
+function precondition!(model::AbstractModel{T,N,<:AbstractSpec}) where {T,N}
     @unpack solver_params=model
 
     x = get_start_guess(model)  

@@ -24,7 +24,9 @@ struct Model{T,N,S,F,G,M} <: AbstractModel{T,N,S,F,G,M}
     params  ::  Params
     solver_params :: SolverParams
     spec   ::  S
-    melt_rate :: M    
+    melt_rate :: M
+
+    Model(g, f, p, sp, s, m) = new{Float64,Int64,AbstractSpec,AbstractField,AbstractGrid,AbstractMeltRate}(g, f, p, sp, s, m)
 end
 
 """
@@ -33,15 +35,16 @@ end
     Construct a WAVI.jl model object.
 
 """
-function Model(grid::AbstractGrid, 
-               bed_elevation::Union{Integer, Function}, 
-               spec::AbstractSpec;
+function Model(grid::G, 
+               bed_elevation::Union{Integer, Function, AbstractArray}, 
+               spec::S;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
-               melt_rate = UniformMeltRate())
+               melt_rate = UniformMeltRate()) where {G<:AbstractGrid, S<:AbstractSpec}
 
-    bed_array = get_bed_elevation(bed_elevation, grid)
+    # FIXME: this all smells, hacking for threading
+    bed_array = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
@@ -50,12 +53,12 @@ function Model(grid::AbstractGrid,
 end
 
 Model(grid, bed_elev; kw...) = Model(grid, bed_elev, BasicSpec(); kw...)
-Model(; grid, bed_elevation, parallel_spec, kw...) = Model(grid, bed_elevation, parallel_spec; kw...)
+Model(; grid, bed_elevation, spec, kw...) = Model(grid, bed_elevation, spec; kw...)
 
 # This is to enable use of Setfield, which derives a parameter setup from the fields of an existing structure via JuliaObjects
 # FIXME: this wasn't required in the original WAVI codebase. There is a constructor mapping issue somewhere.
 #  If we specify T as Real, the solver will stop working - there is too much passthrough
-Model(g, f, p, sp, s, m) = Model{Float64, Int64, AbstractSpec, AbstractField, AbstractGrid, AbstractMeltRate}(g, f, p, sp, s, m)
+#Model(g, f, p, sp, s, m) = Model{Float64,Int64}(g, f, p, sp, s, m)
 
 include("utils.jl")
 
