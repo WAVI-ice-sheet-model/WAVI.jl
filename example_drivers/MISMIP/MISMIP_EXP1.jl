@@ -48,6 +48,7 @@ function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
                   params = params, 
                   solver_params = solver_params)
 
+    
     #timestepping parameters
     niter0 = 0
     dt = 0.5
@@ -113,10 +114,19 @@ function plot_evolution(outfolder = "outputs_mismip_exp1")
     end
 
     #plot things
-    for (i, d) in [("h", h_out),("ib", ib_out),("u", u_out),("v", v_out),("s", s_out),]
-        plot(x, bed, legend=false)
-        plot!(x, d)
+    for (i, d, do_bed) in [("h", h_out, false),
+                   ("ib", ib_out, true),
+                   ("u", u_out, false),
+                   ("v", v_out, false),
+                   ("s", s_out, true),]
+        if do_bed
+            plot(x, bed, legend=false)
+            plot!(x, d)
+        else
+            plot(x, d, legend=false)
+        end
         savefig("$(outfolder)/$(i).png")
+        println("You'll find a plot in $(outfolder)/$(i).png")
     end
 end
 
