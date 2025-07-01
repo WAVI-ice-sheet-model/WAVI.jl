@@ -2,14 +2,17 @@ export apply_precondition!, gauss_seidel_smoother, get_correction_coarse,
     get_multigrid_ops, get_op_coarse_fun, get_op_diag, get_preconditioner,
     set_correction_coarse!
 
+using IterativeSolvers
+
+using WAVI.Utilities
+
 """
     get_preconditioner(model::AbstractModel{T,N},op::LinearMap{T}) where {T, N}
 
  Get precondtioner. Details are stored in a struct of type Preconditioner that can be passed to a solver.
 
 """
-function get_preconditioner(model::AbstractModel, op::LinearMap{T}) where {T}
-
+function get_preconditioner(model::AbstractModel{T,N}, op::LinearMap{T}) where {T,N}
     @unpack gu,gv,wu,wv=model.fields
     @unpack params,solver_params=model
 
@@ -51,25 +54,24 @@ function get_correction_coarse(p::AbstractPreconditioner)
 end
 
 """
-    apply_precondition!(x, p, b)
+    apply_preconditioning!(x, p, b)
 
 Apply wavelet-based multigrid preconditioner using information stored in p.
 """
-function apply_precondition!(x::AbstractVecOrMat{T}, p::AbstractPreconditioner{T,N}, b::AbstractVecOrMat{T}) where {T, N}
+function apply_preconditioning!(x, p, b)
     @unpack op,op_diag,nsmooth,sweep,sweep_order,smoother_omega,restrict,
             prolong,op_coarse,correction_coarse,tol_coarse,maxiter_coarse = p
 
-
-    n=size(op,1)
+    n = size(op,1)
 
     # Multigrid smooth
     x .= gauss_seidel_smoother!(x, op, b; iters = nsmooth, op_diag=op_diag,
                                 sweep=sweep, sweep_order=sweep_order, smoother_omega = smoother_omega)
 
-    resid=get_resid(x,op,b)
+    resid = get_resid(x,op,b)
 
     # Multigrid restriction
-    b_coarse=restrict*resid
+    b_coarse = restrict*resid
 
     abstol = tol_coarse*norm(b_coarse)
 
@@ -120,8 +122,8 @@ Overload LinearAlgebra.ldiv! function so that the bespoke preconditioner is depl
 conjugate gradient method if p has type  <: AbstractPreconditioner.
 
 """
-function ldiv!(x::AbstractVecOrMat{T}, p::AbstractPreconditioner{T,N}, b::AbstractVecOrMat{T}) where {T,N}
-    apply_precondition!(x, p, b)
+function ldiv!(x::AbstractVecOrMat{T}, p::AbstractPreconditioner{T}, b::AbstractVecOrMat{T}) where {T}
+    apply_preconditioning!(x, p, b)
 end
 
 

@@ -14,7 +14,7 @@ update_velocities!(model::AbstractModel)
 Solve momentum equation to update the velocities, plus Picard iteration for non-linear rheology.
 
 """
-function update_velocities!(model::AbstractModel)
+function update_velocities!(model::AbstractModel{T,N}) where {T,N}
     @unpack solver_params = model
 
     update_preconditioner!(model)
@@ -28,8 +28,7 @@ function update_velocities!(model::AbstractModel)
         inner_update!(model)
         converged, rel_resid = precondition!(model)
     end
-    # TODO: this used to rely on Thread.thread_id() but we should overload this somehow
-    println("Solved momentum equation with residual ", 
+    println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
         round(rel_resid,sigdigits=3)," at iteration ",i_picard)
 
     return model

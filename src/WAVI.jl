@@ -11,7 +11,7 @@ abstract type AbstractModel{T <: Real,
                             F <: AbstractField,
                             G <: AbstractGrid,
                             M <: AbstractMeltRate} end
-abstract type AbstractPreconditioner{T <: Real,O,C,R,P} end
+abstract type AbstractPreconditioner{T <: Real,N <: Integer} end #,O,C,R,P} end
 
 using LinearMaps
 #Type alias, just for abreviation

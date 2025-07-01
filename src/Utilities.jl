@@ -167,7 +167,7 @@ end
 Returns a function that restricts a vector from the fine grid to the coarse grid, 
 used in multigrid preconditioner.
 """
-function get_restrict_fun(model::AbstractModel)
+function get_restrict_fun(model::AbstractModel{T,N}) where {T,N}
     @unpack wu,wv,gu,gv=model.fields
 
     #Preallocate intermediate variables used by restrict_fun
@@ -212,7 +212,7 @@ end
 Returns a function that prolongs a vector from the coarse grid to the fine grid, 
 used in multigrid preconditioner.
 """
-function get_prolong_fun(model::AbstractModel)
+function get_prolong_fun(model::AbstractModel{T,N}) where {T,N}
     @unpack wu,wv,gu,gv=model.fields
 
     #Preallocate intermediate variables used by prolong_fun

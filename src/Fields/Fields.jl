@@ -47,8 +47,7 @@ function GridField(grid::AbstractGrid, bed_array, thickness;
                    initial_conditions::InitialConditions = InitialConditions(),
                    params::Params = Params(),
                    solver_params::SolverParams = SolverParams())
-    
-    # TODO: START from the model
+
     initial_conditions = check_initial_conditions(initial_conditions, params, grid)
 
     ## Parameter fields checks 
@@ -72,8 +71,6 @@ function GridField(grid::AbstractGrid, bed_array, thickness;
     end
     #check size compatibility of resulting glen a ref
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
-
-    # TODO: END from the model
 
     # TODO: grids are heavily reliant on the use of keyword arguments which do not allow specializations / multiple dispatch to work effectively
 
