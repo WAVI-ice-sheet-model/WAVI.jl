@@ -1,4 +1,4 @@
-using WAVI, Plots 
+using WAVI, Plots, JLD2
 """
     MISMIP Experiments EXP1_1: advance to a steady state on a linear slope
 
@@ -44,12 +44,10 @@ function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
                     glen_a_ref = glen_a_ref)
      
     #make the model
-    model = Model(grid = grid,
-    bed_elevation = b, 
-    params = params, 
-    solver_params = solver_params)
+    model = Model(grid, b, Int32(default_thickness), BasicSpec();
+                  params = params, 
+                  solver_params = solver_params)
 
-    
     #timestepping parameters
     niter0 = 0
     dt = 0.5
@@ -65,6 +63,7 @@ function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
                 s = model.fields.gh.s,      # Current surface elevation
                 grfrac = model.fields.gh.grounded_fraction)     # Grid cell grounded fraction
 
+
     output_freq = 10.
     output_params = OutputParams(outputs = outputs, 
                             output_path = folder,
@@ -73,9 +72,8 @@ function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
                             zip_format = "none")
 
     simulation = Simulation(model = model, 
-    timestepping_params = timestepping_params,
-    output_params = output_params)
-
+                            timestepping_params = timestepping_params,
+                            output_params = output_params)
     #perform the simulation
     run_simulation!(simulation)
 
@@ -111,13 +109,14 @@ function plot_evolution(outfolder = "outputs_mismip_exp1")
         t_out[i] = d["t"]
         u_out[:,i] = d["u"][:,1]
         v_out[:,i] = d["v"][:,1]
+
     end
 
     #plot things
-    for i in [:h_out, :ib_out, :s_out, :u_out, :v_out]
+    for (i, d) in [("h", h_out),("ib", ib_out),("u", u_out),("v", v_out),("s", s_out),]
         plot(x, bed, legend=false)
-        println(i, size(eval(i)), size(u_out))
-        plot!(x, eval(i))
+        plot!(x, d)
         savefig("$(outfolder)/$(i).png")
     end
 end
+
