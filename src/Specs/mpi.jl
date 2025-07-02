@@ -150,11 +150,11 @@ function Model(grid::G,
     return model
 end
 
-Base.propertynames(model::Model{T,N,MPISpec,F,G,M}, private::Bool) where {T,N,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
+Base.propertynames(model::Model{T,N,<:MPISpec,F,G,M}, private::Bool) where {T,N,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
 
 # TODO: override @debug, @info, @warn and @error for MPI based logging, with the rank out of size and / or grid location
 
-function Base.getproperty(model::Model{T,N,MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
+function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
     if s == :global_fields
         fields = collate_global_fields(model.fields, model.spec)
         return fields
@@ -166,7 +166,7 @@ function update_model_velocities!(model::Model{<:Any, <:Any, <:MPISpec})
     @unpack px, py, halo, global_size, global_comm, rank, comm, coords = model.spec
     update_velocities!(model)
 
-    @info "[$(rank+1)/$(global_size)] - hitting velocity solve barrier, exchanging halos"
+    @debug "[$(rank+1)/$(global_size)] - hitting velocity solve barrier, exchanging halos"
     MPI.Barrier(comm)
 
     halo_exchange!(model)
@@ -206,7 +206,7 @@ function halo_exchange!(model::Model{<:Any, <:Any, <:MPISpec})
 
         # Send the "vertical" halo's 
         if left > -1
-            @info "[$(rank+1)/$(global_size)] Sending left to $(left)"
+            @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
             send_left = local_field[1:1+halo_offset, :]
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
@@ -215,7 +215,7 @@ function halo_exchange!(model::Model{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            @info "[$(rank+1)/$(global_size)] Sending right to $(right)"
+            @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
             send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
@@ -225,7 +225,7 @@ function halo_exchange!(model::Model{<:Any, <:Any, <:MPISpec})
 
         # Send the "horizontal" halo's
         if top > -1
-            @info "[$(rank+1)/$(global_size)] Sending top to $(top)"
+            @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
             send_top = local_field[:, 1:1+halo_offset]
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, prod(size(send_top)))
@@ -234,7 +234,7 @@ function halo_exchange!(model::Model{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            @info "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
+            @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
             send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr]        
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
@@ -275,7 +275,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
     grid = global_grid
     x_coord, y_coord = coords
 
-    @info "[$(rank+1)/$(global_size)] Generating local version of the global grid $(grid.nx) x $(grid.ny)"
+    @debug "[$(rank+1)/$(global_size)] Generating local version of the global grid for collation at $(grid.nx) x $(grid.ny)"
 
     gh = HGrid(nxh=grid.nx, nyh=grid.ny, b=zeros(grid.nx, grid.ny))
     gu = UGrid(nxu=grid.nx+1, nyu=grid.ny, dx=grid.dx, dy=grid.dy, levels=local_fields.gu.levels)
@@ -297,7 +297,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
     wu = UWavelets(nxuw=grid.nx+1, nyuw=grid.ny, levels=local_fields.gu.levels)
     wv = VWavelets(nxvw=grid.nx, nyvw=grid.ny+1, levels=local_fields.gv.levels)
 
-    ## TODO: duplicated from above
+    ## TODO: duplicated from above, that's not a good smell
     th, rh, bh, lh = top > -1 ? halo : 0, right > -1 ? halo : 0, bottom > -1 ? halo : 0, left > -1 ? halo : 0
     x_start = max(x_coord * div(grid.nx, px) + 1 - lh, 1)
     y_start = max(y_coord * div(grid.ny, py) + 1 - th, 1)
@@ -307,16 +307,16 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
     # end of clone
 
     #Wavelet-grid, u-component.
-    # wu=UWavelets(nxuw=grid.nx+1,nyuw=grid.ny,levels=solver_params.levels)
+    wu=UWavelets(nxuw=grid.nx+1,nyuw=grid.ny,levels=local_fields.wu.levels)
 
     #Wavelet-grid, v-component.
-    # wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=solver_params.levels)
+    wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=local_fields.wv.levels)
     global_fields = GridField(gh,gu,gv,gc,g3d,wu,wv)
 
     MPI.Barrier(comm)  
-    @info "[$(rank+1)/$(global_size)] - LOCAL U $(size(local_fields.gu.u)) GLOBAL [$(x_start):$(x_end+1), $(y_start):$(y_end)]"
-    @info "[$(rank+1)/$(global_size)] - LOCAL V $(size(local_fields.gv.v)) GLOBAL [$(x_start):$(x_end), $(y_start):$(y_end+1)]"
-    @info "[$(rank+1)/$(global_size)] Commencing data transfers"
+    @debug "[$(rank+1)/$(global_size)] - LOCAL U $(size(local_fields.gu.u)) GLOBAL [$(x_start):$(x_end+1), $(y_start):$(y_end)]"
+    @debug "[$(rank+1)/$(global_size)] - LOCAL V $(size(local_fields.gv.v)) GLOBAL [$(x_start):$(x_end), $(y_start):$(y_end+1)]"
+    @debug "[$(rank+1)/$(global_size)] Commencing data transfers"
   
     x_sz, y_sz = size(local_fields.gu.u)
     

@@ -1,1 +1,0 @@
-abstract type AbstractTestType end
