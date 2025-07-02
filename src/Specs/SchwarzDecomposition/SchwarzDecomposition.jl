@@ -80,7 +80,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     quadrature_weights_g = quadrature_weights 
     σ_g = σ 
 
-    grid_g = WAVI.Grid(
+    grid_g = Grid(
         nx=nx_g,
         ny=ny_g,
         dx=dx_g,
@@ -115,7 +115,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     initial_temperature_g = g3d.θ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_damage_g = g3d.Φ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
 
-    initial_conditions_g = WAVI.InitialConditions(
+    initial_conditions_g = InitialConditions(
         initial_thickness = initial_thickness_g,
         initial_grounded_fraction = initial_grounded_fraction_g,
         initial_u_veloc = initial_u_veloc_g,
@@ -128,7 +128,8 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     model_g = Model(
         grid_g, 
-        bed_elevation_g;
+        bed_elevation_g,
+        BasicSpec();
         initial_conditions = initial_conditions_g,
         params = params_g,
         solver_params = solver_params_g,

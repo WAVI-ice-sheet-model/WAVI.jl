@@ -7,7 +7,6 @@ using WAVI.Wavelets
 export update_preconditioner!, precondition!
 
 function update_preconditioner!(model::AbstractModel{T,N,<:AbstractSpec}) where {T,N}
-    @info "No additional preconditioning setup"
     return model
 end
 

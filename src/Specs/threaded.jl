@@ -1,15 +1,14 @@
 export ThreadedSpec
 
+using LinearAlgebra
 using Parameters
 
 include("SchwarzDecomposition/SchwarzDecomposition.jl")
 using .SchwarzDecomposition
 
+using WAVI
+using WAVI.Processes
 import WAVI: AbstractGrid, AbstractModel, AbstractSpec
-import WAVI.Fields: GridField, InitialConditions
-import WAVI.MeltRates: UniformMeltRate
-import WAVI.Models: Model
-import WAVI.Parameters: Params, SolverParams
 import WAVI.Processes: update_preconditioner!, precondition!
 
 """
@@ -25,7 +24,7 @@ Struct to represent the shared memory parallel specification of a model.
     schwarzModelArray::Array{AbstractModel,2} = Array{AbstractModel,2}(undef,ngridsx,ngridsy)
 end
 
-function update_preconditioner!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
+function update_preconditioner!(model::AbstractModel{T,N,S}) where {T,N,S<:ThreadedSpec}
     @unpack ngridsx, ngridsy, overlap = model.spec
     @info "Spawning $(ngridsx * ngridsy) threads for preconditioning"
 
@@ -33,11 +32,11 @@ function update_preconditioner!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpe
         for jgrid = 1:ngridsy
             Threads.@spawn begin
                 model.spec.schwarzModelArray[igrid,jgrid] = schwarzModel(model;
-                                                                                  igrid=igrid,
-                                                                                  jgrid=jgrid,
-                                                                                  ngridsx=ngridsx,
-                                                                                  ngridsy=ngridsy, 
-                                                                                  overlap=overlap)
+                                                                         igrid=igrid,
+                                                                         jgrid=jgrid,
+                                                                         ngridsx=ngridsx,
+                                                                         ngridsy=ngridsy, 
+                                                                         overlap=overlap)
             end
         end
     end
@@ -56,10 +55,11 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
     @unpack solver_params = model
 
     @info "Preconditioning across the $(ngridsx * ngridsy) threads"
-    op = WAVI.get_op(model)
-    b = WAVI.get_rhs(model)
-    resid = WAVI.get_resid(x,op,b)
-    WAVI.set_residual!(model,resid)
+    x = get_start_guess(model)  
+    op = get_op(model)
+    b = get_rhs(model)
+    resid = get_resid(x,op,b)
+    set_residual!(model,resid)
     rel_resid = norm(resid)/norm(b)
     converged = rel_resid < solver_params.tol_picard
 
@@ -87,7 +87,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
                 for jgrid = 1:ngridsy
                     Threads.@spawn begin
                         model_g = schwarzModelArray[igrid,jgrid]
-                        WAVI.update_state!(model_g)
+                        update_state!(model_g)
                     end
                 end
             end

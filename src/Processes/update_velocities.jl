@@ -1,3 +1,5 @@
+export update_velocities!, get_start_guess, get_op, get_rhs, get_resid, set_residual!
+
 using InplaceOps
 using LinearMaps
 
@@ -5,8 +7,6 @@ using WAVI
 using WAVI.KroneckerProducts
 using WAVI.Parameters
 using WAVI.Utilities
-
-export update_velocities!
 
 """
 update_velocities!(model::AbstractModel)

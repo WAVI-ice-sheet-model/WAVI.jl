@@ -18,7 +18,7 @@ struct BasicSpec <: AbstractSpec
     end
 end
 
-struct Model{T,N,S,F,G,M} <: AbstractModel{T,N,S,F,G,M}
+struct Model{T,N,S,F,G,M<:AbstractMeltRate} <: AbstractModel{T,N,S,F,G}
     grid    ::  G
     fields  ::  F
     params  ::  Params
@@ -26,7 +26,7 @@ struct Model{T,N,S,F,G,M} <: AbstractModel{T,N,S,F,G,M}
     spec   ::  S
     melt_rate :: M
 
-    Model(g, f, p, sp, s, m) = new{Float64,Int64,AbstractSpec,AbstractField,AbstractGrid,AbstractMeltRate}(g, f, p, sp, s, m)
+    Model{T,N,S,F,G,M}(g, f, p, sp, s, m) where {T,N,S,F,G,M} = new{T,N,S,F,G,M}(g, f, p, sp, s, m)
 end
 
 """
@@ -41,14 +41,14 @@ function Model(grid::G,
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
-               melt_rate = UniformMeltRate()) where {G<:AbstractGrid, S<:AbstractSpec}
+               melt_rate::M = UniformMeltRate()) where {G<:AbstractGrid, S<:AbstractSpec, M<:AbstractMeltRate}
 
     # FIXME: this all smells, hacking for threading
     bed_array = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
-    model = Model(grid, fields, params, solver_params, spec, melt_rate)
+    model = Model{Float64, Int64, S, GridField, G, M}(grid, fields, params, solver_params, spec, melt_rate)
     return model
 end
 
@@ -56,9 +56,11 @@ Model(grid, bed_elev; kw...) = Model(grid, bed_elev, BasicSpec(); kw...)
 Model(; grid, bed_elevation, spec, kw...) = Model(grid, bed_elevation, spec; kw...)
 
 # This is to enable use of Setfield, which derives a parameter setup from the fields of an existing structure via JuliaObjects
-# FIXME: this wasn't required in the original WAVI codebase. There is a constructor mapping issue somewhere.
-#  If we specify T as Real, the solver will stop working - there is too much passthrough
-#Model(g, f, p, sp, s, m) = Model{Float64,Int64}(g, f, p, sp, s, m)
+# FIXME: this wasn't required in the original WAVI codebase. 
+#   Model needs to be in a position to have type analysis on it's properties to recreate the instance of it by ConstructionBase, which requires some refactoring
+#   Ref: https://juliaobjects.github.io/ConstructionBase.jl/dev/#type-tips
+Model(g::G, f::F, p::P, sp::SP, s::S, m::M) where {G<:AbstractGrid,F<:AbstractField,P<:Params,SP<:SolverParams,S<:AbstractSpec,M<:AbstractMeltRate} = 
+    Model{Float64,Int64,S,F,G,M}(g, f, p, sp, s, m)
 
 include("utils.jl")
 

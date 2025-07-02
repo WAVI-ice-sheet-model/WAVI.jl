@@ -9,8 +9,7 @@ abstract type AbstractModel{T <: Real,
                             N <: Integer,
                             S <: AbstractSpec,
                             F <: AbstractField,
-                            G <: AbstractGrid,
-                            M <: AbstractMeltRate} end
+                            G <: AbstractGrid} end
 abstract type AbstractPreconditioner{T <: Real,N <: Integer} end
 
 using LinearMaps
