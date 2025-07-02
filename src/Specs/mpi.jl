@@ -69,13 +69,13 @@ struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
     end
 end
 
-function Model(grid::AbstractGrid, 
-               bed_elevation, 
-               spec::MPISpec;
+function Model(grid::G, 
+               bed_elevation::Union{Integer, Function, AbstractArray}, 
+               spec::S;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
-               melt_rate = UniformMeltRate())
+               melt_rate::M = UniformMeltRate()) where {G<:AbstractGrid, S<:MPISpec, M<:AbstractMeltRate}
     @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left = spec
 
     @info "[$(rank+1)/$(global_size)] - $(coords) - creating Grid and Model for MPI rank $(rank)"
@@ -146,7 +146,7 @@ function Model(grid::AbstractGrid,
 
     bed_array = get_bed_elevation(bed_elevation, local_grid)
     fields = GridField(local_grid, bed_array; initial_conditions=conditions, params, solver_params)
-    model = Model(local_grid, fields, params, solver_params, spec, melt_rate)
+    model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, params, solver_params, spec, melt_rate)
     return model
 end
 
