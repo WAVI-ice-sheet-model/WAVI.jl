@@ -20,22 +20,22 @@ UniformMeltUnderShelves(; melt_constant = 0.0, melt_partial_cell= false, ρi = 9
 
 
 """
-    update_melt_rate(melt_rate::UniformMeltUnderShelves, fields, grid, clock) 
+    update_shelf_melt_rate(shelf_melt_rate::UniformMeltUnderShelves, fields, grid, clock) 
 
-Update the melt rate when for the UniformMeltUnderShelves type
+Update the melt rate under ice shelves for the UniformMeltUnderShelves type
 """
-function update_melt_rate!(melt_rate::UniformMeltUnderShelves, fields, grid, clock) 
+function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltUnderShelves, fields, grid, clock) 
     m = zeros(grid.nx,grid.ny);
 
-    if (melt_rate.melt_partial_cell)  #partial cell melting 
-        m[:] .=   melt_rate.melt_constant.* (1 .- fields.gh.grounded_fraction[:])
+    if (shelf_melt_rate.melt_partial_cell)  #partial cell melting 
+        m[:] .=   shelf_melt_rate.melt_constant.* (1 .- fields.gh.grounded_fraction[:])
         
-    elseif ~melt_rate.melt_partial_cell #no partial cell melting
-        m[:] .=  melt_rate.melt_constant.* (1 .- fields.gh.grounded_fraction[:])
+    elseif ~shelf_melt_rate.melt_partial_cell #no partial cell melting
+        m[:] .=  shelf_melt_rate.melt_constant.* (1 .- fields.gh.grounded_fraction[:])
         m[.~(fields.gh.grounded_fraction .== 0)] .= 0 
     end
     
-    fields.gh.basal_melt[:] .= m[:]
+    fields.gh.shelf_basal_melt[:] .= m[:]
 end
 
 

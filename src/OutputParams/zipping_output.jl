@@ -138,6 +138,15 @@ function make_ncfile_from_filenames(filenames, format, nc_name_full)
 
                 #add this to dictionary
                 output_dict[key] = var_out
+            elseif key == "basalTemp"
+                ncvar_key = NcVar(key, Array([x_ncdim, y_ncdim, t_ncdim]))
+                output_vars[key] = ncvar_key
+
+                for i = 1:length(filenames)
+                    var_out[:,:,i] = get_output_as_dict(filenames[i],format)[key][:,:,1]
+                end
+
+                output_dict[key] = var_out
             else
                 @warn string("found an output variable (", key, ") who's spatial dimensions do not match the co-ordinates. Skipping this variable from the nc output...")
             end

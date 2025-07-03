@@ -102,7 +102,7 @@ end
 """
     function write_vel(simulation)
 
-Write the velocity at the the final timestep of the simulation (used in the coupled wavi-mitgcm model to communicate with streamice)
+Write the velocity at the final timestep of the simulation (used in the coupled wavi-mitgcm model to communicate with streamice)
 """
 function write_vel(simulation::Simulation)
     @unpack model = simulation  

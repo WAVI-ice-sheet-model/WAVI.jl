@@ -74,12 +74,12 @@ function PICO(;
 end
 
 """
-    function update_melt_rate!(pico::PICO, fields, grid, clock)
+    function update_shelf_melt_rate!(pico::PICO, fields, grid, clock)
 
-Update the ice model melt rate for a PICO melt rate parametrization
+Update the melt rate under ice shelves for a PICO melt rate parametrization
 """
-function update_melt_rate!(pico::PICO, fields, grid, clock)
-    @unpack basal_melt, h, b, grounded_fraction = fields.gh #get the ice thickness and grounded fraction
+function update_shelf_melt_rate!(pico::PICO, fields, grid, clock)
+    @unpack shelf_basal_melt, h, b, grounded_fraction = fields.gh #get the ice thickness and grounded fraction
     
     #check that the ice front mask has the correct dimensions 
     (size(pico.ice_front_mask)) == (grid.nx, grid.ny) || throw(ArgumentError("Ice front mask ($(size(ice_front_mask))) size must be same as model grid ($nx x $ny)"))
@@ -87,7 +87,7 @@ function update_melt_rate!(pico::PICO, fields, grid, clock)
     #compute the ice draft
     zb = fields.gh.b .* (grounded_fraction .== 1) + - pico.ρi / pico.ρw .* fields.gh.h .* (grounded_fraction .< 1)
 
-    set_pico_melt_rate!(basal_melt, 
+    set_pico_melt_rate!(shelf_basal_melt, 
                         grounded_fraction,
                         pico, 
                         grid,

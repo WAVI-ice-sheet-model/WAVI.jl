@@ -10,9 +10,12 @@ function update_state!(model, clock)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
-    update_basal_melt!(model, clock)
-    update_drag_c!(model)
+    update_thermodynamics!(model)
+    update_shelf_basal_melt!(model, clock)
+    update_basal_melt!(model)
+    update_glen_b!(model)
     update_dsdh!(model)
+    update_basal_hydrology!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
     update_dhdt!(model)
@@ -31,9 +34,12 @@ function update_state!(model)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
-    update_basal_melt!(model, WAVI.Clock())
-    update_drag_c!(model)
+    update_thermodynamics!(model)
+    update_shelf_basal_melt!(model, WAVI.Clock())
+    update_basal_melt!(model)
+    update_glen_b!(model)
     update_dsdh!(model)
+    update_basal_hydrology!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
     update_dhdt!(model)
@@ -110,26 +116,69 @@ function update_accumulation_rate!(model::AbstractModel)
     return model
 end
 
+"""
+    update_thermodynamics!(model::AbstractModel)
+
+Update the ice temperature and grounded melt rate according to the chosen thermodynamics model.
+The specific function lives in the corresponding thermodynamics file.
+"""
+function update_thermodynamics!(model::AbstractModel)
+    update_ice_temperature_grounded_melt_rate!(model.thermo_dynamics,model)
+    return model
+end
+
 
 """
-    update_basal_melt!(model::AbstractModel)
+    update_shelf_basal_melt!(model::AbstractModel)
 
-Update the basal melt rate.
+Update the basal melt rate under ice shelves.
 """
-function update_basal_melt!(model::AbstractModel, clock)
-    update_melt_rate!(model.melt_rate, model.fields, model.grid, clock)
+function update_shelf_basal_melt!(model::AbstractModel, clock)
+    update_shelf_melt_rate!(model.shelf_melt_rate, model.fields, model.grid, clock)
     return model
 end
 
 """
-    update_drag_c!(model::AbstractModel)
+    update_basal_melt!(model::AbstractModel)
 
-Update coefficient used in the sliding law to account for migration of grounding line.
+Update the basal melt rate (combining grounded_basal_melt and shelf_basal_melt)
 """
-function update_drag_c!(model::AbstractModel)
+function update_basal_melt!(model::AbstractModel)
+    @unpack gh=model.fields
+    gh.basal_melt .= gh.shelf_basal_melt .+ gh.grounded_basal_melt 
+    return model
+end
+
+"""
+    update_glen_b!(model::AbstractModel)
+
+Update stiffness parameter B in Glen flow law.
+"""
+function update_glen_b!(model::AbstractModel)
+    @unpack g3d=model.fields
+    @unpack params=model
+    for k=1:g3d.nσs
+        for j=1:g3d.nys
+            for i=1:g3d.nxs
+                g3d.glen_b[i,j,k] = glen_b.(g3d.θ[i,j,k],g3d.Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
+            end
+        end
+    end
+    return model
+end
+
+"""
+    update_drag_coefficient!(model::AbstractModel)
+
+Update drag coefficient used in the sliding law to account for migration of grounding line.
+This is currently only used for the Weertman sliding law and Weertman part of the Tsai sliding law, 
+as they are the only sliding laws that do not directly depend on effective pressure, which already
+acounts for migration of grounding line.
+"""
+function update_drag_coefficient!(model::AbstractModel)
     @unpack gh=model.fields
     @unpack sliding_law=model
-    gh.drag_c .= sliding_law.drag_c .* gh.grounded_fraction
+    gh.drag_coefficient .= sliding_law.drag_coefficient .* gh.grounded_fraction
     return model
 end
 
@@ -143,6 +192,17 @@ function update_dsdh!(model::AbstractModel)
     @unpack params = model
     gh.dsdh .= (1.0 - params.density_ice./params.density_ocean) .+
            (params.density_ice./params.density_ocean).*gh.grounded_fraction;
+    return model
+end
+
+"""
+    update_basal_hydrology!(model::AbstractModel)
+
+Update the basal water thickness and effective pressure according to the chosen basal hydrology model.
+The specific function lives in the corresponding basal hydrology file.
+"""
+function update_basal_hydrology!(model::AbstractModel)
+    update_basal_water_thickness_effective_pressure!(model.basal_hydrology,model)
     return model
 end
 
