@@ -86,7 +86,7 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
                 θ_base_trial = (3/2 * gh.θ_ave[i,j]) - (1/4 * θ_1_trial) - (1/2 * g3d.θ[i,j,end])
                 g3d.θ[i,j,1] = min(θ_pressure_melting_base,θ_base_trial)
 
-                # adjust θ_1 and θ_2 to be in line with the basal temperature limited to the pressure melting point (shouldn't change for iceberg test case)
+                # adjust θ_1 and θ_2 to be in line with the basal temperature limited to the pressure melting point
                 θ_1 = (6 * gh.θ_ave[i,j]) - (2 * g3d.θ[i,j,end]) - (4 * g3d.θ[i,j,1])
                 θ_2 = g3d.θ[i,j,end] - g3d.θ[i,j,1] - θ_1
 
