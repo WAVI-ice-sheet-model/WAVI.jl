@@ -247,9 +247,16 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     bed_elevation_g = model.fields.gh.b[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
     params_g = model.params
-    params_g = @set params_g.weertman_c = params_g.weertman_c[i_start_g:i_stop_g,j_start_g:j_stop_g]
     params_g = @set params_g.accumulation_rate = params_g.accumulation_rate[i_start_g:i_stop_g,j_start_g:j_stop_g]
     params_g = @set params_g.glen_a_ref = params_g.glen_a_ref[i_start_g:i_stop_g,j_start_g:j_stop_g]
+
+    sliding_law_g = model.sliding_law
+    if isdefined(sliding_law_g, :drag_coefficient)
+        sliding_law_g = @set sliding_law_g.drag_coefficient = sliding_law_g.drag_coefficient[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    end
+
+    basal_hydrology_g = model.basal_hydrology
+    thermo_dynamics_g = model.thermo_dynamics
 
     solver_params_g=model.solver_params
 
@@ -260,6 +267,10 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     initial_viscosity_g = g3d.η[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_temperature_g = g3d.θ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_damage_g = g3d.Φ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
+    initial_basal_water_thickness_g = gh.basal_water_thickness[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    initial_effective_pressure_g = gh.effective_pressure[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    initial_basal_melt_g = gh.basal_melt[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    initial_θ_ave_g = gh.θ_ave[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
     initial_conditions_g=InitialConditions(
         initial_thickness = initial_thickness_g,
@@ -268,9 +279,13 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         initial_v_veloc = initial_v_veloc_g,
         initial_viscosity = initial_viscosity_g,
         initial_temperature = initial_temperature_g,
-        initial_damage = initial_damage_g)
+        initial_damage = initial_damage_g,
+        initial_basal_water_thickness = initial_basal_water_thickness_g,
+        initial_effective_pressure = initial_effective_pressure_g,
+        initial_basal_melt = initial_basal_melt_g,
+        initial_θ_ave = initial_θ_ave_g)
 
-    melt_rate_g=model.melt_rate
+    shelf_melt_rate_g=model.shelf_melt_rate
 
     parallel_spec_g = BasicParallelSpec()
 
@@ -280,8 +295,11 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         params = params_g,
         solver_params = solver_params_g,
         initial_conditions = initial_conditions_g,
-        melt_rate = melt_rate_g,
-        parallel_spec = parallel_spec_g)
+        shelf_melt_rate = shelf_melt_rate_g,
+        parallel_spec = parallel_spec_g,
+        basal_hydrology = basal_hydrology_g,
+        sliding_law = sliding_law_g,
+        thermo_dynamics = thermo_dynamics_g)
 
     return model_g
 end

@@ -1,11 +1,14 @@
-struct Model{T <: Real, N <: Integer,A,W, G, M <:AbstractMeltRate, PS <: AbstractParallelSpec} <: AbstractModel{T,N,M,PS}
+struct Model{T <: Real, N <: Integer,A, G, M <:AbstractMeltRate, PS <: AbstractParallelSpec, SL <:AbstractSlidingLaw, BH <:AbstractBasalHydrology, TD <: AbstractThermoDynamics} <: AbstractModel{T,N,M,PS,SL,BH,TD}
     grid::Grid{T,N}
-    params::Params{T,A,W,G}
+    params::Params{T,A,G}
     solver_params::SolverParams{T,N}
     initial_conditions::InitialConditions{T}
     fields::Fields{T,N}
-    melt_rate::M
+    shelf_melt_rate::M
     parallel_spec::PS
+    sliding_law::SL
+    basal_hydrology::BH
+    thermo_dynamics::TD
 end
 
 """
@@ -15,8 +18,11 @@ end
         params = Params(),
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
-        melt_rate = UniformMeltRate(),
-        parallel_spec = BasicParallelSpec())
+        shelf_melt_rate = UniformMeltRate(),
+        parallel_spec = BasicParallelSpec(),
+        sliding_law = SlidingLaw(),
+        basal_hydrology = BasalHydrology(),
+        thermo_dynamics = ThermoDynamics())
 
 Construct a WAVI.jl model object.
 
@@ -26,9 +32,13 @@ Keyword arguments
 - `bed_elevation`: (required) an array of size `grid.nx` x `grid.ny` which defines the bed elevation
 - `params`: a `Params` object that defines physical parameters 
 - `solver_params`: a `SolverParams` object that defines parameters relating to the numerical scheme
-- `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, and damage
-- `melt_rate`: a melt rate model, responsible for controlling/setting the basal melt rate
-- `parallel_spec`: specification of parallel computation method.
+- `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, damage, 
+                        basal water thickness, effective pressure, grounded basal melt rate, and depth-averaged temperature
+- `shelf_melt_rate`: a shelf melt rate model, responsible for controlling/setting the basal melt rate under ice shelves
+- `parallel_spec`: specification of parallel computation method
+- `sliding_law`: a sliding law model, responsible for controlling/setting the basal friction.
+- `basal_hydrology`: a basal hydrology model, responsible for calculating the basal water thickness and effective pressure.
+- `thermo_dynamics`: a thermodynamics model, responsible for calculating the ice temperature and grounded basal melt rate.
 
 """
 function Model(;
@@ -37,8 +47,11 @@ function Model(;
     params = Params(),
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
-    melt_rate = UniformMeltRate(),
-    parallel_spec = BasicParallelSpec())
+    shelf_melt_rate = UniformMeltRate(),
+    parallel_spec = BasicParallelSpec(),
+    sliding_law = WeertmanSlidingLaw(),
+    basal_hydrology = NoHydrology(),
+    thermo_dynamics = NoThermoDynamics())
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
@@ -59,13 +72,24 @@ function Model(;
     initial_conditions = check_initial_conditions(initial_conditions, params, grid)
 
     ## Parameter fields checks 
-    #if weertman c passed as a scalar, replace weertman_c parameters with matrix of this value
-    if isa(params.weertman_c, Number) 
-        params = @set params.weertman_c = params.weertman_c*ones(grid.nx,grid.ny)
+    # if drag_coefficient passed as a scalar, replace drag_coefficient parameters with matrix of this value
+    if isdefined(sliding_law, :drag_coefficient)
+        if isa(sliding_law.drag_coefficient, Number) 
+            sliding_law = @set sliding_law.drag_coefficient = sliding_law.drag_coefficient*ones(grid.nx,grid.ny)
+        end
+        #check size compatibility of resulting drag C
+        (size(sliding_law.drag_coefficient)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
     end
-    #check size compatibility of resulting weertman C
-    (size(params.weertman_c)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input weertman c must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
-    
+
+    #if coulomb_coefficient passed as a scalar, replace coulomb_coefficient parameters with matrix of this value
+    if isdefined(sliding_law, :coulomb_coefficient)
+        if isa(sliding_law.coulomb_coefficient, Number)
+            sliding_law = @set sliding_law.coulomb_coefficient = sliding_law.coulomb_coefficient * ones(grid.nx, grid.ny)
+        end
+        #check size compatibility of resulting drag C
+        (size(sliding_law.coulomb_coefficient)==(grid.nx, grid.ny)) || throw(DimensionMismatch("Size of input coulomb_coefficient must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+    end
+
     #if accumulation is passed as a scalar, replace accumulation parameters with matrix of this value
     if isa(params.accumulation_rate, Number) 
         params = @set params.accumulation_rate = params.accumulation_rate*ones(grid.nx,grid.ny)
@@ -87,7 +111,7 @@ function Model(;
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec)
+    model=Model(grid,params,solver_params,initial_conditions,fields,shelf_melt_rate,parallel_spec,sliding_law,basal_hydrology,thermo_dynamics)
 
     return model
 end

@@ -1,10 +1,11 @@
-struct Params{T <: Real, A, W, G}
+struct Params{T <: Real, A, G}
                       dt :: T
                        g :: T
              density_ice :: T
+      density_freshwater :: T
            density_ocean :: T
                gas_const :: T 
-           sec_per_year  :: T
+            sec_per_year :: T
        default_thickness :: T 
        default_viscosity :: T 
      default_temperature :: T
@@ -15,13 +16,14 @@ glen_a_activation_energy :: T
     glen_temperature_ref :: T 
                   glen_n :: T 
     glen_reg_strain_rate :: T 
-              weertman_c :: W
-              weertman_m :: T 
-      weertman_reg_speed :: T 
      sea_level_wrt_geoid :: T
        minimum_thickness :: T 
            evolveShelves :: Bool
                 smallHAF :: T
+   basal_water_thickness :: T
+      effective_pressure :: T
+              basal_melt :: T
+ default_temperature_ave :: T
 end
 
 
@@ -33,8 +35,9 @@ Construct a WAVI.jl parameters object for holding physical parameters.
 Keyword arguments
 =================
 - `dt`: model timestep (NB: simulation timestep set in timestepping params, this value is updated when model embedded to the value specified in timestepping_params when passed to simulation)
-- `g`: gravitational acceleration (m^2 / s)
+- `g`: gravitational acceleration (m / s^2)
 - `density_ice`: ice density (kg / m^3)
+- `density_freshwater`: freshwater density (kg / m^3)
 - `density_ocean`: ocean water density (kg / m^3)
 - `gas_const`: gas constant in glen b calculation
 - `sec_per_year`: seconds per year (s)
@@ -48,16 +51,18 @@ Keyword arguments
 - `glen_temperature_ref`: reference temperature using in glen b calculation
 - `glen_n`: exponent in glen b calculation
 - `glen_reg_strain_rate`: strain rate regularization value
-- `weertman_c`: basal sliding field of coefficients
-- `weertman_m`: sliding law exponent
-- `weertman_reg_speed`: regularization speed, used to prevent bed speed going to zero
 - `sea_level_wrt_geoid`: reference sea level
 - `minimum_thickness`: minimum ice thickness on model domain
 - `evolveShelves`: flag for turning on and off the evolution of the shelves in the forward run_simulation
 - `smallHAF`: small value of HAF used within update_thickness when not evolving shelves
+- `basal_water_thickness` : basal water thickness (m) 
+- `effective_pressure` : effective pressure (Pa)
+- `basal_melt` : basal melt rate (m/yr)
+- `default_temperature_ave` : depth-averaged temperature (K)
 """
 function Params(; g = 9.81, 
                   density_ice = 918.0,
+                  density_freshwater = 1000.0,
                   density_ocean = 1028.0,
                   gas_const = 8.314, 
                   sec_per_year =3600*24*365.25,
@@ -71,21 +76,23 @@ function Params(; g = 9.81,
                   glen_temperature_ref= 263.15,
                   glen_n = 3.0,
                   glen_reg_strain_rate = 1.0e-5,
-                  weertman_c = 1.0e4,
-                  weertman_m  = 3.0,
-                  weertman_reg_speed = 1.0e-5,
                   sea_level_wrt_geoid  = 0.0,
                   minimum_thickness = 50.0,
                   evolveShelves = true,
-                  smallHAF = 1.0)
+                  smallHAF = 1.0,
+                  basal_water_thickness = 0.0,
+                  effective_pressure = 1.0e6,
+                  basal_melt = 0.0,
+                  default_temperature_ave = 253.15)
                       
-  #defualt the timestep to 1.0 (will be updated when the model is embedded in a simulation)
+  #default the timestep to 1.0 (will be updated when the model is embedded in a simulation)
   dt = 1.0
 
   return Params(
                   dt, 
                   g, 
-                  density_ice, 
+                  density_ice,
+                  density_freshwater, 
                   density_ocean, 
                   gas_const,
                   sec_per_year, 
@@ -99,12 +106,13 @@ function Params(; g = 9.81,
                   glen_temperature_ref,
                   glen_n,
                   glen_reg_strain_rate,
-                  weertman_c,
-                  weertman_m,
-                  weertman_reg_speed,
                   sea_level_wrt_geoid,
                   minimum_thickness,
                   evolveShelves,
-                  smallHAF
+                  smallHAF,
+                  basal_water_thickness,
+                  effective_pressure,
+                  basal_melt,
+                  default_temperature_ave
                   )
 end

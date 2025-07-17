@@ -41,14 +41,14 @@ end
 UniformMeltRate(; m = 0.0) = UniformMeltRate(m) 
 
 """
-    update_melt_rate(melt_rate::UniformMeltRate, fields, grid) 
+    update_shelf_melt_rate(shelf_melt_rate::UniformMeltRate, fields, grid) 
 
-Update the melt rate when for the UniformMeltRate type
+Update the melt rate under ice shelves for the UniformMeltRate type
 
 """
-function update_melt_rate!(melt_rate::UniformMeltRate, fields, grid, clock) 
-    @unpack basal_melt = fields.gh
-    basal_melt .= melt_rate.m
+function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltRate, fields, grid, clock) 
+    @unpack shelf_basal_melt = fields.gh
+    shelf_basal_melt .= shelf_melt_rate.m
     return nothing
 end
 

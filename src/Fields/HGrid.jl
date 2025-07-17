@@ -26,7 +26,7 @@ struct HGrid{T <: Real, N  <: Integer}
                    ub :: Array{T,2}                            # x-velocity at the bed 
                    vb :: Array{T,2}                            # y-velocity at the bed
             bed_speed :: Array{T,2}                            # Ice speed at the bed
-           weertman_c :: Array{T,2}                            # Weertman drag coefficients 
+     drag_coefficient :: Array{T,2}                            # Sliding law drag coefficients
                     β :: Array{T,2}                            # Raw β value (eqn 8 in Arthern 2015 JGeophysRes)
                  βeff :: Array{T,2}                            # Effective β value (eqn 12 in Arthern 2015 JGeophysRes)
                  τbed :: Array{T,2}                            # Stress at the bed
@@ -35,6 +35,11 @@ struct HGrid{T <: Real, N  <: Integer}
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
+basal_water_thickness :: Array{T,2}                            # basal water thickness
+   effective_pressure :: Array{T,2}                            # effective pressure
+  grounded_basal_melt :: Array{T,2}                            # grounded basal melt rate
+     shelf_basal_melt :: Array{T,2}                            # basal melt rate under ice shelves (ie floating ice)
+                θ_ave :: Array{T,2}                            # depth-averaged temperature
 end
 
 
@@ -47,7 +52,11 @@ end
             b,
             h,
             ηav = zeros(nxh,nyh),
-            grounded_fraction = ones(nxh,nyh))
+            grounded_fraction = ones(nxh,nyh),
+            basal_water_thickness = ones(nxh,nyh),
+	        effective_pressure = ones(nxh,nyh),
+            basal_melt = ones(nxh,nyh),
+            θ_ave = ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -64,6 +73,10 @@ Keyword arguments
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
+    - 'basal_water_thickness' : initial basal water thickness
+    - 'effective_pressure': initial effective pressure
+    - 'basal_melt': initial basal melt rate
+    - 'θ_ave': initial depth-averaged temperature
 """
 
 
@@ -75,10 +88,14 @@ function HGrid(;
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh))
+                grounded_fraction = ones(nxh,nyh),
+                basal_water_thickness = zeros(nxh,nyh),
+		        effective_pressure = zeros(nxh,nyh),
+                basal_melt = zeros(nxh,nyh),
+                θ_ave = zeros(nxh,nyh))
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -93,7 +110,8 @@ function HGrid(;
     s = zeros(nxh,nyh)
     dhdt = zeros(nxh,nyh) 
     accumulation = zeros(nxh,nyh)
-    basal_melt = zeros(nxh,nyh)
+    grounded_basal_melt = zeros(nxh,nyh)
+    shelf_basal_melt = zeros(nxh,nyh)
     haf = zeros(nxh,nyh)
     dsdh = ones(nxh,nyh)
     shelf_strain_rate = zeros(nxh,nyh)
@@ -105,7 +123,7 @@ function HGrid(;
     ub = zeros(nxh,nyh) 
     vb= zeros(nxh,nyh)
     bed_speed = zeros(nxh,nyh)
-    weertman_c = zeros(nxh,nyh)
+    drag_coefficient = zeros(nxh,nyh)
     β = zeros(nxh,nyh)
     βeff = zeros(nxh,nyh)
     τbed = zeros(nxh,nyh)
@@ -139,13 +157,18 @@ function HGrid(;
     @assert size(us)==(nxh,nyh)
     @assert size(vs)==(nxh,nyh)
     @assert size(bed_speed)==(nxh,nyh)
-    @assert size(weertman_c)==(nxh,nyh)
+    @assert size(drag_coefficient)==(nxh,nyh)
     @assert size(β)==(nxh,nyh)
     @assert size(βeff)==(nxh,nyh)
     @assert size(τbed)==(nxh,nyh)
     @assert size(quad_f1)==(nxh,nyh)
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
+    @assert size(basal_water_thickness)==(nxh,nyh)
+    @assert size(effective_pressure)==(nxh,nyh)
+    @assert size(grounded_basal_melt)==(nxh,nyh)
+    @assert size(shelf_basal_melt)==(nxh,nyh)
+    @assert size(θ_ave)==(nxh,nyh)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -180,7 +203,7 @@ return HGrid(
             ub,
             vb,
             bed_speed,
-            weertman_c,
+            drag_coefficient,
             β,
             βeff,
             τbed,
@@ -188,5 +211,10 @@ return HGrid(
             quad_f1,
             quad_f2,
             dneghηav,
-            dimplicit)
+            dimplicit,
+            basal_water_thickness,
+	        effective_pressure,
+            grounded_basal_melt,
+            shelf_basal_melt,
+            θ_ave)
 end

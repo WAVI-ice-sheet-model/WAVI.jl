@@ -237,12 +237,11 @@ end
 """
     update_β!(model::AbstractModel)
 
-Find the drag coefficient at the bed using the sliding law.
+Find the drag coefficient at the bed through the chosen sliding law.
+The specific function lives in the corresponding sliding law file.
 """
 function update_β!(model::AbstractModel)
-    @unpack gh=model.fields
-    @unpack params=model
-    gh.β .= gh.weertman_c .* ( sqrt.(gh.bed_speed.^2 .+  params.weertman_reg_speed^2 ) ).^(1.0/params.weertman_m - 1.0)
+    update_β_using_sliding_law!(model.sliding_law,model)
     return model
 end
 
