@@ -82,7 +82,7 @@ function run_simulation!(simulation)
         #check if we have hit a temporary checkpoint
         if mod(i,timestepping_params.n_iter_chkpt) == 0
             #output a temporary checkpoint
-            fname = string("Chkpt", chkpt_tag, ".jld2")
+            fname = joinpath(output_params.output_path, string("Chkpt",chkpt_tag, ".jld2"))
             @save fname simulation
             chkpt_tag = (chkpt_tag == "A") ? "B" : "A"
             println("making temporary checkpoint at timestep number $(simulation.clock.n_iter)")
@@ -92,7 +92,7 @@ function run_simulation!(simulation)
         if mod(i,simulation.timestepping_params.n_iter_pchkpt) == 0
             #output a permanent checkpoint
             n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-            fname = string("PChkpt_", n_iter_string,  ".jld2")
+            fname = joinpath(output_params.output_path, string("PChkpt_",n_iter_string, ".jld2"))
             @save fname simulation
             println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
         end
