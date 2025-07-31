@@ -15,7 +15,7 @@ function main()
 
     # Run the model with benchmarking
     @info "Executing model..."
-    result, benchmark_results = monitor_resources(MISMIP_PLUS)
+    result, benchmark_results = monitor_resources(MISMIP_PLUS; folder=output_dir)
     
     # Display results
     @info "Execution time: $(@sprintf("%.3f", benchmark_results.execution_time)) seconds"
@@ -33,11 +33,11 @@ function main()
     end
     @info "Profile data saved to: $profile_file"
     
-    netcdf_output = "output.nc"
+    netcdf_output = "$(output_dir)/outfile.nc"
     
     if isfile(netcdf_output)
         @info "Creating visualizations..."
-        variables_to_plot = [:h, :u, :v, :b]
+        variables_to_plot = ["h", "u", "v", "b"]
         
         plot_output_dir = joinpath(output_dir, "plots")
         plot_multiple_variables(netcdf_output, variables_to_plot, plot_output_dir)

@@ -1,3 +1,4 @@
+using Dates
 using JSON3
 using Profile
 
@@ -11,11 +12,11 @@ struct BenchmarkResults
     timestamp::DateTime
 end
 
-function monitor_resources(func, args...)
+function monitor_resources(func, args...; kwargs...)
     Profile.clear()
     
     @profile begin
-        result = @timed func(args...)
+        result = @timed func(args...; kwargs...)
     end
     
     profile_data = Profile.fetch()

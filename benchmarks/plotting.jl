@@ -1,3 +1,7 @@
+using NCDatasets
+using Plots
+using Printf
+
 function create_heatmap_animation(netcdf_file::String, variable_name::String, output_dir::String)
     @info "Creating heatmap animation for variable: $variable_name"
     
@@ -5,7 +9,7 @@ function create_heatmap_animation(netcdf_file::String, variable_name::String, ou
     mkpath(output_dir)
     
     # Open NetCDF file
-    nc = NCDatasets(netcdf_file)
+    nc = NCDataset(netcdf_file)
     
     try
         # Read coordinates
@@ -56,7 +60,9 @@ end
 
 Create heatmap animations for multiple variables from NetCDF file.
 """
-function plot_multiple_variables(netcdf_file::String, variables::Vector{String}, output_dir::String)
+function plot_multiple_variables(netcdf_file::String, 
+                                 variables::Vector{String}, 
+                                 output_dir::String)
     for var in variables
         var_output_dir = joinpath(output_dir, var)
         try
