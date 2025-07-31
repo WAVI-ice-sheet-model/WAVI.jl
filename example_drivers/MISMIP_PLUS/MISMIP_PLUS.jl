@@ -41,7 +41,7 @@ function MISMIP_PLUS(;
                     default_temperature = default_temperature)
 
     #make the model
-    model = Model(grid, bed, BasicSpec();
+    model = Model(grid, bed, spec;
                   params = params, 
                   solver_params = solver_params)
 
