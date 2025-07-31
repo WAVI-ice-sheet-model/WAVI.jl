@@ -1,8 +1,11 @@
 using WAVI 
-function MISMIP_PLUS()
+function MISMIP_PLUS(;
+        folder = "outputs",
+        nx = 80,
+        ny = 10,
+        spec = BasicSpec(),
+    )
     #Grid and boundary conditions
-    nx = 80
-    ny = 10
     nσ = 4
     x0 = 0.0
     y0 = -40000.0
@@ -38,10 +41,9 @@ function MISMIP_PLUS()
                     default_temperature = default_temperature)
 
     #make the model
-    model = Model(grid = grid,
-                     bed_elevation = bed, 
-                     params = params, 
-                     solver_params = solver_params)
+    model = Model(grid, bed, BasicSpec();
+                  params = params, 
+                  solver_params = solver_params)
 
     #timestepping parameters
     niter0 = 0
@@ -56,7 +58,6 @@ function MISMIP_PLUS()
                                             pchkpt_freq = pchkpt_freq)
 
     #output parameters
-    folder = "outputs"
     outputs = (h = model.fields.gh.h,
                u = model.fields.gh.u,
                v = model.fields.gh.v,

@@ -65,7 +65,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
 
     if ! converged
         for iteration = 1:niterations
-            println("Schwarz iteration $iteration")
+            @info "Schwarz iteration $iteration"
             @sync for igrid = 1:ngridsx
                 for jgrid = 1:ngridsy
                     Threads.@spawn begin                
@@ -117,7 +117,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
                     end                    
                 end
             end
-            println("")
+            @info ""
         end
 
     end
