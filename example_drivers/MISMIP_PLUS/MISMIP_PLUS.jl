@@ -1,9 +1,8 @@
 using WAVI 
-function MISMIP_PLUS(;
-        folder = "outputs",
+
+function MISMIP_PLUS_GRID(;
         nx = 80,
         ny = 10,
-        spec = BasicSpec(),
     )
     #Grid and boundary conditions
     nσ = 4
@@ -24,7 +23,14 @@ function MISMIP_PLUS(;
                 h_mask = h_mask, 
                 u_iszero = u_iszero, 
                 v_iszero = v_iszero)
+    return grid
+end
 
+function MISMIP_PLUS(;
+        folder = "outputs",
+        grid = MISMIP_PLUS_GRID(),
+        spec = BasicSpec(),
+    )
     #Bed 
     bed = WAVI.mismip_plus_bed #function definition
 
@@ -77,4 +83,15 @@ function MISMIP_PLUS(;
     #perform the simulation
     run_simulation!(simulation)
     return simulation
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    # A little bootstapping way of running the MISMIP+ experiment
+    grid = MISMIP_PLUS_GRID()
+    mpi_spec = MPISpec(2, 1, 2, grid)
+
+    MISMIP_PLUS(
+        grid = grid,
+        spec = mpi_spec,
+    )
 end
