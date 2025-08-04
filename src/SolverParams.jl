@@ -11,4 +11,6 @@
     smoother_omega::T = 1.0
     stencil_margin::N = 3
     super_implicitness::T = 1.0
+    tol_tensile_eig_solve = 1e-7
+    maxiter_tensile_eig_solve = 100
 end
