@@ -1,34 +1,35 @@
 export run_simulation!, timestep!, update_clock!, update_thickness!, write_vel
 
+using WAVI
+import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_output, zip_output
 using WAVI.Processes: update_state!
+using WAVI.Specs
 
 """
-    timestep!(simulation)
+    timestep!(model, output_params, clock, timestepping_params)
 
 Perform one timestep of the simulation
 """
-function timestep!(simulation)
-    @unpack model,timestepping_params, output_params, clock = simulation
+function timestep!(model::AbstractModel, output_params, clock, timestepping_params)
     update_state!(model, clock)
-    #write solution if at the first timestep (hack for https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/46 until synchronicity is fixed)
-    if (output_params.output_start) && (simulation.clock.n_iter == 0)
-        write_output(simulation)
+    #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
+    if (output_params.output_start) && (clock.n_iter == 0)
+        write_output(model)
     end
     if timestepping_params.step_thickness
-        update_thickness!(simulation)
+        update_thickness!(model, timestepping_params)
     end
-    update_clock!(simulation)
+    update_clock!(clock, timestepping_params)
 end
+timestep!(s::AbstractSimulation) = timestep!(s.model, s.output_params, s.clock, s.timestepping_params)
 
 """
 update_thickness!(model::AbstractModel)
 
 Update thickness using rate of change of thickness and apply minimum thickness constraint. Includes an option for not evolving shelf thickness.
 """
-function update_thickness!(simulation)
-    @unpack model,timestepping_params=simulation
-
+function update_thickness!(model::AbstractModel, timestepping_params)
     hUpdate = zeros(model.grid.nx,model.grid.ny)
     aground = zeros(model.grid.nx,model.grid.ny)
     hUpdate[model.fields.gh.mask] = max.(
@@ -51,21 +52,20 @@ function update_thickness!(simulation)
     end
     hUpdate[model.fields.gh.h_isfixed] .= 0
     model.fields.gh.h[model.fields.gh.mask] = model.fields.gh.h[model.fields.gh.mask] .+ hUpdate[model.fields.gh.mask]
-    return simulation
 end
+update_thickness!(simulation::Simulation) = update_thickness!(s.model, s.timestepping_params)
+
 
 """
     update_clock!(simulation::AbstractSimulation)
 
 Update the simulation clock
 """
-function update_clock!(simulation)
-    @unpack clock,timestepping_params=simulation
+function update_clock!(clock::Clock, timestepping_params::TimesteppingParams)
     clock.n_iter += 1
     clock.time += timestepping_params.dt
-    return simulation
 end
-
+update_clock!(s::Simulation) = update_clock!(s.clock, s.timestepping_params)
 
 """
     run_simulation!(simulation)
@@ -79,24 +79,26 @@ function run_simulation!(simulation)
         @info "Running iteration $(simulation.clock.n_iter)/$(timestepping_params.n_iter_total)"
         timestep!(simulation)
         
+        @root begin
         #check if we have hit a temporary checkpoint
-        if mod(i,timestepping_params.n_iter_chkpt) == 0
-            #output a temporary checkpoint
-            fname = joinpath(output_params.output_path, string("Chkpt",chkpt_tag, ".jld2"))
-            @save fname simulation
-            chkpt_tag = (chkpt_tag == "A") ? "B" : "A"
-            println("making temporary checkpoint at timestep number $(simulation.clock.n_iter)")
-        end
+            if mod(i,timestepping_params.n_iter_chkpt) == 0
+                #output a temporary checkpoint
+                fname = joinpath(output_params.output_path, string("Chkpt",chkpt_tag, ".jld2"))
+                @save fname simulation
+                chkpt_tag = (chkpt_tag == "A") ? "B" : "A"
+                println("making temporary checkpoint at timestep number $(simulation.clock.n_iter)")
+            end
 
-        #check if we have hit a permanent checkpoint
-        if mod(i,simulation.timestepping_params.n_iter_pchkpt) == 0
-            #output a permanent checkpoint
-            n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-            fname = joinpath(output_params.output_path, string("PChkpt_",n_iter_string, ".jld2"))
-            @save fname simulation
-            println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
+            #check if we have hit a permanent checkpoint
+            if mod(i,simulation.timestepping_params.n_iter_pchkpt) == 0
+                #output a permanent checkpoint
+                n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
+                fname = joinpath(output_params.output_path, string("PChkpt_",n_iter_string, ".jld2"))
+                @save fname simulation
+                println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
+            end
         end
-
+        
         #check if we have hit an output timestep
         if mod(i,simulation.output_params.n_iter_out) == 0
             write_output(simulation)
@@ -104,14 +106,12 @@ function run_simulation!(simulation)
 
         #check the dump velocity flag at the final timestep
         if (i == timestepping_params.n_iter_total) && output_params.dump_vel
-            write_vel(simulation)
+            write_vel(simulation.model)
         end
     end
 
     #zip the simulation output (no zipping handled by zip_output)
     zip_output(simulation)
-        
-    return simulation
 end
 
 """
@@ -119,22 +119,23 @@ end
 
 Write the velocity at the the final timestep of the simulation (used in the coupled wavi-mitgcm model to communicate with streamice)
 """
-function write_vel(simulation::Simulation)
-    @unpack model = simulation  
-    uVel_file_string = string(simulation.output_params.prefix,  "_U.bin")
-    vVel_file_string = string(simulation.output_params.prefix,  "_V.bin")
-    
-    u_out=model.fields.gu.u[1:end-1,:]
-    v_out=model.fields.gv.v[:,1:end-1]
+function write_vel(model::AbstractModel, output_params::OutputParams)
+    @root begin
+        uVel_file_string = string(output_params.prefix,  "_U.bin")
+        vVel_file_string = string(output_params.prefix,  "_V.bin")
+        
+        u_out=model.fields.gu.u[1:end-1,:]
+        v_out=model.fields.gv.v[:,1:end-1]
 
-    u_out .= hton.(u_out)
-    v_out .= hton.(v_out)
+        u_out .= hton.(u_out)
+        v_out .= hton.(v_out)
 
-    ufileID =  open(uVel_file_string,"w")
-    write(ufileID, u_out[:,:])
-    close(ufileID) 
-    vfileID =  open(vVel_file_string,"w")
-    write(vfileID, v_out[:,:])
-    close(vfileID)   
-
- end 
+        ufileID =  open(uVel_file_string,"w")
+        write(ufileID, u_out[:,:])
+        close(ufileID) 
+        vfileID =  open(vVel_file_string,"w")
+        write(vfileID, v_out[:,:])
+        close(vfileID)   
+    end
+end
+write_vel(s::Simulation) = write_vel(s.model, s.output_params)

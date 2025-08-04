@@ -11,6 +11,7 @@ abstract type AbstractModel{T <: Real,
                             F <: AbstractField,
                             G <: AbstractGrid} end
 abstract type AbstractPreconditioner{T <: Real,N <: Integer} end
+abstract type AbstractSimulation end
 
 using LinearMaps
 #Type alias, just for abreviation

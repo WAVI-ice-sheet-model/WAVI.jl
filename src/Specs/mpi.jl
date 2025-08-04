@@ -14,6 +14,8 @@ import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!
 import WAVI.Wavelets: UWavelets, VWavelets
 
+include("MPI/utils.jl")
+
 struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
     # MPI Specification information
     px::N
@@ -150,9 +152,11 @@ function Model(grid::G,
     return model
 end
 
-Base.propertynames(model::Model{T,N,<:MPISpec,F,G,M}, private::Bool) where {T,N,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
+##
+# Make Model interface work transparently with MPI distributed elements
+#
 
-# TODO: override @debug, @info, @warn and @error for MPI based logging, with the rank out of size and / or grid location
+Base.propertynames(model::Model{T,N,<:MPISpec,F,G,M}, private::Bool) where {T,N,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
 
 function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
     if s == :global_fields
@@ -161,6 +165,10 @@ function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T
     end
     return getfield(model, s)
 end
+
+##
+# Override Model oriented methods to intercept calls that need extra processing
+#
 
 function update_model_velocities!(model::Model{<:Any, <:Any, <:MPISpec})
     @unpack px, py, halo, global_size, global_comm, rank, comm, coords = model.spec
@@ -172,6 +180,18 @@ function update_model_velocities!(model::Model{<:Any, <:Any, <:MPISpec})
     halo_exchange!(model)
     return model
 end
+
+
+##
+# Overrides for other functionalities that need restricting to root node
+#
+# TODO: override @debug, @info, @warn and @error for MPI based logging, with the rank out of size and / or grid location
+
+
+
+##
+# Additional MPI functionality
+#
 
 function halo_exchange!(model::Model{<:Any, <:Any, <:MPISpec})
     @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left = model.spec
