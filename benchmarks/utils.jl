@@ -7,7 +7,7 @@ struct BenchmarkResults
     memory_usage::Float64
     gc_time::Float64
     allocations::Int64
-    profile_data::Dict{String, Any}
+    #profile_data::Dict{String, Any}
     system_info::Dict{String, Any}
     timestamp::DateTime
 end
@@ -44,11 +44,11 @@ function benchmark_main(id::String,
         benchmark_file = joinpath(output_dir, "benchmark_results.json")
         save_benchmark_results(benchmark_results, benchmark_file)
         
-        profile_file = joinpath(output_dir, "profile_data.txt")
-        open(profile_file, "w") do io
-            Profile.print(io, format=:flat)
-        end
-        @info "Profile data saved to: $profile_file"
+        #profile_file = joinpath(output_dir, "profile_data.txt")
+        #open(profile_file, "w") do io
+        #    Profile.print(io, format=:flat)
+        #end
+        #@info "Profile data saved to: $profile_file"
         
         netcdf_output = "$(output_dir)/outfile.nc"
         
@@ -72,14 +72,14 @@ function monitor_resources(func, args...; kwargs...)
         result = @timed func(args...; kwargs...)
     end
     
-    profile_data = Profile.fetch()
+    #profile_data = Profile.fetch()
     
     benchmark_result = BenchmarkResults(
         result.time,
         result.bytes,
         result.gctime,
         result.gcstats.allocd,
-        Dict("profile_samples" => length(profile_data)),
+        #Dict("profile_samples" => length(profile_data)),
         get_system_info(),
         now()
     )
@@ -104,7 +104,7 @@ function save_benchmark_results(results::BenchmarkResults, filename::String)
         "memory_usage_bytes" => results.memory_usage,
         "gc_time_seconds" => results.gc_time,
         "allocations" => results.allocations,
-        "profile_samples" => results.profile_data["profile_samples"],
+        #"profile_samples" => results.profile_data["profile_samples"],
         "system_info" => results.system_info
     )
     
