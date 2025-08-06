@@ -62,6 +62,23 @@ Model(; grid, bed_elevation, spec, kw...) = Model(grid, bed_elevation, spec; kw.
 Model(g::G, f::F, p::P, sp::SP, s::S, m::M) where {G<:AbstractGrid,F<:AbstractField,P<:Params,SP<:SolverParams,S<:AbstractSpec,M<:AbstractMeltRate} = 
     Model{Float64,Int64,S,F,G,M}(g, f, p, sp, s, m)
 
+##
+# Global domain alterations
+#
+Base.propertynames(model::Model{T,N,S,F,G,M}, private::Bool) where {T,N,S,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
+
+# FIXME: this is a sign of a frustration in WAVIs structural layout - too many deep nested structures accessed through high level passing
+#  which inhibits multiple dispatch
+function Base.getproperty(model::Model{T,N,S,F,G,M}, s::Symbol) where {T,N,S,F,G,M}
+    if s == :global_fields
+        return getfield(model, :fields)
+    elseif s == :global_grid
+        return getfield(model, :grid)
+    end
+    getfield(model, s)
+end
+
+
 include("utils.jl")
 
 function Base.show(io::IO, m::Model)
