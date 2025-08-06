@@ -6,15 +6,15 @@ using Parameters
 
 #structure that contains outputting info
 struct OutputParams{T <: Real, R <: Real, O}
-    outputs::O   #Dictonary of labels and paths to output
-    output_freq::T     #output time 
-    n_iter_out::R      #number of steps per output
-    output_format::String     #specify output format [mat/jld]
-    prefix::String     #file prefix
-    output_path::String #folder in which to save
-    dump_vel::Bool     #toggle on dumping the velocity after the final timestep
-    zip_format::String     #specify whether or not to zip the output, and the format
-    output_start::Bool  #flag to specify whether to output the initial state or not 
+    outputs::O                  #Dictonary of labels and paths to output
+    output_freq::T              # output time 
+    n_iter_out::R               #number of steps per output
+    output_format::String       #specify output format [mat/jld]
+    prefix::String              #file prefix
+    output_path::String         #folder in which to save
+    dump_vel::Bool              #toggle on dumping the velocity after the final timestep
+    zip_format::String          #specify whether or not to zip the output, and the format
+    output_start::Bool          #flag to specify whether to output the initial state or not 
 end
 
 """
