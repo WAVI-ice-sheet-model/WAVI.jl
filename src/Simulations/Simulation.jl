@@ -37,7 +37,7 @@ Keyword arguments
 function Simulation(; 
                     model::AbstractModel,
                     timestepping_params::TimesteppingParams,
-                    output_params = OutputParams(),
+                    output_params::OutputParams = OutputParams(),
                     pickup_output_update_flag = false)
 
     (timestepping_params !== nothing) || throw(ArgumentError("You must specify a timestepping parameters"))

@@ -15,21 +15,16 @@ using WAVI.Specs
 Output the data from the simulation at the current timestep
 """
 function write_output(model::AbstractModel, output_params, clock)
+    output_dict = fetch_output(output_params.outputs)
+    @info summary(output_dict)
+
+    #put the grid co-ordinates and time into output.
+    #Round time in output to some decimal places to make it prettier (machine precision can make this look nasty!)
+    if ~haskey(output_dict, :t); output_dict["t"] = round(clock.time, digits = 3); end
+    if ~haskey(output_dict, :x); output_dict["x"] = model.global_grid.xxh; end
+    if ~haskey(output_dict, :y); output_dict["y"] = model.global_grid.yyh; end
+
     @root begin
-        #output_dict = fetch_output(output_params.outputs)
-        output_dict = fetch_output((h = model.global_fields.gh.h,
-               u = model.global_fields.gh.u,
-               v = model.global_fields.gh.v,
-               b = model.global_fields.gh.b,
-               grfrac = model.global_fields.gh.grounded_fraction))
-        @info summary(output_dict)
-
-        #put the grid co-ordinates and time into output.
-        #Round time in output to some decimal places to make it prettier (machine precision can make this look nasty!)
-        if ~haskey(output_dict, :t); output_dict["t"] = round(clock.time, digits = 3); end
-        if ~haskey(output_dict, :x); output_dict["x"] = model.global_grid.xxh; end
-        if ~haskey(output_dict, :y); output_dict["y"] = model.global_grid.yyh; end
-
         fname = string(output_params.output_path, output_params.prefix , lpad(clock.n_iter, 10,"0"));
         if output_params.output_format == "jld2"
             fname = string(fname, ".jld2")
@@ -52,8 +47,8 @@ function fetch_output(outputs)
     output_dict = Dict()
     @debug "Outputs $(keys(outputs))"
     for (k,v) in zip(keys(outputs), outputs)
-        @info "Collecting $(k) -> $(summary(v))"
-        output_dict[string(k)] = v
+        output_dict[string(k)] = isa(v, Function) ? v() : v
+        @info "Collecting $(k) -> $(summary(output_dict[string(k)]))"
     end
     return output_dict
 end

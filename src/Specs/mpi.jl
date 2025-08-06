@@ -177,7 +177,7 @@ end
 function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
     @info "getproperty from MPI model spec $(s)"
     if s == :global_fields
-        @info "Collating global fields from all models"
+        # TODO: these need to be registered fields, not user-specified
         fields = collate_global_fields(model.fields, model.spec)
         return fields
     elseif s == :global_grid

@@ -49,7 +49,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "vertical" halo's 
         if left > -1
-            #@debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
+            @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
             send_left = local_field[1:1+halo_offset, :]
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
@@ -58,7 +58,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            #@debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
+            @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
             send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
@@ -68,7 +68,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "horizontal" halo's
         if top > -1
-            #@debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
+            @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
             send_top = local_field[:, 1:1+halo_offset]
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, prod(size(send_top)))
@@ -77,7 +77,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            #@debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
+            @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
             send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr]        
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
@@ -85,9 +85,9 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
             push!(requests, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
         end
 
-        #@debug "Waiting on requests"
+        @debug "Waiting on requests"
         MPI.Waitall(requests)
-        #@debug "Finished waiting on requests"
+        @debug "Finished waiting on requests"
 
         # Update halo regions 
         if left > -1
@@ -173,8 +173,9 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
         count_sizes = map(x -> prod(x[1]), u_grids)
         recv_data = Vector{Float64}(undef, sum(count_sizes))
         recv_buffer = MPI.VBuffer(recv_data, count_sizes)
+        @debug "[$(rank+1)/$(global_size)] Gathering u-field data from processes"
         MPI.Gatherv!(local_fields.gu.u[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
-        
+
         idxer = collect(cumsum(count_sizes))
 
         for proc_rank in 0:(global_size-1)
@@ -184,6 +185,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
             global_fields.gu.u[sx:ex, sy:ey] = reshape(proc_data, u_grids[proc_rank + 1][1])
         end
     else
+        @debug "[$(rank+1)/$(global_size)] Sending u-field data from process"
         MPI.Gatherv!(local_fields.gu.u[1+lh:end-rh, 1+th:end-bh], nothing, comm)
     end
 
@@ -199,6 +201,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
         count_sizes = map(x -> prod(x[1]), v_grids)
         recv_data = Vector{Float64}(undef, sum(count_sizes))
         recv_buffer = MPI.VBuffer(recv_data, count_sizes)
+        @debug "[$(rank+1)/$(global_size)] Gathering v-field data from processes"
         MPI.Gatherv!(local_fields.gv.v[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
         
         idxer = collect(cumsum(count_sizes))
@@ -210,6 +213,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
             global_fields.gv.v[sx:ex, sy:ey] = reshape(proc_data, v_grids[proc_rank + 1][1])
         end
     else
+        @debug "[$(rank+1)/$(global_size)] Sending v-field data from process"
         MPI.Gatherv!(local_fields.gv.v[1+lh:end-rh, 1+th:end-bh], nothing, comm)
     end
 

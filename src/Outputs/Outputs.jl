@@ -6,7 +6,7 @@ using Parameters
 
 #structure that contains outputting info
 struct OutputParams{T <: Real, R <: Real, O}
-    outputs::O         #tuple of entries defining names and quantities to be outputted
+    outputs::O   #Dictonary of labels and paths to output
     output_freq::T     #output time 
     n_iter_out::R      #number of steps per output
     output_format::String     #specify output format [mat/jld]
