@@ -7,9 +7,10 @@ include("utils.jl")
 
 if abspath(PROGRAM_FILE) == @__FILE__
     grid = MISMIP_PLUS_GRID()
-    mpi_spec = MPISpec(2, 1, 2, grid)
+    nprocs = 2          # TODO: Retrieve from mpiexecjl invocation arguments
+    mpi_spec = MPISpec(nprocs, 1, 2, grid)
 
-    benchmark_main("mpi", MISMIP_PLUS, Dict{Symbol, Any}(
+    benchmark_main("mpi.$(nprocs)", MISMIP_PLUS, Dict{Symbol, Any}(
         :grid => grid,
         :spec => mpi_spec,
     ), ["h", "u", "v"], mpi_spec.rank)

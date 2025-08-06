@@ -11,7 +11,7 @@ using WAVI.Outputs: OutputParams
 using WAVI.Parameters: TimesteppingParams
 using WAVI.Time
 
-mutable struct Simulation{M,TS,O,C} <: AbstractSimulation
+struct Simulation{M,TS,O,C} <: AbstractSimulation
     model::M
     timestepping_params::TS
     output_params::O
@@ -32,32 +32,27 @@ Keyword arguments
 - `model`: (required) an instance of a `Model`` object
 - `timestepping_params`: (required) an instance of a `TimesteppingParams` object, which stores information relating to timestepping
 - `output_params`: an instance of an `OutputParams` object, which stores information relating to outputting of solutions
-- `pickup_output_update_flag`: a flag which specifies whether to update the output_params upon picking up.
 """
 function Simulation(; 
                     model::AbstractModel,
                     timestepping_params::TimesteppingParams,
-                    output_params::OutputParams = OutputParams(),
-                    pickup_output_update_flag = false)
-
-    (timestepping_params !== nothing) || throw(ArgumentError("You must specify a timestepping parameters"))
+                    output_params::OutputParams = OutputParams())
+    isnothing(timestepping_params) && throw(ArgumentError("You must specify a timestepping parameters"))
 
     #compute number of timesteps per output (should be robust for Inf output frequency)
-    output_params = set_n_iter_out!(output_params,timestepping_params.dt, timestepping_params.n_iter_total)
+    output_params = set_n_iter_out!(output_params, timestepping_params.dt, timestepping_params.n_iter_total)
+    pickup_model, pickup_clock = pickup!(timestepping_params)
 
-    #initialize the clock
-    clock = Clock(n_iter = 0, time = 0.0)
+    if ~isnothing(pickup_model)
+        model, clock = pickup_model, pickup_clock
+    else
+        # TODO: is the change from the default relevant - time is now type-variant (Real not Int)
+        clock = Clock(n_iter = 0, time = 0.0)
+        #set the timestep in model parameters (fudge to allow model to see the timestep in velocity solve)
+        model = set_dt_in_model!(model, timestepping_params.dt)
+    end
 
-    #set the timestep in model parameters (fudge to allow model to see the timestep in velocity solve)
-    model = set_dt_in_model!(model, timestepping_params.dt)
-
-    #build the simulation
-    simulation = Simulation(model, timestepping_params, output_params, clock)
-
-    #pickup?
-    pickup!(simulation, pickup_output_update_flag)
-
-    return simulation    
+    return Simulation(model, timestepping_params, output_params, clock)
 end
 
 Simulation(m::AbstractModel, tp::TimesteppingParams; kwargs...) = Simulation(; model=m, timestepping_params=tp, kwargs...)
@@ -65,35 +60,36 @@ Simulation(m::AbstractModel, tp::TimesteppingParams; kwargs...) = Simulation(; m
 include("run_simulation.jl")
 
 function set_dt_in_model!(model, dt)
+    # TODO: code smell, this should be in Model construction, requires model recreation via SetField and ConstructionBase
     model = @set model.params.dt = dt
     return model
 end
 
 
-function set_n_iter_out!(output_params, dt,n_iter_total)
-    output_params.output_freq == Inf ? n_iter_out = (n_iter_total + 1) : n_iter_out = round(Int,output_params.output_freq/dt)
+function set_n_iter_out!(output_params, dt, n_iter_total)
+    # TODO: code smell, this should be in the constructor for OutputParams
+    output_params.output_freq == Inf ? n_iter_out = (n_iter_total + 1) : n_iter_out = round(Int, output_params.output_freq/dt)
     output_params = @set output_params.n_iter_out = n_iter_out
     return output_params
 end
 
-function pickup!(simulation, pickup_output_update_flag)
-    #@unpack model, timestepping_params, clock = simulation
+function pickup!(timestepping_params::TimesteppingParams)::Union{Tuple{Model, Clock}, Tuple{Nothing, Nothing}}
+    model, clock = nothing, nothing
+    if timestepping_params.niter0 > 0
+        n_iter_string =  lpad(timestepping_params.niter0, 10, "0"); #filename as a string with 10 digits
+        @info "detected niter0 > 0 (niter0 = $(timestepping_params.niter0)). Looking for pickup..."
 
-    if simulation.timestepping_params.niter0 > 0
-        n_iter_string =  lpad(simulation.timestepping_params.niter0, 10, "0"); #filename as a string with 10 digits
-        println("detected niter0 > 0 (niter0 = $(simulation.timestepping_params.niter0)). Looking for pickup...")
         try 
             sim_load = load(string("PChkpt_",n_iter_string, ".jld2"), "simulation")
             println("Pickup successful")
 
-            simulation.model = sim_load.model
-            simulation.clock = sim_load.clock
-            simulation.output_params = sim_load.output_params #pointer based outputting system means we have to use same output parameters after pickup
+            model = sim_load.model
+            clock = sim_load.clock
         catch 
-            Throw(error("Pickup error, terminating run"))
+            error("Pickup error, terminating run")
         end
     end
-    return simulation
+    return (model, clock)
 end
     
 end

@@ -1,4 +1,6 @@
+using MPI
 using WAVI 
+
 function MISMIP_PLUS()
     #Grid and boundary conditions
     nx = 160
@@ -62,4 +64,20 @@ function MISMIP_PLUS()
     return simulation
 end
 
-@time simulation = MISMIP_PLUS();
+if abspath(PROGRAM_FILE) == @__FILE__
+    # A little bootstapping way of running the MISMIP+ experiment
+    MPI.Init()
+    if MPI.Comm_size(MPI.COMM_WORLD) > 1 
+        grid = MISMIP_PLUS_GRID()
+        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid)
+
+        sim = @time MISMIP_PLUS(
+            grid = grid,
+            spec = mpi_spec,
+        );
+    else
+        sim = @time MISMIP_PLUS();
+    end 
+	print(summary(sim))
+end
+

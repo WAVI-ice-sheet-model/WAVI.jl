@@ -21,8 +21,8 @@ function write_output(model::AbstractModel, output_params, clock)
     #put the grid co-ordinates and time into output.
     #Round time in output to some decimal places to make it prettier (machine precision can make this look nasty!)
     if ~haskey(output_dict, :t); output_dict["t"] = round(clock.time, digits = 3); end
-    if ~haskey(output_dict, :x); output_dict["x"] = model.global_grid.xxh; end
-    if ~haskey(output_dict, :y); output_dict["y"] = model.global_grid.yyh; end
+    if ~haskey(output_dict, :x); output_dict["x"] = model.grid.xxh; end
+    if ~haskey(output_dict, :y); output_dict["y"] = model.grid.yyh; end
 
     @root begin
         fname = string(output_params.output_path, output_params.prefix , lpad(clock.n_iter, 10,"0"));

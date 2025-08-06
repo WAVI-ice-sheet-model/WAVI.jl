@@ -59,38 +59,39 @@ function MISMIP_PLUS(;
     chkpt_freq = 1000.
     pchkpt_freq = 20.
     timestepping_params = TimesteppingParams(niter0 = niter0, 
-                                            dt = dt, 
-                                            end_time = end_time, 
-                                            chkpt_freq = chkpt_freq, 
-                                            pchkpt_freq = pchkpt_freq)
+                                             dt = dt, 
+                                             end_time = end_time, 
+                                             chkpt_freq = chkpt_freq, 
+                                             pchkpt_freq = pchkpt_freq)
 
     #output parameters
     outputs = (h = model.fields.gh.h,
                # FIXME: gh.u grids are not distributed nor recalculating correctly
-               u = () -> (model.global_fields.gu.u[1:end-1,:]),
-               v = () -> (model.global_fields.gv.v[:, 1:end-1]),
+               #u = () -> (model.global_fields.gu.u[1:end-1,:]),
+               #v = () -> (model.global_fields.gv.v[:, 1:end-1]),
+               u = model.fields.gh.u,
+               v = model.fields.gh.v,
                b = model.fields.gh.b,
-               grfrac = model.global_fields.gh.grounded_fraction) #output velocities and thickness
+               grfrac = model.fields.gh.grounded_fraction) #output velocities and thickness
 
 #    outputs = Dict(
-#        "h" => "model.fields.gh.h",
-#        "u" => "model.fields.gh.u",
-#        "v" => "model.fields.g.h",
-#        "b" => "model.fields.gh.h",
-#        "grfrac" => "model.fields.gh.h",
+#        "h" => "model.global_fields.gh.h",
+#        "u" => "model.global_fields.gh.u",
+#        "v" => "model.global_fields.gh.v",
+#        "b" => "model.global_fields.gh.b",
+#        "grfrac" => "model.global_fields.gh.grounded_fraction",
 #    )
     output_freq = 20.
-    output_params = OutputParams(outputs = outputs, 
-                            output_path = folder,
-                            output_freq = output_freq,
-                            output_format = "jld2",
-                            zip_format = "nc")
+    output_params = OutputParams(outputs = outputs,
+                                 output_path = folder,
+                                 output_freq = output_freq,
+                                 output_format = "jld2",
+                                 zip_format = "nc")
     
     simulation = Simulation(model = model, 
-                        timestepping_params = timestepping_params,
-                        output_params = output_params)
+                            timestepping_params = timestepping_params,
+                            output_params = output_params)
             
-    #perform the simulation
     run_simulation!(simulation)
     return simulation
 end
