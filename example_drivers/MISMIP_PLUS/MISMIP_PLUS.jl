@@ -70,6 +70,7 @@ function MISMIP_PLUS(;
                v = model.global_fields.gh.v,
                b = model.global_fields.gh.b,
                grfrac = model.global_fields.gh.grounded_fraction) #output velocities and thickness
+
     output_freq = 20.
     output_params = OutputParams(outputs = outputs, 
                             output_path = folder,

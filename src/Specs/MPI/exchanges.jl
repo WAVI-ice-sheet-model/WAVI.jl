@@ -21,7 +21,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     @unpack gh, gu, gv = model.fields
     grid = model.grid
 
-    @debug "[$(rank+1)/$(global_size)] Halo exchange in progress"
+    # @debug "[$(rank+1)/$(global_size)] Halo exchange in progress"
     # Useful to dip out, we'll always be more than one
     if halo == 0
         rank == 0 && @warn "No halo exchange to take place, returning"
@@ -49,7 +49,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "vertical" halo's 
         if left > -1
-            @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
+            #@debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
             send_left = local_field[1:1+halo_offset, :]
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
@@ -58,7 +58,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
+            #@debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
             send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
@@ -68,7 +68,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "horizontal" halo's
         if top > -1
-            @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
+            #@debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
             send_top = local_field[:, 1:1+halo_offset]
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, prod(size(send_top)))
@@ -77,7 +77,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
+            #@debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
             send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr]        
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
@@ -85,9 +85,9 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
             push!(requests, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
         end
 
-        @debug "Waiting on requests"
+        #@debug "Waiting on requests"
         MPI.Waitall(requests)
-        @debug "Finished waiting on requests"
+        #@debug "Finished waiting on requests"
 
         # Update halo regions 
         if left > -1
@@ -118,7 +118,7 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
     grid = global_grid
     x_coord, y_coord = coords
 
-    @debug "[$(rank+1)/$(global_size)] Generating local version of the global grid for collation at $(grid.nx) x $(grid.ny)"
+    #@debug "[$(rank+1)/$(global_size)] Generating local version of the global grid for collation at $(grid.nx) x $(grid.ny)"
 
     gh = HGrid(nxh=grid.nx, nyh=grid.ny, b=zeros(grid.nx, grid.ny))
     gu = UGrid(nxu=grid.nx+1, nyu=grid.ny, dx=grid.dx, dy=grid.dy, levels=local_fields.gu.levels)
@@ -157,9 +157,9 @@ function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
     global_fields = GridField(gh,gu,gv,gc,g3d,wu,wv)
 
     MPI.Barrier(comm)  
-    @debug "[$(rank+1)/$(global_size)] - LOCAL U $(size(local_fields.gu.u)) GLOBAL [$(x_start):$(x_end+1), $(y_start):$(y_end)]"
-    @debug "[$(rank+1)/$(global_size)] - LOCAL V $(size(local_fields.gv.v)) GLOBAL [$(x_start):$(x_end), $(y_start):$(y_end+1)]"
-    @debug "[$(rank+1)/$(global_size)] Commencing data transfers"
+    #@debug "[$(rank+1)/$(global_size)] - LOCAL U $(size(local_fields.gu.u)) GLOBAL [$(x_start):$(x_end+1), $(y_start):$(y_end)]"
+    #@debug "[$(rank+1)/$(global_size)] - LOCAL V $(size(local_fields.gv.v)) GLOBAL [$(x_start):$(x_end), $(y_start):$(y_end+1)]"
+    #@debug "[$(rank+1)/$(global_size)] Commencing data transfers"
   
     x_sz, y_sz = size(local_fields.gu.u)
     

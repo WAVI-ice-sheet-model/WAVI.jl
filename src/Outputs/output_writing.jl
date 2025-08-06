@@ -16,7 +16,13 @@ Output the data from the simulation at the current timestep
 """
 function write_output(model::AbstractModel, output_params, clock)
     @root begin
-        output_dict = fetch_output(output_params.outputs)
+        #output_dict = fetch_output(output_params.outputs)
+        output_dict = fetch_output((h = model.global_fields.gh.h,
+               u = model.global_fields.gh.u,
+               v = model.global_fields.gh.v,
+               b = model.global_fields.gh.b,
+               grfrac = model.global_fields.gh.grounded_fraction))
+        @info summary(output_dict)
 
         #put the grid co-ordinates and time into output.
         #Round time in output to some decimal places to make it prettier (machine precision can make this look nasty!)
@@ -32,8 +38,7 @@ function write_output(model::AbstractModel, output_params, clock)
             fname = string(fname, ".mat")
             matwrite(fname, output_dict)
         end
-
-        println("outputting at timestep number $(clock.n_iter)")
+        @info "Output at timestep number $(clock.n_iter) - $(fname)"
     end
 end
 write_output(s::AbstractSimulation) = write_output(s.model, s.output_params, s.clock)
@@ -45,7 +50,9 @@ Return a dictionary with dictionary entries corresponding to outputs
 """
 function fetch_output(outputs)
     output_dict = Dict()
+    @debug "Outputs $(keys(outputs))"
     for (k,v) in zip(keys(outputs), outputs)
+        @info "Collecting $(k) -> $(summary(v))"
         output_dict[string(k)] = v
     end
     return output_dict

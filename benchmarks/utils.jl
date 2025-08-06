@@ -39,7 +39,7 @@ function benchmark_main(id::String,
         @info "Memory usage: $(@sprintf("%.2f", benchmark_results.memory_usage / 1024^2)) MB"
         @info "GC time: $(@sprintf("%.3f", benchmark_results.gc_time)) seconds"
         @info "Allocations: $(benchmark_results.allocations)"
-        @info "Profile samples: $(benchmark_results.profile_data["profile_samples"])"
+        #@info "Profile samples: $(benchmark_results.profile_data["profile_samples"])"
             
         benchmark_file = joinpath(output_dir, "benchmark_results.json")
         save_benchmark_results(benchmark_results, benchmark_file)

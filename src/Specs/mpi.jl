@@ -163,19 +163,25 @@ Base.propertynames(model::Model{T,N,S,F,G,M}, private::Bool) where {T,N,S,F,G,M}
 # FIXME: this is a sign of a frustration in WAVIs structural layout - too many deep nested structures accessed through high level passing
 #  which inhibits multiple dispatch
 function Base.getproperty(model::Model{T,N,S,F,G,M}, s::Symbol) where {T,N,S,F,G,M}
+    @info "getproperty from generic model spec"
     if s == :global_fields
+        @info "Calling global fields on local model"
         return getfield(model, :fields)
     elseif s == :global_grid
+        @info "Calling global grid on local model"
         return getfield(model, :grid)
     end
     getfield(model, s)
 end
 
 function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
+    @info "getproperty from MPI model spec $(s)"
     if s == :global_fields
+        @info "Collating global fields from all models"
         fields = collate_global_fields(model.fields, model.spec)
         return fields
     elseif s == :global_grid
+        @info "Using global grid from original MPI spec"
         return model.spec.global_grid
     end
     return getfield(model, s)
