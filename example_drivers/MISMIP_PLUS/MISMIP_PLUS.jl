@@ -66,23 +66,23 @@ function MISMIP_PLUS(;
 
     #output parameters
     outputs = (h = model.fields.gh.h,
-               # FIXME: gh.u grids are not distributed nor recalculating correctly
+               # FIXME: gh velocity grids do not calculate correctly?
                #u = () -> (model.global_fields.gu.u[1:end-1,:]),
                #v = () -> (model.global_fields.gv.v[:, 1:end-1]),
                u = model.fields.gh.u,
                v = model.fields.gh.v,
                b = model.fields.gh.b,
-               grfrac = model.fields.gh.grounded_fraction) #output velocities and thickness
+               grfrac = model.fields.gh.grounded_fraction)
 
-#    outputs = Dict(
-#        "h" => "model.global_fields.gh.h",
-#        "u" => "model.global_fields.gh.u",
-#        "v" => "model.global_fields.gh.v",
-#        "b" => "model.global_fields.gh.b",
-#        "grfrac" => "model.global_fields.gh.grounded_fraction",
-#    )
+    outputs = (
+        h = "model.global_fields.gh.h",
+        u = "model.global_fields.gh.u",
+        v = "model.global_fields.gh.v",
+        b = "model.global_fields.gh.b",
+        grfrac = "model.global_fields.gh.grounded_fraction",
+    )
     output_freq = 20.
-    output_params = OutputParams(outputs = outputs,
+    output_params = OutputParams(outputs,
                                  output_path = folder,
                                  output_freq = output_freq,
                                  output_format = "jld2",

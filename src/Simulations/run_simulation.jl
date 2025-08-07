@@ -2,7 +2,7 @@ export run_simulation!, timestep!, update_clock!, update_thickness!, write_vel
 
 using WAVI
 import WAVI: AbstractModel, AbstractSimulation
-using WAVI.Outputs: write_output, zip_output
+using WAVI.Outputs: write_output, write_vel, zip_output
 using WAVI.Processes: update_state!
 using WAVI.Specs
 
@@ -84,6 +84,7 @@ function run_simulation!(simulation)
             if mod(i, timestepping_params.n_iter_chkpt) == 0
                 #output a temporary checkpoint
                 fname = joinpath(output_params.output_path, string("Chkpt",chkpt_tag, ".jld2"))
+                # TODO: strip out OutputParams
                 @save fname simulation
                 chkpt_tag = (chkpt_tag == "A") ? "B" : "A"
                 println("making temporary checkpoint at timestep number $(simulation.clock.n_iter)")
@@ -94,6 +95,7 @@ function run_simulation!(simulation)
                 #output a permanent checkpoint
                 n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
                 fname = joinpath(output_params.output_path, string("PChkpt_",n_iter_string, ".jld2"))
+                # TODO: strip out OutputParams
                 @save fname simulation
                 println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
             end
@@ -114,28 +116,3 @@ function run_simulation!(simulation)
     zip_output(simulation)
 end
 
-"""
-    function write_vel(simulation)
-
-Write the velocity at the the final timestep of the simulation (used in the coupled wavi-mitgcm model to communicate with streamice)
-"""
-function write_vel(model::AbstractModel, output_params::OutputParams)
-    @root begin
-        uVel_file_string = string(output_params.prefix,  "_U.bin")
-        vVel_file_string = string(output_params.prefix,  "_V.bin")
-        
-        u_out=model.fields.gu.u[1:end-1,:]
-        v_out=model.fields.gv.v[:,1:end-1]
-
-        u_out .= hton.(u_out)
-        v_out .= hton.(v_out)
-
-        ufileID =  open(uVel_file_string,"w")
-        write(ufileID, u_out[:,:])
-        close(ufileID) 
-        vfileID =  open(vVel_file_string,"w")
-        write(vfileID, v_out[:,:])
-        close(vfileID)   
-    end
-end
-write_vel(s::Simulation) = write_vel(s.model, s.output_params)

@@ -45,12 +45,12 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         x_incr, y_incr = add_values
 
         # TODO: got a headache with the overloading of naming conventions - recheck all this diagrammatically and conform to WAVI
-        # TODO: need to make sure halos are correctly configured - corners go to both neighbours is it?
+        # FIXME: all neighbours below should be offset by the halo size, as the model.grid size is EXTENDED to accommodate neighbours solved values!
 
         # Send the "vertical" halo's 
         if left > -1
             @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
-            send_left = local_field[1:1+halo_offset, :]
+            send_left = local_field[1:1+halo_offset, :] # FIXME: see above
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
             push!(requests, MPI.Isend(send_left_flat, left, left_send_tag, comm))
@@ -59,7 +59,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         if right > -1
             @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
-            send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :]
+            send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :] # FIXME: see above
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
             push!(requests, MPI.Isend(send_right_flat, right, right_send_tag, comm))
@@ -69,7 +69,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         # Send the "horizontal" halo's
         if top > -1
             @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
-            send_top = local_field[:, 1:1+halo_offset]
+            send_top = local_field[:, 1:1+halo_offset] # FIXME: see above
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, prod(size(send_top)))
             push!(requests, MPI.Isend(send_top_flat, top, top_send_tag, comm))
@@ -78,7 +78,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         if bottom > -1
             @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
-            send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr]        
+            send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr] # FIXME: see above  
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
             push!(requests, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
@@ -92,22 +92,22 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         # Update halo regions 
         if left > -1
             recv_left = reshape(recv_left_flat, halo, grid.ny+y_incr)
-            local_field[1:1+halo_offset, :] = recv_left
+            local_field[1:1+halo_offset, :] = recv_left # FIXME: see above
         end
 
         if right > -1
             recv_right = reshape(recv_right_flat, halo, grid.ny+y_incr)
-            local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :] = recv_right
+            local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :] = recv_right # FIXME: see above
         end
 
         if top > -1
             recv_top = reshape(recv_top_flat, grid.nx+x_incr, halo)
-            local_field[:, 1:1+halo_offset] = recv_top
+            local_field[:, 1:1+halo_offset] = recv_top # FIXME: see above
         end
 
         if bottom > -1
             recv_bottom = reshape(recv_bottom_flat, grid.nx+x_incr, halo)
-            local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr] = recv_bottom
+            local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr] = recv_bottom # FIXME: see above
         end
     end
 end

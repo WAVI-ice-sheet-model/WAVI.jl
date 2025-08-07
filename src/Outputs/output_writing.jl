@@ -1,5 +1,5 @@
 
-export fetch_output, write_output
+export write_output, write_vel
 
 using JLD2
 using MAT
@@ -37,6 +37,33 @@ function write_output(model::AbstractModel, output_params, clock)
     end
 end
 write_output(s::AbstractSimulation) = write_output(s.model, s.output_params, s.clock)
+
+"""
+    function write_vel(simulation)
+
+Write the velocity at the the final timestep of the simulation (used in the coupled wavi-mitgcm model to communicate with streamice)
+"""
+function write_vel(model::AbstractModel, output_params::OutputParams)
+    @root begin
+        uVel_file_string = string(output_params.prefix,  "_U.bin")
+        vVel_file_string = string(output_params.prefix,  "_V.bin")
+        
+        u_out=model.fields.gu.u[1:end-1,:]
+        v_out=model.fields.gv.v[:,1:end-1]
+
+        u_out .= hton.(u_out)
+        v_out .= hton.(v_out)
+
+        ufileID =  open(uVel_file_string,"w")
+        write(ufileID, u_out[:,:])
+        close(ufileID) 
+        vfileID =  open(vVel_file_string,"w")
+        write(vfileID, v_out[:,:])
+        close(vfileID)   
+    end
+end
+write_vel(s::Simulation) = write_vel(s.model, s.output_params)
+
 
 """
     fetch_output(outputs)

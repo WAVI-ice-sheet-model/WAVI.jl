@@ -6,7 +6,6 @@ using Parameters
 
 #structure that contains outputting info
 struct OutputParams{T <: Real, R <: Real, O}
-    outputs::O                  #Dictonary of labels and paths to output
     output_freq::T              # output time 
     n_iter_out::R               #number of steps per output
     output_format::String       #specify output format [mat/jld]
@@ -14,7 +13,9 @@ struct OutputParams{T <: Real, R <: Real, O}
     output_path::String         #folder in which to save
     dump_vel::Bool              #toggle on dumping the velocity after the final timestep
     zip_format::String          #specify whether or not to zip the output, and the format
-    output_start::Bool          #flag to specify whether to output the initial state or not 
+    output_start::Bool          #flag to specify whether to output the initial state or not
+
+    outputs::O                  #Dictonary of labels and paths to output    
 end
 
 """
@@ -32,7 +33,6 @@ Construct a WAVI.jl output parameters object.
 
 Keyword arguments
 =================
-- `outputs`:  a tuple of entries defining names and quantities to be outputted
 - `output_freq`: quantity specifying hwo frequently to produce output 
 - `output_format`: specify output format (currently only .mat and .jld2 outputs are supported, selected with 'mat' or 'jld2' options)
 - `prefix`: prefix to be prepended onto file names
@@ -42,7 +42,6 @@ Keyword arguments
 - `output_start`: flag to specify whether to output at the zeroth time step    
 """
 function OutputParams(; 
-    outputs = (),
     output_freq = Inf, 
     output_format = "jld2",
     prefix = "outfile", 
@@ -77,9 +76,10 @@ function OutputParams(;
         zip_format = "none"
     end
 
-    return OutputParams(outputs, output_freq, n_iter_out, output_format, prefix, output_path, dump_vel, zip_format, output_start)
+    return OutputParams(output_freq, n_iter_out, output_format, prefix, output_path, dump_vel, zip_format, output_start)
 end
 
+include("data_collection.jl")
 include("output_writing.jl")
 include("zipping_output.jl")
 
