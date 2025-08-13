@@ -56,13 +56,11 @@ function MISMIP_PLUS(;
     niter0 = 0
     dt = 0.5
     end_time = 400.
-    chkpt_freq = 1000.
-    pchkpt_freq = 20.
+    chkpt_freq = 20.
     timestepping_params = TimesteppingParams(niter0 = niter0, 
                                              dt = dt, 
                                              end_time = end_time, 
-                                             chkpt_freq = chkpt_freq, 
-                                             pchkpt_freq = pchkpt_freq)
+                                             chkpt_freq = chkpt_freq)
 
     #output parameters
 #    outputs = (h = model.fields.gh.h,

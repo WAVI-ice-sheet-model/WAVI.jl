@@ -133,17 +133,15 @@ end
     super_implicitness::T = 1.0
 end
 
-struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
+struct TimesteppingParams{T <: Real, N <: Integer}
             niter0 :: N      #starting iteration number
                 dt :: T      #timestep
           end_time :: T      #end time of this simulation
                 t0 :: T      #start time of this simulation 
         chkpt_freq :: T      #temporary checkpoint frequency
-       pchkpt_freq :: T      #permanent checkpoint frequency  
-       chkpt_path  :: String #path to location of permanent and tempoary checkpoint output
-      n_iter_total :: TO     #total number of timesteps counting from zero
-      n_iter_chkpt :: C      #number of iterations per temporary checkpoint
-     n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
+        chkpt_path :: String #path to location of permanent and tempoary checkpoint output
+      n_iter_total :: N     #total number of timesteps counting from zero
+      n_iter_chkpt :: N      #number of iterations per checkpoint
     step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
 end
 
@@ -156,7 +154,6 @@ TimesteppingParams(;
                     end_time = 1.0,
                     n_iter_total = nothing, 
                     chkpt_freq = Inf,
-                    pchkpt_freq = Inf,
                     chkpt_path = './',
                     step_thickness = true)
 
@@ -170,31 +167,33 @@ Keyword arguments
 - 'end_time': Simulation termination time
 - 'n_iter_total': Total number of timesteps counting from zero
 - 'chkpt_freq': Frequency of outputting temporary checkpoints
-- 'pchkpt_freq': Frequecy with which permanent checkpoints are pass
 - 'chkpt_path' : Path to location checkpoint output
 - 'step_thickness': Toggle whether to update the ice thickness (true) or not (false) at each timestep
 """
 function TimesteppingParams(;
-                        niter0 = 0,
-                        dt = 1.0,
-                        end_time = nothing,
-                        n_iter_total = nothing, 
-                        chkpt_freq = Inf,
-                        pchkpt_freq = Inf,
-                        chkpt_path = "./",
-                        step_thickness = true)
-
-
+                            niter0 = 0,
+                            dt = 1.0,
+                            end_time = nothing,
+                            n_iter_total = nothing, 
+                            chkpt_freq = Inf,
+                            pchkpt_freq = Inf,
+                            chkpt_path = "./",
+                            step_thickness = true)
+    if pchkpt_freq !== Inf
+        error("pchkpt_freq is now chkpt_freq, please change parameter\n",
+              "Checkpointing is carried out through a single mechanism now")
+    end
+    
     #initialize t0 (really you should read start time from pickup file)
     t0 = niter0 > 0 ? niter0 * dt : 0 
     t0 = map(typeof(dt), t0)
 
     #check compatibility of n_iter_total and end_time, and compute them 
     end_time, n_iter_total = compute_iterations_and_end_time(end_time, n_iter_total, dt)
+    @info "Caluated end time $(end_time) and n_iter_total $(n_iter_total)"
 
     #compute number of timesteps checkpoint number of timesteps
     chkpt_freq == Inf ? n_iter_chkpt = Inf : n_iter_chkpt  = round(Int, chkpt_freq/dt)
-    pchkpt_freq == Inf ? n_iter_pchkpt = Inf : n_iter_pchkpt = round(Int, pchkpt_freq/dt)
     
     #check the output path ends in '/' and exists
     endswith(chkpt_path, "/") || (chkpt_path = string(chkpt_path, "/"))
@@ -203,8 +202,8 @@ function TimesteppingParams(;
         chkpt_path = "./"
     end
 
-    return TimesteppingParams(niter0, dt, end_time, t0, chkpt_freq, pchkpt_freq, 
-                            chkpt_path,n_iter_total, n_iter_chkpt, n_iter_pchkpt, step_thickness)
+    return TimesteppingParams(niter0, dt, end_time, t0, chkpt_freq, chkpt_path, 
+                              n_iter_total, n_iter_chkpt, step_thickness)
 end
 
 end

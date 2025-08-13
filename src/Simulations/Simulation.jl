@@ -80,7 +80,7 @@ function pickup!(timestepping_params::TimesteppingParams)::Union{Tuple{Model, Cl
         @info "detected niter0 > 0 (niter0 = $(timestepping_params.niter0)). Looking for pickup..."
 
         try 
-            sim_load = load(string("PChkpt_",n_iter_string, ".jld2"), "simulation")
+            sim_load = load(string("Chkpt_",n_iter_string, ".jld2"), "simulation")
             println("Pickup successful")
 
             model = sim_load.model

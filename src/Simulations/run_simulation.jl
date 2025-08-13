@@ -1,8 +1,8 @@
-export run_simulation!, timestep!, update_clock!, update_thickness!, write_vel
+export run_simulation!, timestep!, update_clock!, update_thickness!
 
 using WAVI
 import WAVI: AbstractModel, AbstractSimulation
-using WAVI.Outputs: write_output, write_vel, zip_output
+using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
 using WAVI.Specs
 
@@ -13,10 +13,12 @@ Perform one timestep of the simulation
 """
 function timestep!(model::AbstractModel, output_params, clock, timestepping_params)
     update_state!(model, clock)
+
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
     if (output_params.output_start) && (clock.n_iter == 0)
         write_output(model)
     end
+    
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
     end
@@ -74,42 +76,11 @@ Perform the simulation specified by the simulation
 """
 function run_simulation!(simulation)
     @unpack model, timestepping_params, output_params = simulation
-    chkpt_tag = "A"
+
     for i = (simulation.clock.n_iter+1):timestepping_params.n_iter_total
         @info "Running iteration $(simulation.clock.n_iter)/$(timestepping_params.n_iter_total)"
         timestep!(simulation)
-        
-        @root begin
-        #check if we have hit a temporary checkpoint
-            if mod(i, timestepping_params.n_iter_chkpt) == 0
-                #output a temporary checkpoint
-                fname = joinpath(output_params.output_path, string("Chkpt",chkpt_tag, ".jld2"))
-                # TODO: strip out OutputParams
-                @save fname simulation
-                chkpt_tag = (chkpt_tag == "A") ? "B" : "A"
-                println("making temporary checkpoint at timestep number $(simulation.clock.n_iter)")
-            end
-
-            #check if we have hit a permanent checkpoint
-            if mod(i, simulation.timestepping_params.n_iter_pchkpt) == 0
-                #output a permanent checkpoint
-                n_iter_string =  lpad(simulation.clock.n_iter, 10, "0"); #filename as a string with 10 digits
-                fname = joinpath(output_params.output_path, string("PChkpt_",n_iter_string, ".jld2"))
-                # TODO: strip out OutputParams
-                @save fname simulation
-                println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
-            end
-        end
-        
-        #check if we have hit an output timestep
-        if mod(i,simulation.output_params.n_iter_out) == 0
-            write_output(simulation)
-        end
-
-        #check the dump velocity flag at the final timestep
-        if (i == timestepping_params.n_iter_total) && output_params.dump_vel
-            write_vel(simulation.model)
-        end
+        write_outputs(simulation)
     end
 
     #zip the simulation output (no zipping handled by zip_output)
