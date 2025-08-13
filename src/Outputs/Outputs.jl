@@ -2,20 +2,20 @@ module Outputs
 
 export OutputParams
 
+using WAVI.Deferred
 using Parameters
 
 #structure that contains outputting info
-struct OutputParams{T <: Real, R <: Real, O}
+struct OutputParams{T<:Real, R<:Real, O<:Collector}
+    output_collector::O         # Data Collection of outputs that can be lazily output
     output_freq::T              # output time 
-    n_iter_out::R               #number of steps per output
-    output_format::String       #specify output format [mat/jld]
-    prefix::String              #file prefix
-    output_path::String         #folder in which to save
-    dump_vel::Bool              #toggle on dumping the velocity after the final timestep
-    zip_format::String          #specify whether or not to zip the output, and the format
-    output_start::Bool          #flag to specify whether to output the initial state or not
-
-    outputs::O                  #Dictonary of labels and paths to output    
+    n_iter_out::R               # number of steps per output
+    output_format::String       # specify output format [mat/jld]
+    prefix::String              # file prefix
+    output_path::String         # folder in which to save
+    dump_vel::Bool              # toggle on dumping the velocity after the final timestep
+    zip_format::String          # specify whether or not to zip the output, and the format
+    output_start::Bool          # flag to specify whether to output the initial state or not
 end
 
 """
@@ -41,7 +41,7 @@ Keyword arguments
 - `zip_format`: specify whether or not to zip the output, and the format (currently only '.nc' output supported, use flag 'nc')
 - `output_start`: flag to specify whether to output at the zeroth time step    
 """
-function OutputParams(; 
+function OutputParams(outputs::NamedTuple; 
     output_freq = Inf, 
     output_format = "jld2",
     prefix = "outfile", 
@@ -76,10 +76,15 @@ function OutputParams(;
         zip_format = "none"
     end
 
-    return OutputParams(output_freq, n_iter_out, output_format, prefix, output_path, dump_vel, zip_format, output_start)
+    collector = Collector()
+    for (nom, path) in pairs(outputs)
+        register_field!(collector, nom, path)
+    end
+    return OutputParams(collector, output_freq, n_iter_out, output_format, prefix, output_path, dump_vel, zip_format, output_start)
 end
 
-include("data_collection.jl")
+OutputParams(; kwargs...) = OutputParams(NamedTuple(); kwargs...)
+
 include("output_writing.jl")
 include("zipping_output.jl")
 

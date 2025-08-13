@@ -65,14 +65,14 @@ function MISMIP_PLUS(;
                                              pchkpt_freq = pchkpt_freq)
 
     #output parameters
-    outputs = (h = model.fields.gh.h,
-               # FIXME: gh velocity grids do not calculate correctly?
-               #u = () -> (model.global_fields.gu.u[1:end-1,:]),
-               #v = () -> (model.global_fields.gv.v[:, 1:end-1]),
-               u = model.fields.gh.u,
-               v = model.fields.gh.v,
-               b = model.fields.gh.b,
-               grfrac = model.fields.gh.grounded_fraction)
+#    outputs = (h = model.fields.gh.h,
+#               # FIXME: gh velocity grids do not calculate correctly?
+#               #u = () -> (model.global_fields.gu.u[1:end-1,:]),
+#               #v = () -> (model.global_fields.gv.v[:, 1:end-1]),
+#               u = model.fields.gh.u,
+#               v = model.fields.gh.v,
+#               b = model.fields.gh.b,
+#               grfrac = model.fields.gh.grounded_fraction)
 
     outputs = (
         h = "model.global_fields.gh.h",

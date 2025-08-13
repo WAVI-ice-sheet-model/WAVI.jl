@@ -15,7 +15,7 @@ using WAVI.Specs
 Output the data from the simulation at the current timestep
 """
 function write_output(model::AbstractModel, output_params, clock)
-    output_dict = fetch_output(output_params.outputs)
+    output_dict = fetch_output(output_params)
     @info summary(output_dict)
 
     #put the grid co-ordinates and time into output.
@@ -62,21 +62,6 @@ function write_vel(model::AbstractModel, output_params::OutputParams)
         close(vfileID)   
     end
 end
-write_vel(s::Simulation) = write_vel(s.model, s.output_params)
+write_vel(s::AbstractSimulation) = write_vel(s.model, s.output_params)
 
-
-"""
-    fetch_output(outputs)
-
-Return a dictionary with dictionary entries corresponding to outputs
-"""
-function fetch_output(outputs)
-    output_dict = Dict()
-    @debug "Outputs $(keys(outputs))"
-    for (k,v) in zip(keys(outputs), outputs)
-        output_dict[string(k)] = isa(v, Function) ? v() : v
-        @info "Collecting $(k) -> $(summary(output_dict[string(k)]))"
-    end
-    return output_dict
-end
 

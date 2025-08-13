@@ -19,6 +19,7 @@ const MapOrMatrix{T} = Union{LinearMap{T}, AbstractMatrix{T}}
 
 ##################################################################################
 #include all of the code
+include("Deferred.jl")
 include("Time.jl")
 include("Parameters.jl")
 include("KroneckerProducts.jl")
@@ -35,6 +36,9 @@ include("Simulations/Simulation.jl")
 
 export AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel, 
     AbstractPreconditioner, AbstractSpec
+
+using .Deferred
+export Collector, clear!, collect!, register_field!
 
 using .Time
 export Clock, compute_iterations_and_end_time
