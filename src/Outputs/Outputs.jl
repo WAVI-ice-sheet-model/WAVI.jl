@@ -2,6 +2,7 @@ module Outputs
 
 export OutputParams
 
+import WAVI.Deferred: clear!, collect!
 using WAVI.Deferred
 using Parameters
 
@@ -84,6 +85,8 @@ function OutputParams(outputs::NamedTuple;
 end
 
 OutputParams(; kwargs...) = OutputParams(NamedTuple(); kwargs...)
+clear!(op::OutputParams) = clear!(op.output_collector)
+collect!(op::OutputParams, args...) = collect!(op.output_collector, args...)
 
 include("output_writing.jl")
 include("zipping_output.jl")

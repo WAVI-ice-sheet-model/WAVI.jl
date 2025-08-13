@@ -17,7 +17,7 @@ mutable struct Collector
     end
 end
 
-# TODO: should we override getproperty to access the data, rather than the struct properties?
+# TODO: should we override Base.getproperty to access the data, rather than the struct properties?
 
 function clear!(collector::Collector)
     collector.data = nothing
@@ -27,7 +27,7 @@ function collect!(collector::Collector, model::AbstractModel)
     data = Dict{String, Any}
     
     for property_name in keys(collector.items)
-        data[property_name] = extract_property(collector.items[property_name], model)
+        data[property_name] = get_property(collector.items[property_name], model)
     end
     collector.data = data
 end
