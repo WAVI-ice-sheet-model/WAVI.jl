@@ -11,6 +11,7 @@ import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, Si
 import WAVI.Grids: Grid
 import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
+import WAVI.Outputs: write_outputs
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!
 import WAVI.Wavelets: UWavelets, VWavelets
 
@@ -190,5 +191,5 @@ end
 #
 # TODO: override @debug, @info, @warn and @error for MPI based logging, with the rank out of size and / or grid location
 
-
+write_outputs(model::AbstractModel{<:Any, <:Any, <:MPISpec}, args...) = @root write_outputs(model, args...)
 
