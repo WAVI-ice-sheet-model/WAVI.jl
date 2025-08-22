@@ -30,8 +30,8 @@ include("Fields/Fields.jl")
 include("MeltRates/MeltRates.jl")
 include("Processes/Processes.jl")
 include("Models/Models.jl")
-include("Specs/Specs.jl")
 include("Outputs/Outputs.jl")
+include("Specs/Specs.jl")
 include("Simulations/Simulation.jl")
 
 export AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel, 
@@ -71,16 +71,15 @@ using .Models
 export AbstractModel, Model,
     update_state!
 
-using .Specs
-export BasicSpec, ThreadedSpec, MPISpec
-
-# TODO: there is outstanding work to detach from jld2 for transfer of model data
 using .Outputs
 export OutputParams,
     fetch_output, 
     get_spatiotemporal_var_atts, get_spatial_dimensions, get_times, get_output_as_dict, 
     make_ncfile, make_ncfile_from_filenames, 
     write_output, zip_output
+
+using .Specs
+export BasicSpec, ThreadedSpec, MPISpec
 
 using .Simulations
 export Simulation, run_simulation!, timestep!, 
