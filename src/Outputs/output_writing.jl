@@ -26,7 +26,7 @@ function write_outputs(model::AbstractModel,
 
     #check if we have hit an output timestep
     if mod(clock.n_iter, output_params.n_iter_out) == 0
-        write_output(model, output_params, lpad(clock.n_iter, 10,"0"))
+        write_output(model, output_params, clock)
     end
 
     #check the dump velocity flag at the final timestep
@@ -42,8 +42,9 @@ write_outputs(sim::AbstractSimulation) = write_outputs(sim.model, sim.timesteppi
 
 Output the data from the simulation at the current timestep
 """
-function write_output(model::AbstractModel, output_params::OutputParams, name::String)
+function write_output(model::AbstractModel, output_params::OutputParams, clock::Clock)
     output_dict = collect!(output_params, model)
+    name = lpad(clock.n_iter, 10,"0")
 
     if isnothing(output_dict)
         @warn "No outputs processed for $(name)"
@@ -58,7 +59,7 @@ function write_output(model::AbstractModel, output_params::OutputParams, name::S
     fname = string(output_params.output_path, output_params.prefix, name)
     if output_params.output_format == "jld2"
         fname = string(fname, ".jld2")
-        save(fname, output_params.outputs)
+        save(fname, output_dict)
     elseif output_params.output_format == "mat"
         fname = string(fname, ".mat")
         matwrite(fname, output_dict)

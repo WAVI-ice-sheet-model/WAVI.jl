@@ -24,7 +24,7 @@ function clear!(collector::Collector)
 end
 
 function collect!(collector::Collector, model::AbstractModel)
-    data = Dict{String, Any}
+    data = Dict{String, Any}()
     
     for property_name in keys(collector.items)
         data[property_name] = get_property(collector.items[property_name], model)
@@ -50,18 +50,20 @@ function get_property(item::FieldExtractor, model::AbstractModel)
     return item.field_accessor(model)
 end
 
+# TODO: using getproperty, not getfield!
 function register_field!(collector::Collector, name::String, path::Vector{Symbol})
     accessor = function(model)
         result = model
         for field in path
-            result = getfield(result, field)
+            result = getproperty(result, field)
         end
         return result
     end
     
     extractor = field_extractor(name, accessor)
-    register_extractor!(collector, extractor)
+    register_item!(collector, extractor)
 end
 register_field!(collector, name, path::String) = register_field!(collector, name, Symbol.(split(path, ".")))
+register_field!(collector, name::Symbol, path::Vector{Symbol}) = register_field!(collector, string(name), path)
 
 end
