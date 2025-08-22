@@ -5,9 +5,8 @@ using MAT
 using NCDatasets
 using NetCDF
 
-using WAVI: AbstractSimulation
+using WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: OutputParams
-using WAVI.Specs: @root
 
 """
     get_format_filenames(format, folder)
@@ -159,13 +158,11 @@ end
 
 Zip all of the output files from simulation.
 """
-function zip_output(output_params::OutputParams)
-    @root begin
-        if output_params.zip_format == "nc"
-            nc_name_full = string(output_params.output_path, output_params.prefix, ".nc")
-            make_ncfile(output_params.output_format, output_params.output_path, nc_name_full, output_params.prefix)
-        end
+function zip_output(model::AbstractModel, output_params::OutputParams)
+    if output_params.zip_format == "nc"
+        nc_name_full = string(output_params.output_path, output_params.prefix, ".nc")
+        make_ncfile(output_params.output_format, output_params.output_path, nc_name_full, output_params.prefix)
     end
     return nothing
 end
-zip_output(simulation::AbstractSimulation) = zip_output(simulation.output_params)
+zip_output(sim::AbstractSimulation) = zip_output(sim.model, sim.output_params)

@@ -7,32 +7,30 @@ using MAT
 using WAVI
 using WAVI: AbstractModel, AbstractSimulation
 using WAVI.Deferred
-using WAVI.Specs
-
+using WAVI.Parameters
+using WAVI.Time
 
 function write_outputs(model::AbstractModel, 
                        timestepping_params::TimesteppingParams, 
                        output_params::OutputParams, 
                        clock::Clock)
     #check if we have hit a permanent checkpoint
-    if mod(i, timestepping_params.n_iter_chkpt) == 0
+    if mod(clock.n_iter, timestepping_params.n_iter_chkpt) == 0
         #output a permanent checkpoint
         n_iter_string =  lpad(clock.n_iter, 10, "0"); #filename as a string with 10 digits
         fname = joinpath(output_params.output_path, string("Chkpt_",n_iter_string, ".jld2"))
         # TODO: strip out OutputParams
-        @save fname simulation
-        println("making permanent checkpoint at timestep number $(simulation.clock.n_iter)")
+        @save fname model=model timestepping_params=timestepping_params clock=clock
+        println("making permanent checkpoint at timestep number $(clock.n_iter)")
     end
 
     #check if we have hit an output timestep
-    if mod(i,simulation.output_params.n_iter_out) == 0
-        collect!(output_params, model)
-        write_output(output_params, lpad(clock.n_iter, 10,"0"))
-        clear!(output_params)
+    if mod(clock.n_iter, output_params.n_iter_out) == 0
+        write_output(model, output_params, lpad(clock.n_iter, 10,"0"))
     end
 
     #check the dump velocity flag at the final timestep
-    if (i == timestepping_params.n_iter_total) && output_params.dump_vel
+    if (clock.n_iter == timestepping_params.n_iter_total) && output_params.dump_vel
         write_vel(output_params, model)
     end
 end
@@ -44,8 +42,12 @@ write_outputs(sim::AbstractSimulation) = write_outputs(sim.model, sim.timesteppi
 
 Output the data from the simulation at the current timestep
 """
-function write_output(output_params::OutputParams, name::String)
-    output_dict = collect!(output_params)
+function write_output(model::AbstractModel, output_params::OutputParams, name::String)
+    output_dict = collect!(output_params, model)
+
+    if isnothing(output_dict)
+        @warn "No outputs processed for $(name)"
+    end
 
     #put the grid co-ordinates and time into output.
     #Round time in output to some decimal places to make it prettier (machine precision can make this look nasty!)
@@ -56,12 +58,14 @@ function write_output(output_params::OutputParams, name::String)
     fname = string(output_params.output_path, output_params.prefix, name)
     if output_params.output_format == "jld2"
         fname = string(fname, ".jld2")
-        save(fname, output_dict)
+        save(fname, output_params.outputs)
     elseif output_params.output_format == "mat"
         fname = string(fname, ".mat")
         matwrite(fname, output_dict)
     end
+    
     @info "Output at timestep number $(clock.n_iter) - $(fname)"
+    clear!(output_params)
 end
 
 """

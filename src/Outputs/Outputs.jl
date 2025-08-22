@@ -8,7 +8,7 @@ using Parameters
 
 #structure that contains outputting info
 struct OutputParams{T<:Real, R<:Real, O<:Collector}
-    output_collector::O         # Data Collection of outputs that can be lazily output
+    outputs::O                  # Data Collection of outputs that can be lazily output
     output_freq::T              # output time 
     n_iter_out::R               # number of steps per output
     output_format::String       # specify output format [mat/jld]
@@ -85,8 +85,8 @@ function OutputParams(outputs::NamedTuple;
 end
 
 OutputParams(; kwargs...) = OutputParams(NamedTuple(); kwargs...)
-clear!(op::OutputParams) = clear!(op.output_collector)
-collect!(op::OutputParams, args...) = collect!(op.output_collector, args...)
+clear!(op::OutputParams) = clear!(op.outputs)
+collect!(op::OutputParams, args...) = collect!(op.outputs, args...)
 
 include("output_writing.jl")
 include("zipping_output.jl")
