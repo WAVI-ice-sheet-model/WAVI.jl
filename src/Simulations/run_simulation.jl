@@ -11,20 +11,27 @@ using WAVI.Specs
 
 Perform one timestep of the simulation
 """
-function timestep!(model::AbstractModel, output_params, clock, timestepping_params)
+function timestep!(model::AbstractModel,
+                   timestepping_params::TimesteppingParams,
+                   output_params::OutputParams,
+                   clock::Clock)
     update_state!(model, clock)
 
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
+    # Have made the interface consistent
+    # Have also removed the dependence on individual calls
     if (output_params.output_start) && (clock.n_iter == 0)
-        write_output(model)
+        write_outputs(model, timestepping_params, output_params, clock)
     end
     
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
     end
     update_clock!(clock, timestepping_params)
+
+    write_outputs(model, timestepping_params, output_params, clock)
 end
-timestep!(s::AbstractSimulation) = timestep!(s.model, s.output_params, s.clock, s.timestepping_params)
+timestep!(s::AbstractSimulation) = timestep!(s.model, s.timestepping_params, s.output_params, s.clock)
 
 """
 update_thickness!(model::AbstractModel)
@@ -80,7 +87,6 @@ function run_simulation!(simulation)
     for i = (simulation.clock.n_iter+1):timestepping_params.n_iter_total
         @info "Running iteration $(simulation.clock.n_iter)/$(timestepping_params.n_iter_total)"
         timestep!(simulation)
-        write_outputs(simulation)
     end
 
     #zip the simulation output (no zipping handled by zip_output)

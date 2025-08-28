@@ -76,7 +76,7 @@ export OutputParams,
     fetch_output, 
     get_spatiotemporal_var_atts, get_spatial_dimensions, get_times, get_output_as_dict, 
     make_ncfile, make_ncfile_from_filenames, 
-    write_output, zip_output
+    write_output, write_outputs, zip_output
 
 using .Specs
 export BasicSpec, ThreadedSpec, MPISpec

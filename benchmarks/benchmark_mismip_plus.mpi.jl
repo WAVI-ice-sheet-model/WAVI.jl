@@ -14,4 +14,5 @@ if abspath(PROGRAM_FILE) == @__FILE__
         :grid => grid,
         :spec => mpi_spec,
     ), ["h", "u", "v"], mpi_spec.rank)
+    MPI.Finalize()
 end

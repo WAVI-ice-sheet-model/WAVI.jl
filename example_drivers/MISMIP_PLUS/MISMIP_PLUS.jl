@@ -42,7 +42,7 @@ function MISMIP_PLUS(;
     #Physical parameters
     default_thickness = 100.0 #set the initial condition this way
     accumulation_rate = 0.3
-    default_temperature=265.700709
+    default_temperature = 265.700709
     params = Params(default_thickness = default_thickness, 
                     accumulation_rate = accumulation_rate,
                     default_temperature = default_temperature)
@@ -54,28 +54,18 @@ function MISMIP_PLUS(;
 
     #timestepping parameters
     niter0 = 0
-    dt = 0.5
-    end_time = 400.
+    dt = .5
+    end_time = 100.
     chkpt_freq = 20.
     timestepping_params = TimesteppingParams(niter0 = niter0, 
                                              dt = dt, 
                                              end_time = end_time, 
                                              chkpt_freq = chkpt_freq)
 
-    #output parameters
-#    outputs = (h = model.fields.gh.h,
-#               # FIXME: gh velocity grids do not calculate correctly?
-#               #u = () -> (model.global_fields.gu.u[1:end-1,:]),
-#               #v = () -> (model.global_fields.gv.v[:, 1:end-1]),
-#               u = model.fields.gh.u,
-#               v = model.fields.gh.v,
-#               b = model.fields.gh.b,
-#               grfrac = model.fields.gh.grounded_fraction)
-
     outputs = (
         h = "global_fields.gh.h",
-        u = "global_fields.gh.u",
-        v = "global_fields.gh.v",
+        u = "global_fields.gh.u",   # TODO: gh is derived, we need to update
+        v = "global_fields.gh.v",   # TODO: gh is derived, we need to update
         b = "global_fields.gh.b",
         grfrac = "global_fields.gh.grounded_fraction",
     )
@@ -89,8 +79,10 @@ function MISMIP_PLUS(;
     simulation = Simulation(model = model, 
                             timestepping_params = timestepping_params,
                             output_params = output_params)
-            
+    
+    @info "[$(model.spec.rank + 1)/$(model.spec.global_size)] Starting simulation"
     run_simulation!(simulation)
+    @info "[$(model.spec.rank + 1)/$(model.spec.global_size)] Finished simulation"
     return simulation
 end
 

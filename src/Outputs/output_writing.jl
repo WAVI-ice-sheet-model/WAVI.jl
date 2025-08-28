@@ -10,18 +10,17 @@ using WAVI.Deferred
 using WAVI.Parameters
 using WAVI.Time
 
-function write_outputs(model::AbstractModel, 
+function write_outputs(model::M,
                        timestepping_params::TimesteppingParams, 
                        output_params::OutputParams, 
-                       clock::Clock)
+                       clock::Clock) where {M<:AbstractModel{<:Any, <:Any, <:Any}}
     #check if we have hit a permanent checkpoint
     if mod(clock.n_iter, timestepping_params.n_iter_chkpt) == 0
         #output a permanent checkpoint
         n_iter_string =  lpad(clock.n_iter, 10, "0"); #filename as a string with 10 digits
         fname = joinpath(output_params.output_path, string("Chkpt_",n_iter_string, ".jld2"))
-        # TODO: strip out OutputParams
         @save fname model=model timestepping_params=timestepping_params clock=clock
-        println("making permanent checkpoint at timestep number $(clock.n_iter)")
+        @info "Permanent checkpoint at timestep number $(clock.n_iter)"
     end
 
     #check if we have hit an output timestep
@@ -42,7 +41,7 @@ write_outputs(sim::AbstractSimulation) = write_outputs(sim.model, sim.timesteppi
 
 Output the data from the simulation at the current timestep
 """
-function write_output(model::AbstractModel, output_params::OutputParams, clock::Clock)
+function write_output(model::M, output_params::OutputParams, clock::Clock) where {M<:AbstractModel{<:Any, <:Any, <:Any}}
     output_dict = collect!(output_params, model)
     name = lpad(clock.n_iter, 10,"0")
 

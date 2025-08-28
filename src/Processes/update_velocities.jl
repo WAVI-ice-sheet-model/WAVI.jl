@@ -28,8 +28,7 @@ function update_velocities!(model::AbstractModel{T,N}) where {T,N}
         inner_update!(model)
         converged, rel_resid = precondition!(model)
     end
-    println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
-        round(rel_resid,sigdigits=3)," at iteration ",i_picard)
+    @debug "Solved momentum equation with residual $(round(rel_resid,sigdigits=3)) at iteration $(i_picard)"
 
     return model
 end

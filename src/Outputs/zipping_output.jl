@@ -158,9 +158,10 @@ end
 
 Zip all of the output files from simulation.
 """
-function zip_output(model::AbstractModel, output_params::OutputParams)
+function zip_output(model::M, output_params::OutputParams) where {M<:AbstractModel{<:Any, <:Any, <:Any}}
     if output_params.zip_format == "nc"
         nc_name_full = string(output_params.output_path, output_params.prefix, ".nc")
+        @info "Creating NetCDF output $(nc_name_full)"
         make_ncfile(output_params.output_format, output_params.output_path, nc_name_full, output_params.prefix)
     end
     return nothing
