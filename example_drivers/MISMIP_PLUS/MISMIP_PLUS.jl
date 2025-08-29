@@ -63,11 +63,11 @@ function MISMIP_PLUS(;
                                              chkpt_freq = chkpt_freq)
 
     outputs = (
-        h = "global_fields.gh.h",
-        u = "global_fields.gh.u",   # TODO: gh is derived, we need to update
-        v = "global_fields.gh.v",   # TODO: gh is derived, we need to update
-        b = "global_fields.gh.b",
-        grfrac = "global_fields.gh.grounded_fraction",
+        h = "fields.gh.h",
+        u = "fields.gh.u",   # TODO: gh is derived, we need to update
+        v = "fields.gh.v",   # TODO: gh is derived, we need to update
+        b = "fields.gh.b",
+        grfrac = "fields.gh.grounded_fraction",
     )
     output_freq = 20.
     output_params = OutputParams(outputs,
