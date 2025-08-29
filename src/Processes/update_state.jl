@@ -1,4 +1,4 @@
-export update_state!
+export update_state!, update_velocities_on_h_grid!
 
 using Parameters
 
@@ -173,7 +173,7 @@ end
 
 Update the velocities (depth averaged, surface and bed) on the h grid 
 """
-function update_velocities_on_h_grid!(model::AbstractModel)
+function update_velocities_on_h_grid!(model::AbstractModel{T,N,S}) where {T,N,S<:AbstractSpec}
     @unpack gh,gu,gv = model.fields
     #depth averaged velocities
     gh.u[:] .= gu.cent*gu.u[:] #(gu.u[1:end-1,:] + gu.u[2:end,:])./2
