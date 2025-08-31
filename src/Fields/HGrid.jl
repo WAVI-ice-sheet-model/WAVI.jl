@@ -60,8 +60,8 @@ Keyword arguments
     - 'nyh': (required) Number of grid cells in y-direction in HGrid (should be same as grid.ny)
     - 'mask': Mask specifying the model domain
     - 'h_isfixed': Mask specifying points where ice thickness is fixed
-    - 'b': (requried) Bed elevation (bottom bathymetry)
-    - 'h': (required) initial thickness of the ice
+    - 'b': (required) Bed elevation (bottom bathymetry)
+    - 'h': initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
 """

@@ -4,11 +4,12 @@ export Collector, clear!, collect!, register_field!
 
 using WAVI: AbstractModel
 
+abstract type AbstractCollector end
 abstract type AbstractProperty end
 
 function get_property(item::AbstractProperty, model::AbstractModel) end
 
-mutable struct Collector
+mutable struct Collector <: AbstractCollector
     items::Dict{String, AbstractProperty}
     data::Union{Nothing, Dict{String, Any}}
     
@@ -16,8 +17,6 @@ mutable struct Collector
         new(Dict{String, AbstractProperty}(), Dict{String, Any}())
     end
 end
-
-# TODO: should we override Base.getproperty to access the data, rather than the struct properties?
 
 function clear!(collector::Collector)
     collector.data = nothing
@@ -40,17 +39,17 @@ end
 struct FieldExtractor{T} <: AbstractProperty
     name::String
     field_accessor::Function
+    path::Vector{Symbol}
 end
 
-function field_extractor(name::String, accessor::Function)
-    return FieldExtractor{Any}(name, accessor)
+function field_extractor(name::String, accessor::Function, path::Vector{Symbol})
+    return FieldExtractor{Any}(name, accessor, path)
 end
 
 function get_property(item::FieldExtractor, model::AbstractModel)
     return item.field_accessor(model)
 end
 
-# TODO: using getproperty, not getfield!
 function register_field!(collector::Collector, name::String, path::Vector{Symbol})
     accessor = function(model)
         result = model
@@ -59,8 +58,7 @@ function register_field!(collector::Collector, name::String, path::Vector{Symbol
         end
         return result
     end
-    
-    extractor = field_extractor(name, accessor)
+    extractor = field_extractor(name, accessor, path)
     register_item!(collector, extractor)
 end
 register_field!(collector, name, path::String) = register_field!(collector, name, Symbol.(split(path, ".")))

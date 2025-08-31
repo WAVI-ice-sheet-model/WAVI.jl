@@ -31,8 +31,8 @@ include("MeltRates/MeltRates.jl")
 include("Processes/Processes.jl")
 include("Models/Models.jl")
 include("Outputs/Outputs.jl")
-include("Specs/Specs.jl")
 include("Simulations/Simulation.jl")
+include("Specs/Specs.jl")
 
 export AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel, 
     AbstractPreconditioner, AbstractSpec
@@ -68,8 +68,7 @@ using .Processes
 export update_state!, update_velocities!
 
 using .Models
-export AbstractModel, Model,
-    update_state!
+export AbstractModel, Model, update_state!
 
 using .Outputs
 export OutputParams,
@@ -78,13 +77,13 @@ export OutputParams,
     make_ncfile, make_ncfile_from_filenames, 
     write_output, write_outputs, zip_output
 
-using .Specs
-export BasicSpec, ThreadedSpec, MPISpec
-
 using .Simulations
 export Simulation, run_simulation!, timestep!, 
     # TODO: these probably should be in clock, processes and outputs?
     update_clock!, update_thickness!, write_vel
+
+using .Specs
+export BasicSpec, ThreadedSpec, MPISpec
 
 end
 

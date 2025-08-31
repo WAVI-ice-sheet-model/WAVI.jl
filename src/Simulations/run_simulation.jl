@@ -4,17 +4,16 @@ using WAVI
 import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
-using WAVI.Specs
 
 """
     timestep!(model, output_params, clock, timestepping_params)
 
 Perform one timestep of the simulation
 """
-function timestep!(model::AbstractModel,
+function timestep!(model::AbstractModel{T,N,S},
                    timestepping_params::TimesteppingParams,
                    output_params::OutputParams,
-                   clock::Clock)
+                   clock::Clock) where {T,N,S}
     update_state!(model, clock)
 
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
@@ -81,15 +80,17 @@ update_clock!(s::Simulation) = update_clock!(s.clock, s.timestepping_params)
     
 Perform the simulation specified by the simulation
 """
-function run_simulation!(simulation)
-    @unpack model, timestepping_params, output_params = simulation
-
-    for i = (simulation.clock.n_iter+1):timestepping_params.n_iter_total
-        @info "Running iteration $(simulation.clock.n_iter)/$(timestepping_params.n_iter_total)"
-        timestep!(simulation)
+function run_simulation!(model::AbstractModel{T,N,S}, 
+                         timestepping_params::TimesteppingParams, 
+                         output_params::OutputParams,
+                         clock::Clock) where {T,N,S}
+    for i = (clock.n_iter+1):timestepping_params.n_iter_total
+        @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
+        timestep!(model, timestepping_params, output_params, clock)
     end
 
     #zip the simulation output (no zipping handled by zip_output)
-    zip_output(simulation)
+    zip_output(model, output_params)
 end
+run_simulation!(s::Simulation) = run_simulation!(s.model, s.timestepping_params, s.output_params, s.clock)
 

@@ -8,6 +8,7 @@ using Plots
 using WAVI.Parameters
 
 import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel
+import WAVI.Deferred: Collector, register_item!, field_extractor
 import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 import WAVI.Grids: Grid
 import WAVI.MeltRates: UniformMeltRate
@@ -15,10 +16,13 @@ import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!
+import WAVI.Simulations: run_simulation!, timestep!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
 
-struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
+# FIXME: important to realise that this specification has become a complex structure to house many things that should be baked into the model structurally
+#  not least the global grid and fields 
+mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
     # MPI Specification information
     px::N
     py::N
@@ -28,6 +32,9 @@ struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
     global_size::N
     global_comm::M
     global_grid::G
+    # TODO: this is a terrible approach but will hopefully get things working to start with
+    global_fields::Union{GridField, Nothing}
+    field_collector::Collector
 
     rank::N
     comm::M
@@ -66,6 +73,8 @@ struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
             size,
             comm,
             grid,
+            nothing,
+            Collector(),
             rank,
             cart_comm,
             [x_coord, y_coord],
@@ -155,6 +164,11 @@ function Model(grid::G,
     bed_array = get_bed_elevation(bed_elevation, local_grid)
     fields = GridField(local_grid, bed_array; initial_conditions=conditions, params, solver_params)
     model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, params, solver_params, spec, melt_rate)
+
+    global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
+    # We provide the full bed as in GridField as it is required for HGrid - this gives us a clean full domain on root
+    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params)
+
     return model
 end
 
@@ -166,8 +180,8 @@ end
 function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
     if s == :global_fields
         # TODO: these need to be registered fields, not user-specified
-        fields = collate_global_fields(model.fields, model.spec)
-        return fields
+        ## TODO: fields = collate_global_fields(model.fields, model.spec)
+        return model.spec.global_fields
     elseif s == :global_grid
         return model.spec.global_grid
     end
@@ -194,4 +208,67 @@ end
 #
 # TODO: override @debug, @info, @warn and @error for MPI based logging, with the rank out of size and / or grid location
 
+##
+# Implementations that affect the simuation and data collection
+#
+function timestep!(model::AbstractModel{T,N,S},
+                   timestepping_params::TimesteppingParams,
+                   output_params::OutputParams,
+                   clock::Clock) where {T,N,S<:MPISpec}
+    update_state!(model, clock)
 
+    #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
+    # Have made the interface consistent
+    # Have also removed the dependence on individual calls
+    if (output_params.output_start) && (clock.n_iter == 0)
+        write_outputs(model, timestepping_params, output_params, clock)
+    end
+    
+    if timestepping_params.step_thickness
+        update_thickness!(model, timestepping_params)
+    end
+    update_clock!(clock, timestepping_params)
+
+    write_outputs(model, timestepping_params, output_params, clock)
+end
+
+function run_simulation!(model::AbstractModel{T,N,S}, 
+                         timestepping_params::TimesteppingParams, 
+                         output_params::OutputParams,
+                         clock::Clock) where {T,N,S<:MPISpec}
+    
+    for field in values(output_params.outputs.items)
+        if field.path[1] in field.path == :global_fields
+            register_mpi_field!(model.spec.collector, field.path)
+        end
+    end
+
+    # TODO: we potentially register other fields here too, but currently concentrating on outputs (update_thickness might want to exploit this mechanism)
+
+    for i = (clock.n_iter+1):timestepping_params.n_iter_total
+        @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
+        timestep!(model, timestepping_params, output_params, clock)
+    end
+
+    zip_output(model, output_params)
+end
+
+# TODO: this needs to be called during an MPI based simulation setup phase, for all outputs
+function register_mpi_field!(collector::Collector, path::Vector{Symbol})
+    accessor = function(model)
+        collect_mpi_field!(model, path)
+        result = model.spec
+        for field in path
+            result = getproperty(result, field)
+        end
+        return result
+    end
+    extractor = field_extractor(name, accessor)
+    register_item!(collector, extractor)
+end
+
+function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
+    # Get the full field we want to collect into from the spec
+    # Get the local (root) segment of the field
+    # Send/Gather the remote copies from the other nodes into the full field - this will be cached by Deferred
+end
