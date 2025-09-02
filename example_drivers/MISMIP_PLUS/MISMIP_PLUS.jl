@@ -55,7 +55,7 @@ function MISMIP_PLUS(;
     #timestepping parameters
     niter0 = 0
     dt = .5
-    end_time = 100.
+    end_time = 400.
     chkpt_freq = 20.
     timestepping_params = TimesteppingParams(niter0 = niter0, 
                                              dt = dt, 
@@ -64,8 +64,8 @@ function MISMIP_PLUS(;
 
     outputs = (
         h = "global_fields.gh.h",
-        u = "global_fields.gh.u",   # TODO: gh is derived, we need to update
-        v = "global_fields.gh.v",   # TODO: gh is derived, we need to update
+        u = "global_fields.gh.u",
+        v = "global_fields.gh.v",
         b = "global_fields.gh.b",
         grfrac = "global_fields.gh.grounded_fraction",
     )
@@ -80,9 +80,7 @@ function MISMIP_PLUS(;
                             timestepping_params = timestepping_params,
                             output_params = output_params)
     
-    @info "[$(model.spec.rank + 1)/$(model.spec.global_size)] Starting simulation"
     run_simulation!(simulation)
-    @info "[$(model.spec.rank + 1)/$(model.spec.global_size)] Finished simulation"
     return simulation
 end
 

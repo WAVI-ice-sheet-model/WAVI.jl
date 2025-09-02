@@ -35,6 +35,7 @@ function create_heatmap_animation(netcdf_file::String, variable_name::String, ou
                 xlabel="X",
                 ylabel="Y",
                 color=:viridis,
+                clim=(minimum(data), maximum(data)),
                 aspect_ratio=:equal,
                 size=(600, 500)
             )
