@@ -32,7 +32,6 @@ mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
     global_size::N
     global_comm::M
     global_grid::G
-    # TODO: this is a terrible approach but will hopefully get things working to start with
     global_fields::Union{GridField, Nothing}
     field_collector::Collector
 
@@ -93,26 +92,18 @@ function Model(grid::G,
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
                melt_rate::M = UniformMeltRate()) where {G<:AbstractGrid, S<:MPISpec, M<:AbstractMeltRate}
-    @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left = spec
-
+    @unpack coords, global_size, rank = spec
     @info "[$(rank+1)/$(global_size)] - $(coords) - creating Grid and Model for MPI rank $(rank)"
-    x_coord, y_coord = coords
 
     # Recalculate grid dimensions and mask parameters, creating a new local Grid
-    th, rh, bh, lh = top > -1 ? halo : 0, right > -1 ? halo : 0, bottom > -1 ? halo : 0, left > -1 ? halo : 0
-    nx_local = div(grid.nx, px) + lh + rh
-    ny_local = div(grid.ny, py) + th + bh
-    
-    x_start = max(x_coord * div(grid.nx, px) + 1 - lh, 1)
-    y_start = max(y_coord * div(grid.ny, py) + 1 - th, 1)
-
-    x_end = min(x_coord * div(grid.nx, px) + div(grid.nx, px) + rh, grid.nx)
-    y_end = min(y_coord * div(grid.ny, py) + div(grid.ny, py) + bh, grid.ny)
+    th, rh, bh, lh = get_halos(spec)
+    nx_local, ny_local = get_size(spec)
+    x_start, x_end, y_start, y_end = get_bounds(spec)
     
     x0_local = grid.x0 + (x_start-1) * grid.dx
     y0_local = grid.y0 + (y_start-1) * grid.dy
     
-    @info "[$(rank+1)/$(global_size)] - proc $(x_coord),$(y_coord) - grid $(nx_local)x$(ny_local)"
+    @info "[$(rank+1)/$(global_size)] - proc $(coords[1]),$(coords[2]) - grid $(nx_local)x$(ny_local)"
     @info "[$(rank+1)/$(global_size)] - X [$(x_start):$(x_end)] - Y [$(y_start):$(y_end)] - Centroid $(x0_local),$(y0_local) "
 
     u_grid_size, v_grid_size = (grid.nx+1, grid.ny), (grid.nx, grid.ny+1)
@@ -138,10 +129,10 @@ function Model(grid::G,
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
     
     # Set halos as fixed velocities
-    (left==-1) || (u_isfixed[1:1+lh,:] .= true; v_isfixed[1:1+lh,:] .= true)
-    (right==-1) || (u_isfixed[end-rh:end,:] .= true; v_isfixed[end-rh:end,:] .= true)
-    (top==-1) || (u_isfixed[:,1:1+th] .= true; v_isfixed[:,1:1+th] .= true)
-    (bottom==-1) || (u_isfixed[:,end:end-bh] .= true; v_isfixed[:,end:end-bh] .= true)
+    (spec.left==-1) || (u_isfixed[1:1+lh,:] .= true; v_isfixed[1:1+lh,:] .= true)
+    (spec.right==-1) || (u_isfixed[end-rh:end,:] .= true; v_isfixed[end-rh:end,:] .= true)
+    (spec.top==-1) || (u_isfixed[:,1:1+th] .= true; v_isfixed[:,1:1+th] .= true)
+    (spec.bottom==-1) || (u_isfixed[:,end:end-bh] .= true; v_isfixed[:,end:end-bh] .= true)
 
     local_grid = Grid(
         nx = nx_local,
@@ -217,9 +208,11 @@ function timestep!(model::AbstractModel{T,N,S},
                    clock::Clock) where {T,N,S<:MPISpec}
     update_state!(model, clock)
 
+    collect!(model.spec.field_collector, model)
+
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
     # Have made the interface consistent
-    # Have also removed the dependence on individual calls
+    # Have also removed the dependence on individual call
     if (output_params.output_start) && (clock.n_iter == 0)
         write_outputs(model, timestepping_params, output_params, clock)
     end
@@ -230,16 +223,18 @@ function timestep!(model::AbstractModel{T,N,S},
     update_clock!(clock, timestepping_params)
 
     write_outputs(model, timestepping_params, output_params, clock)
+
+    clear!(model.spec.field_collector)
 end
 
 function run_simulation!(model::AbstractModel{T,N,S}, 
                          timestepping_params::TimesteppingParams, 
                          output_params::OutputParams,
                          clock::Clock) where {T,N,S<:MPISpec}
-    
-    for field in values(output_params.outputs.items)
-        if field.path[1] in field.path == :global_fields
-            register_mpi_field!(model.spec.collector, field.path)
+    for field in values(output_params.outputs.items)    
+        @info "Registering $(field.path) from outputs"
+        if field.path[1] == :global_fields
+            register_mpi_field!(model.spec.field_collector, field.path)
         end
     end
 
@@ -253,7 +248,6 @@ function run_simulation!(model::AbstractModel{T,N,S},
     zip_output(model, output_params)
 end
 
-# TODO: this needs to be called during an MPI based simulation setup phase, for all outputs
 function register_mpi_field!(collector::Collector, path::Vector{Symbol})
     accessor = function(model)
         collect_mpi_field!(model, path)
@@ -263,12 +257,6 @@ function register_mpi_field!(collector::Collector, path::Vector{Symbol})
         end
         return result
     end
-    extractor = field_extractor(name, accessor)
+    extractor = field_extractor(join(string.(path), "."), accessor, path)
     register_item!(collector, extractor)
-end
-
-function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
-    # Get the full field we want to collect into from the spec
-    # Get the local (root) segment of the field
-    # Send/Gather the remote copies from the other nodes into the full field - this will be cached by Deferred
 end

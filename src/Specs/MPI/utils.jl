@@ -4,6 +4,25 @@ using WAVI.Specs
 
 export @root
 
+function get_halos(spec::MPISpec)::Tuple{Int, Int, Int, Int}
+    return spec.top > -1 ? spec.halo : 0, 
+           spec.right > -1 ? spec.halo : 0, 
+           spec.bottom > -1 ? spec.halo : 0, 
+           spec.left > -1 ? spec.halo : 0
+end
+
+function get_bounds(spec::MPISpec)::Tuple{Int, Int, Int, Int}
+    return max(spec.coords[1] * div(spec.global_grid.nx, spec.px) + 1 - get_halos(spec)[4], 1),
+           min(spec.coords[1] * div(spec.global_grid.nx, spec.px) + div(spec.global_grid.nx, spec.px) + get_halos(spec)[2], spec.global_grid.nx),
+           max(spec.coords[2] * div(spec.global_grid.ny, spec.py) + 1 - get_halos(spec)[1], 1),
+           min(spec.coords[2] * div(spec.global_grid.ny, spec.py) + div(spec.global_grid.ny, spec.py) + get_halos(spec)[3], spec.global_grid.ny)
+end
+
+function get_size(spec::MPISpec)::Tuple{Int, Int}
+    return div(spec.global_grid.nx, spec.px) + get_halos(spec)[4] + get_halos(spec)[2], 
+           div(spec.global_grid.ny, spec.py) + get_halos(spec)[1] + get_halos(spec)[3]
+end
+
 # Sourced from Oceananigans.DistributedComputations
 # - available under the MIT License: https://github.com/CliMA/Oceananigans.jl/blob/main/LICENSE
 # - original copyright of the below code (except adaptations for use) 2018 Climate Modeling Alliance
@@ -42,3 +61,5 @@ macro root(exp)
     end
     return esc(command)
 end
+
+## END Sourced from Oceananigans.DistributedComputations

@@ -49,7 +49,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "vertical" halo's 
         if left > -1
-            @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
+            # @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
             send_left = local_field[1:1+halo_offset, :] # FIXME: see above
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
@@ -58,7 +58,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
+            # @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
             send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :] # FIXME: see above
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
@@ -68,7 +68,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "horizontal" halo's
         if top > -1
-            @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
+            # @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
             send_top = local_field[:, 1:1+halo_offset] # FIXME: see above
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, prod(size(send_top)))
@@ -77,7 +77,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
+            # @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
             send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr] # FIXME: see above  
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
@@ -85,9 +85,9 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
             push!(requests, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
         end
 
-        @debug "Waiting on requests"
+        # @debug "Waiting on requests"
         MPI.Waitall(requests)
-        @debug "Finished waiting on requests"
+        # @debug "Finished waiting on requests"
 
         # Update halo regions 
         if left > -1
@@ -112,111 +112,52 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     end
 end
 
-function collate_global_fields(local_fields::AbstractField, spec::MPISpec)
-    @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left, global_grid = spec
+function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
+    @unpack comm, coords, global_fields, global_size = model.spec
 
-    grid = global_grid
-    x_coord, y_coord = coords
+    # Get the full field we want to collect into from the spec, and the equivalent local field on this member
+    if path[1] != :global_fields
+        throw("$(path) should be referring to a global field, so the first symbol should be global_fields")
+    end
 
-    #@debug "[$(rank+1)/$(global_size)] Generating local version of the global grid for collation at $(grid.nx) x $(grid.ny)"
+    global_field = global_fields # Not named correctly
+    local_field = model.fields
+    for path_el in path[2:end] 
+        global_field = getproperty(global_field, path_el)
+        local_field = getproperty(local_field, path_el)
+    end
 
-    gh = HGrid(nxh=grid.nx, nyh=grid.ny, b=zeros(grid.nx, grid.ny))
-    gu = UGrid(nxu=grid.nx+1, nyu=grid.ny, dx=grid.dx, dy=grid.dy, levels=local_fields.gu.levels)
-    gv = VGrid(nxv=grid.nx, nyv=grid.ny+1, dx=grid.dx, dy=grid.dy, levels=local_fields.gv.levels)
-    gc = CGrid(nxc=grid.nx-1, nyc=grid.ny-1)
+    # Establish the local grid information, with full grid information available already from global_grid
+    th, rh, bh, lh = get_halos(model.spec)
+    x_sz, y_sz = get_size(model.spec)
+    x_start, x_end, y_start, y_end = get_bounds(model.spec)
 
-    g3d = SigmaGrid(
-        nxs = grid.nx,
-        nys = grid.ny,
-        nσs = grid.nσ,
-        σ = grid.σ,
-        η = zeros(grid.nx, grid.ny, grid.nσ),
-        θ = zeros(grid.nx, grid.ny, grid.nσ),
-        Φ = zeros(grid.nx, grid.ny, grid.nσ),
-        glen_b = zeros(grid.nx, grid.ny, grid.nσ),
-        quadrature_weights = grid.quadrature_weights
-    )    
-    # Wavelet-grids
-    wu = UWavelets(nxuw=grid.nx+1, nyuw=grid.ny, levels=local_fields.gu.levels)
-    wv = VWavelets(nxvw=grid.nx, nyvw=grid.ny+1, levels=local_fields.gv.levels)
-
-    ## TODO: duplicated from above, that's not a good smell
-    th, rh, bh, lh = top > -1 ? halo : 0, right > -1 ? halo : 0, bottom > -1 ? halo : 0, left > -1 ? halo : 0
-    x_start = max(x_coord * div(grid.nx, px) + 1 - lh, 1)
-    y_start = max(y_coord * div(grid.ny, py) + 1 - th, 1)
-
-    x_end = min(x_coord * div(grid.nx, px) + div(grid.nx, px) + rh, grid.nx)
-    y_end = min(y_coord * div(grid.ny, py) + div(grid.ny, py) + bh, grid.ny)
-    # end of clone
-
-    #Wavelet-grid, u-component.
-    wu=UWavelets(nxuw=grid.nx+1,nyuw=grid.ny,levels=local_fields.wu.levels)
-
-    #Wavelet-grid, v-component.
-    wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=local_fields.wv.levels)
-    global_fields = GridField(gh,gu,gv,gc,g3d,wu,wv)
-
-    MPI.Barrier(comm)  
-    #@debug "[$(rank+1)/$(global_size)] - LOCAL U $(size(local_fields.gu.u)) GLOBAL [$(x_start):$(x_end+1), $(y_start):$(y_end)]"
-    #@debug "[$(rank+1)/$(global_size)] - LOCAL V $(size(local_fields.gv.v)) GLOBAL [$(x_start):$(x_end), $(y_start):$(y_end+1)]"
-    #@debug "[$(rank+1)/$(global_size)] Commencing data transfers"
-  
-    x_sz, y_sz = size(local_fields.gu.u)
+    # Send/Gather the remote copies from the other nodes into the full field 
+    field_sz = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), 
+                           x_start+lh, x_end-rh, y_start+th, y_end-bh), 0, comm)
     
-    # Remove halos and ensure that, if not at the edge of the global boundary, we're not including the extra row
-    u_grids = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), 
-                         x_start+lh, x_end-rh+1, y_start+th, y_end-bh), 0, comm)
-
     if rank == 0
         # We calculate the global grid coordinates for all ranks 
         # based on the received sizes of their core domain (ie. no halo)
-        count_sizes = map(x -> prod(x[1]), u_grids)
+        count_sizes = map(x -> prod(x[1]), field_sz)
         recv_data = Vector{Float64}(undef, sum(count_sizes))
         recv_buffer = MPI.VBuffer(recv_data, count_sizes)
-        @debug "[$(rank+1)/$(global_size)] Gathering u-field data from processes"
-        MPI.Gatherv!(local_fields.gu.u[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
+        @debug "[$(rank+1)/$(global_size)] Gathering field data for ", join(string.(path), "."), " from processes"
+        MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
 
         idxer = collect(cumsum(count_sizes))
 
         for proc_rank in 0:(global_size-1)
             offset = proc_rank == 0 ? 0 : idxer[proc_rank]
             proc_data = recv_data[offset+1:offset + count_sizes[proc_rank+1]]
-            sx, ex, sy, ey = u_grids[proc_rank+1][2:end]
-            global_fields.gu.u[sx:ex, sy:ey] = reshape(proc_data, u_grids[proc_rank + 1][1])
+            sx, ex, sy, ey = field_sz[proc_rank+1][2:end]
+            global_field[sx:ex, sy:ey] = reshape(proc_data, field_sz[proc_rank + 1][1])
         end
     else
-        @debug "[$(rank+1)/$(global_size)] Sending u-field data from process"
-        MPI.Gatherv!(local_fields.gu.u[1+lh:end-rh, 1+th:end-bh], nothing, comm)
+        @debug "[$(rank+1)/$(global_size)] Sending ", join(string.(path), "."), " data"
+        MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], nothing, comm)
     end
 
     MPI.Barrier(comm)
-
-    x_sz, y_sz = size(local_fields.gv.v)
-    v_grids = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), 
-                         x_start+lh, x_end-rh, y_start+th, y_end-bh+1), 0, comm)
-    
-    if rank == 0
-        # We calculate the global grid coordinates for all ranks 
-        # based on the received sizes of their core domain (ie. no halo)
-        count_sizes = map(x -> prod(x[1]), v_grids)
-        recv_data = Vector{Float64}(undef, sum(count_sizes))
-        recv_buffer = MPI.VBuffer(recv_data, count_sizes)
-        @debug "[$(rank+1)/$(global_size)] Gathering v-field data from processes"
-        MPI.Gatherv!(local_fields.gv.v[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
-        
-        idxer = collect(cumsum(count_sizes))
-
-        for proc_rank in 0:(global_size-1)
-            offset = proc_rank == 0 ? 0 : idxer[proc_rank]
-            proc_data = recv_data[offset+1:offset + count_sizes[proc_rank+1]]
-            sx, ex, sy, ey = v_grids[proc_rank+1][2:end]
-            global_fields.gv.v[sx:ex, sy:ey] = reshape(proc_data, v_grids[proc_rank + 1][1])
-        end
-    else
-        @debug "[$(rank+1)/$(global_size)] Sending v-field data from process"
-        MPI.Gatherv!(local_fields.gv.v[1+lh:end-rh, 1+th:end-bh], nothing, comm)
-    end
-
-    MPI.Barrier(comm)
-    return global_fields
+    return global_field
 end
