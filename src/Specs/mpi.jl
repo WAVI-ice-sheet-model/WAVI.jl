@@ -129,10 +129,10 @@ function Model(grid::G,
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
     
     # Set halos as fixed velocities
-    (spec.left==-1) || (u_isfixed[1:1+lh,:] .= true; v_isfixed[1:1+lh,:] .= true)
-    (spec.right==-1) || (u_isfixed[end-rh:end,:] .= true; v_isfixed[end-rh:end,:] .= true)
-    (spec.top==-1) || (u_isfixed[:,1:1+th] .= true; v_isfixed[:,1:1+th] .= true)
-    (spec.bottom==-1) || (u_isfixed[:,end:end-bh] .= true; v_isfixed[:,end:end-bh] .= true)
+    (spec.left==-1) || (u_isfixed[1,:] .= true; v_isfixed[1,:] .= true)
+    (spec.right==-1) || (u_isfixed[end,:] .= true; v_isfixed[end,:] .= true)
+    (spec.top==-1) || (u_isfixed[:,1] .= true; v_isfixed[:,1] .= true)
+    (spec.bottom==-1) || (u_isfixed[:,end] .= true; v_isfixed[:,end] .= true)
 
     local_grid = Grid(
         nx = nx_local,
