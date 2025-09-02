@@ -113,11 +113,11 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 end
 
 function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
-    @unpack comm, coords, global_fields, global_size = model.spec
+    @unpack comm, coords, global_fields, global_size, rank = model.spec
 
     # Get the full field we want to collect into from the spec, and the equivalent local field on this member
     if path[1] != :global_fields
-        throw("$(path) should be referring to a global field, so the first symbol should be global_fields")
+        error("$(path) should be referring to a global field, so the first symbol should be global_fields")
     end
 
     global_field = global_fields # Not named correctly
@@ -129,10 +129,17 @@ function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) w
 
     # Establish the local grid information, with full grid information available already from global_grid
     th, rh, bh, lh = get_halos(model.spec)
-    x_sz, y_sz = get_size(model.spec)
+    # TODO: we can only handle 2D fields with this approach
+    if length(size(local_field)) != 2
+        error("Trying to exchange a field ",join(string.(path), ".")," that is not 2D, this is not possible")
+    end
+    x_sz, y_sz = size(local_field)
     x_start, x_end, y_start, y_end = get_bounds(model.spec)
 
+    @debug "[$(rank+1)/$(global_size)", join(string.(path)), "$((x_sz, y_sz, x_start, x_end, y_start, y_end))"
+
     # Send/Gather the remote copies from the other nodes into the full field 
+    # Here we provide the size of the field as well as its positioning in the global grid
     field_sz = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), 
                            x_start+lh, x_end-rh, y_start+th, y_end-bh), 0, comm)
     
@@ -142,7 +149,7 @@ function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) w
         count_sizes = map(x -> prod(x[1]), field_sz)
         recv_data = Vector{Float64}(undef, sum(count_sizes))
         recv_buffer = MPI.VBuffer(recv_data, count_sizes)
-        @debug "[$(rank+1)/$(global_size)] Gathering field data for ", join(string.(path), "."), " from processes"
+        @debug "[$(rank+1)/$(global_size) ", join(string.(path)), "] Gathering field $((1+lh, size(local_field)[1]-rh, 1+th, size(local_field)[2]-bh)) to buffer $(size(recv_data))"
         MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
 
         idxer = collect(cumsum(count_sizes))
