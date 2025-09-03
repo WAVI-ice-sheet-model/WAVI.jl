@@ -37,6 +37,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     
     requests = MPI.RequestSet()
     
+    # TODO: currently we hardcode the velocity fields to be exchanged, but this should be user selectable
     for field_sym in [(gu, :u, (1, 0)), (gv, :v, (0, 1))]
         field_data, attribute, add_values = field_sym
         
@@ -44,12 +45,11 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         # @debug "[$(rank+1)/$(global_size)] $(size(local_field))"
         x_incr, y_incr = add_values
 
-        # TODO: got a headache with the overloading of naming conventions - recheck all this diagrammatically and conform to WAVI
-        # FIXME: all neighbours below should be offset by the halo size, as the model.grid size is EXTENDED to accommodate neighbours solved values!
-
+        # FIXME: POU implementation is under GH#108
+        # FIXME: exchange / merging over overlapping fields from both sides of the boundary, POU or otherwise
+        
         # Send the "vertical" halo's 
         if left > -1
-            # @debug "[$(rank+1)/$(global_size)] Sending left to $(left)"
             send_left = local_field[1:1+halo_offset, :] # FIXME: see above
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
@@ -58,7 +58,6 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            # @debug "[$(rank+1)/$(global_size)] Sending right to $(right)"
             send_right = local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :] # FIXME: see above
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
@@ -68,7 +67,6 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Send the "horizontal" halo's
         if top > -1
-            # @debug "[$(rank+1)/$(global_size)] Sending top to $(top)"
             send_top = local_field[:, 1:1+halo_offset] # FIXME: see above
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, prod(size(send_top)))
@@ -77,7 +75,6 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            # @debug "[$(rank+1)/$(global_size)] Sending bottom to $(bottom)"
             send_bottom = local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr] # FIXME: see above  
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))

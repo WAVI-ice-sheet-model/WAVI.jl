@@ -78,6 +78,7 @@ function HGrid(;
                 grounded_fraction = ones(nxh,nyh))
 
     #check the sizes of inputs
+    @warn "$((size(mask), size(h_isfixed), size(b), size(h), size(ηav), size(grounded_fraction), (nxh,nyh)))"
     (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators

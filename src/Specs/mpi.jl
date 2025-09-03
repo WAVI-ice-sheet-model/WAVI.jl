@@ -53,7 +53,7 @@ mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
         comm = MPI.COMM_WORLD
         rank = MPI.Comm_rank(comm)
         size = MPI.Comm_size(comm)
-        
+        @debug "Creating dimensions of $(size) with ($(px), $(py))"
         dims = MPI.Dims_create(size, (px, py))
         cart_comm = MPI.Cart_create(comm, dims)
         x_coord, y_coord = MPI.Cart_coords(cart_comm)
@@ -125,6 +125,16 @@ function Model(grid::G,
             initial_conditions.initial_damage[x_start:x_end, y_start:y_end, :] : initial_conditions.initial_damage
     )
 
+    # TODO: need to account for other variables as well, this is not strictly portable
+    local_params = Params(
+        weertman_c = size(params.weertman_c) == size(grid)[1:2] ? 
+            params.weertman_c[x_start:x_end, y_start:y_end] : params.weertman_c,
+        accumulation_rate = size(params.accumulation_rate) == size(grid)[1:2] ? 
+            params.accumulation_rate[x_start:x_end, y_start:y_end] : params.accumulation_rate,
+        glen_a_ref = size(params.glen_a_ref) == size(grid)[1:2] ? 
+            params.glen_a_ref[x_start:x_end, y_start:y_end] : params.glen_a_ref,
+    )
+
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
     
@@ -153,8 +163,9 @@ function Model(grid::G,
         basin_ID = grid.basin_ID[x_start:x_end, y_start:y_end])
 
     bed_array = get_bed_elevation(bed_elevation, local_grid)
-    fields = GridField(local_grid, bed_array; initial_conditions=conditions, params, solver_params)
-    model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, params, solver_params, spec, melt_rate)
+    # FIXME: WOAH, bed_array is the wrong size!!! [x_start:x_end, y_start:y_end]
+    fields = GridField(local_grid, bed_array[x_start:x_end, y_start:y_end]; initial_conditions=conditions, params=local_params, solver_params)
+    model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, local_params, solver_params, spec, melt_rate)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     # We provide the full bed as in GridField as it is required for HGrid - this gives us a clean full domain on root
