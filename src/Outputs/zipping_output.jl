@@ -3,7 +3,6 @@ export get_spatiotemporal_var_atts, get_spatial_dimensions, get_times, get_outpu
 
 using MAT
 using NCDatasets
-using NetCDF
 
 using WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: OutputParams
