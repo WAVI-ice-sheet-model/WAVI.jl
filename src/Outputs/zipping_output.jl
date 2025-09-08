@@ -112,10 +112,9 @@ function make_ncfile_from_filenames(filenames, format, nc_name_full)
     #setup attributes for spatiotemporal variables 
     x_atts, y_atts, time_atts = get_spatiotemporal_var_atts()
 
-    #setup Dimensions
-    t_ncdim = NcDim("time", t, atts = time_atts)
-    x_ncdim = NcDim("x", x, atts = x_atts)
-    y_ncdim = NcDim("y", y, atts = y_atts)
+    # Get the keys of variables to be written (excluding spatial and time dimensions)
+    filekeys = collect(keys(get_output_as_dict(filenames[1], format)))
+    data_keys = filter(k -> !(k in ["x", "y", "t"]), filekeys)
 
     # Remove existing file if it exists
     isfile(nc_name_full) && rm(nc_name_full)
