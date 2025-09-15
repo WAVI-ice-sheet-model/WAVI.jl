@@ -12,5 +12,5 @@ A `Model` is a WAVI.jl strcutures that contain all the information about the cur
 A `Model` is constructed using the `Model(;<kwargs>)` constructor (a function that constructs an instance of a `Model`). Here `<kwargs>` is shorthand for keyword arguments, allow the `Model` to be configured, some are optional and others are not (see below):
 
 ```@docs
-Model()
+Model
 ```

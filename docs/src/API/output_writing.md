@@ -22,6 +22,6 @@ The key parameters, which are passed via keyword arguments in the `OutputParams`
 - `dump_vel` is a shortcut to dump the velocity at the end of a simulation. This is an experimental feature, necessary for coupling WAVI to the MITgcm (see the [MITgcm coupling](../mitgcm_coupling.md) tab).
 
 ```@docs
-OutputParams()
+OutputParams
 ```
 
