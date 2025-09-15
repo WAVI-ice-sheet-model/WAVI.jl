@@ -51,7 +51,7 @@ plt =  Plots.heatmap(x/1e3, y/1e3, mismip_plus_bed.(xx,yy)',
 plot!(size = (600,400))
 ```
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_bed.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="./assets/example-plots/MISMIP/mismip_bed.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ## Boundary Conditions 
@@ -163,7 +163,7 @@ plot!(size = (600,400))
 You can see, by comparing with the plot of the bed earlier, that the grounding line sits on an overdeepened section of the bed! You can also compare it with the other MISMIP submissions (figure 3 in [Cornford et al., 2020](https://tc.copernicus.org/articles/14/2283/2020/)) and see that the grounding line position agrees pretty well with other models, despite being lower resolution.
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_thickness_and_gl.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="./assets/example-plots/MISMIP/mismip_thickness_and_gl.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 Finally, let's check that it's in steady state, by looking at the evolution of the volume above floatation:
@@ -212,7 +212,7 @@ Plots.plot(tm, vaf[:]/1e9,
 The volume above floatation reaches a plateau, suggesting that we have indeed reached a steady state.
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_vaf_evolution.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="./assets/example-plots/MISMIP/mismip_vaf_evolution.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 Finally, we clear up the files we just outputted
