@@ -11,6 +11,10 @@ using WAVI.Parameters
 
 export Model, update_state!
 
+"""
+Struct to represent the basic specification for a model
+
+"""
 struct BasicSpec <: AbstractSpec 
     function BasicSpec()
         @info "Not implementing any parallel computations, running with BasicSpec"

@@ -35,6 +35,7 @@ API_pages = [
     "Output Writing" => "API/output_writing.md"
     "Grid" => "API/grid.md"
     "Solver Parameters" => "API/solver_parameters.md"
+    "Specifications" => "API/specifications.md"
     "Physical Parameters" => "API/params.md"
     "Initial Conditions" => "API/initial_conditions.md"
     "Fields" => "API/fields.md"
@@ -96,10 +97,10 @@ makedocs(
 )
 
 
-#deploydocs(
-#    repo="github.com/WAVI-ice-sheet-model/WAVI.jl",
-#    devbranch="docs-reconcile",
-#    versions = nothing
-#)
+deploydocs(
+    repo="github.com/WAVI-ice-sheet-model/WAVI.jl",
+    devbranch="docs-reconcile",
+    versions = nothing
+)
 
 

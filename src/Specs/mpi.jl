@@ -22,6 +22,10 @@ import WAVI.Wavelets: UWavelets, VWavelets
 
 # FIXME: important to realise that this specification has become a complex structure to house many things that should be baked into the model structurally
 #  not least the global grid and fields 
+"""
+Struct to represent the MPI parallel specification of a model.
+
+"""
 mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
     # MPI Specification information
     px::N
