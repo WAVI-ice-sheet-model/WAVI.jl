@@ -103,7 +103,8 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
 
                         lock(threadLock)
                         try
-                            schwarzProlongVelocities!(model::AbstractModel,
+                            schwarzProlongVelocities!(
+                                model::AbstractModel,
                                 model_g::AbstractModel;
                                 igrid=igrid,
                                 jgrid=jgrid,
