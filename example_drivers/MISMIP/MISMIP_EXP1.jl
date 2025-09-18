@@ -1,9 +1,10 @@
-using WAVI, Plots 
+using WAVI, Plots, JLD2
 """
     MISMIP Experiments EXP1_1: advance to a steady state on a linear slope
 
 """
-function MISMIP_EXP1_1(A)
+function MISMIP_EXP1_1(folder = "outputs_mismip_exp1",
+                       A = 4.6416e-24)
     #grid and bc
     nx = 300
     ny = 2
@@ -43,10 +44,9 @@ function MISMIP_EXP1_1(A)
                     glen_a_ref = glen_a_ref)
      
     #make the model
-    model = Model(grid = grid,
-    bed_elevation = b, 
-    params = params, 
-    solver_params = solver_params)
+    model = Model(grid, b, BasicSpec();
+                  params = params, 
+                  solver_params = solver_params)
 
     
     #timestepping parameters
@@ -57,13 +57,13 @@ function MISMIP_EXP1_1(A)
                                             dt = dt, 
                                             end_time = end_time)
 
-    folder = "outputs_mismip_exp1"
-    outputs = (h = model.fields.gh.h,
-                u = model.fields.gh.u,
-                v = model.fields.gh.v,
-                b = model.fields.gh.b,
-                s = model.fields.gh.s,
-                grfrac = model.fields.gh.grounded_fraction) #output velocities and thickness
+    outputs = (h = model.fields.gh.h,       # Ice thickness 
+                u = model.fields.gh.u,      # EW velocity
+                v = model.fields.gh.v,      # NS velocity
+                b = model.fields.gh.b,      # Bed elevation
+                s = model.fields.gh.s,      # Current surface elevation
+                grfrac = model.fields.gh.grounded_fraction)     # Grid cell grounded fraction
+
 
     output_freq = 10.
     output_params = OutputParams(outputs = outputs, 
@@ -73,21 +73,17 @@ function MISMIP_EXP1_1(A)
                             zip_format = "none")
 
     simulation = Simulation(model = model, 
-    timestepping_params = timestepping_params,
-    output_params = output_params)
-
+                            timestepping_params = timestepping_params,
+                            output_params = output_params)
     #perform the simulation
     run_simulation!(simulation)
 
     return simulation
 end
 
-A = 4.6416e-24
-simulation = MISMIP_EXP1_1(A)
 
 ################################################
-function plot_evolution()
-    outfolder = "outputs_mismip_exp1"
+function plot_evolution(outfolder = "outputs_mismip_exp1")
     files = [joinpath(outfolder, file) for file in readdir(outfolder) if endswith( joinpath(outfolder, file), ".jld2") ] 
     nout = length(files)
 
@@ -99,6 +95,8 @@ function plot_evolution()
     h_out = zeros(nx, nout)
     s_out = zeros(nx, nout)
     ib_out = zeros(nx, nout)
+    u_out = zeros(nx, nout)
+    v_out = zeros(nx, nout)
     t_out = zeros(1,nout)
     
     #load solution files into matrix
@@ -110,15 +108,25 @@ function plot_evolution()
         ib_out[:,i] = d["s"][:,1] .- d["h"][:,1]
         s_out[:,i] = d["s"][:,1]
         t_out[i] = d["t"]
-    end
-        
-    #plot things
-    plot1 = Plots.plot(x, bed, legend = false)
-    Plots.plot!(x, s_out)
-    Plots.plot!(x, ib_out)
+        u_out[:,i] = d["u"][:,1]
+        v_out[:,i] = d["v"][:,1]
 
-    display(plot1)
+    end
+
+    #plot things
+    for (i, d, do_bed) in [("h", h_out, false),
+                   ("ib", ib_out, true),
+                   ("u", u_out, false),
+                   ("v", v_out, false),
+                   ("s", s_out, true),]
+        if do_bed
+            plot(x, bed, legend=false)
+            plot!(x, d)
+        else
+            plot(x, d, legend=false)
+        end
+        savefig("$(outfolder)/$(i).png")
+        println("You'll find a plot in $(outfolder)/$(i).png")
+    end
 end
 
-println("Displaying a plot for you!")
-plot_evolution()

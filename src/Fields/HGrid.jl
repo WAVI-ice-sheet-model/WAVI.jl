@@ -16,7 +16,7 @@ struct HGrid{T <: Real, N  <: Integer}
            basal_melt :: Array{T,2}                            # Basal melt rate    
                   haf :: Array{T,2}                            # Grid cell height above floatation
     grounded_fraction :: Array{T,2}                            # Grid cell grounded fraction 
-                 dsdh :: Array{T,2}                            # Cange of surface elevation per unit thickness change
+                 dsdh :: Array{T,2}                            # Change of surface elevation per unit thickness change
     shelf_strain_rate :: Array{T,2}                            # Strain rate appropriate for shelf (no basal drag) 
              av_speed :: Array{T,2}                            # Depth averaged speed 
                     u :: Array{T,2}                            # Depth averaged x-velocity 
@@ -60,8 +60,8 @@ Keyword arguments
     - 'nyh': (required) Number of grid cells in y-direction in HGrid (should be same as grid.ny)
     - 'mask': Mask specifying the model domain
     - 'h_isfixed': Mask specifying points where ice thickness is fixed
-    - 'b': (requried) Bed elevation (bottom bathymetry)
-    - 'h': (required) initial thickness of the ice
+    - 'b': (required) Bed elevation (bottom bathymetry)
+    - 'h': initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
 """
@@ -71,13 +71,14 @@ function HGrid(;
                 nxh, 
                 nyh,
                 mask = trues(nxh,nyh),
-                h_isfixed = falses(nxh,nxy),
+                h_isfixed = falses(nxh,nyh),
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
                 grounded_fraction = ones(nxh,nyh))
 
     #check the sizes of inputs
+    @warn "$((size(mask), size(h_isfixed), size(b), size(h), size(ηav), size(grounded_fraction), (nxh,nyh)))"
     (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators

@@ -1,6 +1,12 @@
+export Preconditioner
+
 #Struct to hold information about wavelet-based multigrid preconditioner.
-@with_kw struct Preconditioner{T <: Real, N <: Integer, O <:MapOrMatrix{T}, C <: MapOrMatrix{T}, 
-         R <: MapOrMatrix{T}, P <: MapOrMatrix{T}} <: AbstractPreconditioner{T,N}
+@with_kw struct Preconditioner{T <: Real, 
+                               N <: Integer,
+                               O <: MapOrMatrix{T}, 
+                               C <: MapOrMatrix{T}, 
+                               R <: MapOrMatrix{T}, 
+                               P <: MapOrMatrix{T}} <: AbstractPreconditioner{T,N}
     op::O
     op_diag::Vector{T} = diag(sparse(op))
     nsmooth::N = 5

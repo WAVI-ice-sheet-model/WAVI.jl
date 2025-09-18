@@ -7,29 +7,7 @@ using WAVI
 bib_filepath = joinpath(dirname(@__FILE__), "wavi.bib")
 bib = CitationBibliography(bib_filepath)
 
-
 ENV["GKSwstype"] = "100"
-
-#####
-##### Generate examples
-#####
-
-#const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
-#const OUT_DIR   = joinpath(@__DIR__, "src","generated")
-
-#examples = [# "planar_1D_flow.jl"
-#    "bumpy_bed.jl"
-#    "overdeepened_bed.jl"
-#    "melt_rate_parametrizations.jl"
-#    "west_antarctica.jl"
-    #variable_slipperiness.jl
-#]
-
-#for example in examples
-#    example_filepath = joinpath(EXAMPLES_DIR, example)
-#    Literate.markdown(example_filepath, OUT_DIR; flavor = Literate.DocumenterFlavor())
-#end
-
 
 #####
 #### Organize page hierarchies
@@ -57,6 +35,7 @@ API_pages = [
     "Output Writing" => "API/output_writing.md"
     "Grid" => "API/grid.md"
     "Solver Parameters" => "API/solver_parameters.md"
+    "Specifications" => "API/specifications.md"
     "Physical Parameters" => "API/params.md"
     "Initial Conditions" => "API/initial_conditions.md"
     "Fields" => "API/fields.md"
@@ -82,6 +61,7 @@ pages = [
     "Examples" => example_pages,
     "Physics" => physics_pages,
     "Numerical Implementation" => "numerical_procedure/numerical_procedure.md",
+    "Model Specifications" => "model_specifications.md",
     "API" => API_pages,
    # "Simulation tips" => "simulation_tips.md",
     "MITgcm coupling" => "mitgcm_coupling.md",
@@ -113,7 +93,7 @@ makedocs(
     linkcheck = ("linkcheck" in ARGS),
     checkdocs = :none,
     clean = false,
-    plugins = [bib]
+    plugins = [bib],
 )
 
 

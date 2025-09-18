@@ -1,4 +1,6 @@
+using MPI
 using WAVI 
+
 function MISMIP_PLUS()
     #Grid and boundary conditions
     nx = 160
@@ -30,8 +32,9 @@ function MISMIP_PLUS()
     super_implicitness = 1.0
     solver_params = SolverParams(maxiter_picard = maxiter_picard, super_implicitness=super_implicitness)
 
-    #parallel_spec = BasicParallelSpec()
-    parallel_spec = SharedMemorySpec(ngridsx = 16,ngridsy=2,overlap=1,niterations=1)
+    #spec = BasicSpec()
+    spec = ThreadedSpec(ngridsx = 16,ngridsy=2,overlap=1,niterations=1)
+    #spec = MPISpec(16, 2, 1, grid)
 
     #Physical parameters
     default_thickness = 100.0 #set the initial condition this way
@@ -40,27 +43,41 @@ function MISMIP_PLUS()
                     accumulation_rate = accumulation_rate)
 
     #make the model
-    model = Model(grid = grid,
-                     bed_elevation = bed, 
-                     params = params, 
-                     solver_params = solver_params,
-                     parallel_spec = parallel_spec)
-
+    model = Model(grid,
+                  bed,
+                  spec; 
+                  params = params, 
+                  solver_params = solver_params)
+ 
     #timestepping parameters
     niter0 = 0
     dt = 0.1
     end_time = 10000.0
     timestepping_params = TimesteppingParams(niter0 = niter0, 
-                                            dt = dt, 
-                                            end_time = end_time)
+                                             dt = dt, 
+                                             end_time = end_time)
     
-    simulation = Simulation(model = model, 
-                        timestepping_params = timestepping_params)
+    simulation = Simulation(model = model, timestepping_params = timestepping_params)
             
     #perform the simulation
     run_simulation!(simulation)
     return simulation
 end
 
+if abspath(PROGRAM_FILE) == @__FILE__
+    # A little bootstapping way of running the MISMIP+ experiment
+    MPI.Init()
+    if MPI.Comm_size(MPI.COMM_WORLD) > 1 
+        grid = MISMIP_PLUS_GRID()
+        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid)
 
-@time simulation = MISMIP_PLUS();
+        sim = @time MISMIP_PLUS(
+            grid = grid,
+            spec = mpi_spec,
+        );
+    else
+        sim = @time MISMIP_PLUS();
+    end 
+	print(summary(sim))
+end
+
