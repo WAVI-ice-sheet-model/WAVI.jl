@@ -16,7 +16,7 @@ struct HGrid{T <: Real, N  <: Integer}
            basal_melt :: Array{T,2}                            # Basal melt rate    
                   haf :: Array{T,2}                            # Grid cell height above floatation
     grounded_fraction :: Array{T,2}                            # Grid cell grounded fraction 
-                 dsdh :: Array{T,2}                            # Cange of surface elevation per unit thickness change
+                 dsdh :: Array{T,2}                            # Change of surface elevation per unit thickness change
     shelf_strain_rate :: Array{T,2}                            # Strain rate appropriate for shelf (no basal drag) 
              av_speed :: Array{T,2}                            # Depth averaged speed 
                     u :: Array{T,2}                            # Depth averaged x-velocity 

@@ -129,14 +129,34 @@ function Model(grid::G,
             initial_conditions.initial_damage[x_start:x_end, y_start:y_end, :] : initial_conditions.initial_damage
     )
 
-    # TODO: need to account for other variables as well, this is not strictly portable
+    # dt cannot be copied via the external constructor so we create the structure directly
     local_params = Params(
-        weertman_c = size(params.weertman_c) == size(grid)[1:2] ? 
-            params.weertman_c[x_start:x_end, y_start:y_end] : params.weertman_c,
-        accumulation_rate = size(params.accumulation_rate) == size(grid)[1:2] ? 
+        params.dt,
+        params.g, 
+        params.density_ice, 
+        params.density_ocean, 
+        params.gas_const,
+        params.sec_per_year, 
+        params.default_thickness, 
+        params.default_viscosity,
+        params.default_temperature,
+        params.default_damage,
+        size(params.accumulation_rate) == size(grid)[1:2] ? 
             params.accumulation_rate[x_start:x_end, y_start:y_end] : params.accumulation_rate,
-        glen_a_ref = size(params.glen_a_ref) == size(grid)[1:2] ? 
+        params.glen_a_activation_energy,
+        size(params.glen_a_ref) == size(grid)[1:2] ? 
             params.glen_a_ref[x_start:x_end, y_start:y_end] : params.glen_a_ref,
+        params.glen_temperature_ref,
+        params.glen_n,
+        params.glen_reg_strain_rate,
+        size(params.weertman_c) == size(grid)[1:2] ? 
+            params.weertman_c[x_start:x_end, y_start:y_end] : params.weertman_c,
+        params.weertman_m,
+        params.weertman_reg_speed,
+        params.sea_level_wrt_geoid,
+        params.minimum_thickness,
+        params.evolveShelves,
+        params.smallHAF
     )
 
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
