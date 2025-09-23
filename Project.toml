@@ -21,3 +21,6 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLNLSolve = "e9a6253c-8580-4d32-9898-8661bb511710"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[compat]
+julia = "1.6, 1.7, 1.8, 1.9, 1.10, 1.11"
