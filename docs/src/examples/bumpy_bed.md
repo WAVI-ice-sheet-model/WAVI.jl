@@ -9,8 +9,7 @@ This example demonstrates how to
 First let's make sure we have all required packages installed.
 ```julia
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/RJArthern/WAVI.jl.git", rev = "main"))
-Pkg.add("Plots")
+Pkg.add(PackageSpec(url="https://github.com/WAVI-ice-sheet-model/WAVI.jl.git", rev = "main"))
 using WAVI, Plots
 ```
 
@@ -49,7 +48,7 @@ plot!(size = (600,400))
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//bumpy//bed.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//bumpy//bed.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ## Model Instantiation and Initial Conditions
@@ -83,7 +82,7 @@ plot!(size = (600,400))
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//bumpy//velocity_L80.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//bumpy//velocity_L80.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ## Different lengthscales
@@ -128,7 +127,7 @@ display(p)
 plot!(size = (1000,550))
 ```
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//bumpy//velocity_diffL.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//bumpy//velocity_diffL.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 As expected, when the bumps have a smaller aspect ratio (smaller `L`) the flow speed is smaller.

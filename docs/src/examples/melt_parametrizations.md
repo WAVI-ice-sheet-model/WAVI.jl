@@ -16,8 +16,7 @@ Secondly, we demonstrate how to add a simple melt rate model to WAVI.jl.
 First let's make sure we have all required packages installed. As well as WAVI and Plots for plotting, we're going to use the Downloads package to pull some data from a Github repository.
 ```julia
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/RJArthern/WAVI.jl.git", rev = "main"))
-Pkg.add("Plots"), Pkg.add("Downloads")
+Pkg.add(PackageSpec(url="https://github.com/WAVI-ice-sheet-model/WAVI.jl.git", rev = "main"))
 using WAVI, Plots, Downloads
 ```
 
@@ -82,7 +81,7 @@ Finally, a binary file melt rate, in which the melt rate is read in from a binar
 isfloat = (h .< -918.0/1028.0 .* bed.(grid.xxh, grid.yyh)) #indices of floating elements
 m = zeros(nx,ny);
 m[isfloat] .= 10.0; #set everywhere floating to 10m/a
-folder = joinpath(@__DIR__, "melt_rate_parametrizations");
+folder = "melt_rate_parametrizations";
 isdir(folder) && rm(folder, force = true, recursive = true);
 mkdir(folder) ;
 out = open(joinpath(folder,"melt.bin"), "w");
@@ -131,25 +130,25 @@ for (key, melt) in melt_rates
     plot!(size = (500,300))
 
     # save the figure
-    savefig
+    savefig(plt, joinpath(folder, "$key.png"))
     display(plt) #uncomment to show in (e.g.) VSCode
 end
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//quadratic.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//quadratic.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//pico.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//pico.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//plume.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//plume.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//binary.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//binary.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 As a sanity check, the binary file melt rate has the same (10m/a)melt rate over the whole shelf. The PICO parametrization, which divides the shelf up into discrete chunks, has a corresponding banded structure, with highest melt rates at the grounding line (note the different colourbar limits on the various plots!). The quadratic melt rate parametrizations similarly has the highest melt rate near the grounding line, but drops off with distance from the grounding line much quicker than the PICO parametrization. These plots can be compared to corresponding results for the NEMO ocean model  (Favier et al. 2019 doi:10.5194/gmd-12-2255-2019)
@@ -164,7 +163,7 @@ There are four steps to creating a new melt rate model:
  * Write a function to update the melt rate appropriately, and export this
 
 This is quite abstract, so let's do an example. We'll create a melt rate model which sets the melt rate as it is specified in the MISMIP+ experiment, where the melt rate on floating cells is $0.2 \tanh((z_d - z_b)/75) \max(-100 - z_d,0)$, where $z_d$ is the ice shelf draft and $z_d - z_b$ is the cavity thickness. 
-We'll follow the steps above: first, we create a file to store the code. For this example, we've already create the file, you can see it at it at "./src/MeltRate/mismip_melt_rate.jl".
+We'll follow the steps above: first, we create a file to store the code. For this example, we've already create the file, you can see it at it at `./src/MeltRate/mismip_melt_rate.jl`.
 
 Next we define a structure, which stores parameters related to the melt rate model. Note that the melt rate model does not "own" the melt rate, the `model` does (and stores it in model.fields.gh.basal_melt, see below)
 
@@ -182,7 +181,7 @@ Now we define our "constructor", a function that defines how to create one of th
 MISMIPMeltRateOne(; α = 1.0, ρi = 918.0, ρw = 1028.0) = MISMIPMeltRateOne(α,ρi, ρw)
 ```
 
-In this case, the constructor simply sets the default values for the parameters $\alpha$, $\rho_i$, and $\rho_w$. NB: for more complicated melt rate models, constructors might be more elaborate! You can see constructors for the various models considered above by diving into the "./src/MeltRate" folder.
+In this case, the constructor simply sets the default values for the parameters $\alpha$, $\rho_i$, and $\rho_w$. NB: for more complicated melt rate models, constructors might be more elaborate! You can see constructors for the various models considered above by diving into the `./src/MeltRate` folder.
 
 The final step is to define a function `update_melt_rate!(melt_rate::TYPE, fields, grid)` which tells WAVI how to update the melt rate in this example. Here, TYPE is the name of the structure we just made (e.g. `update_melt_rate!(melt_rate::MISMIPMeltRateOne, fields, grid)`).
 
@@ -226,6 +225,6 @@ plot!(size = (500,300))
 ```
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//mismip.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots//melt_parametrizations//mismip.png" alt="" title="" width="600" height="600" /></center>
 ```
 Hopefully this example demonstrates the procedure for adding melt rate models to WAVI.jl. If there are any questions, don't hesistate to get in touch (see the "Contact Us" tab)

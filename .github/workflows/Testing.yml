@@ -3,24 +3,31 @@ name: Testing
 on:
   push:
     branches:
-      - docs-reconcile # update to match your development branch (master, main, dev, trunk, ...) or '**' for all
       - main
     tags: '*'
   pull_request:
+      types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 jobs:
-  build:
+  test:
+    runs-on: ubuntu-latest
+    if: '! github.event.pull_request.draft'
+    strategy:
+      matrix:
+        julia-version: ['1.6', '1.11']
+    name: Julia ${{ matrix.julia-version }}
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
         with:
-          version: '1.6'
+          version: ${{ matrix.julia-version }}
       - name: Install dependencies
         run: julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      - name: Build and deploy
-        env:
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
+      - name: Run tests
         run: julia --project=test/ test/runtests_structure.jl

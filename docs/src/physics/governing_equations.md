@@ -33,7 +33,7 @@ Here $n$ is the exponent in a nonlinear Glen flow law, $\epsilon$ is a regulariz
 The momentum equations are solved alongside boundary conditions at the lateral boundary of the ice sheet,
 ```math
     \begin{align}
-        -\frac{1}{2}\rho_w  h_w^2 \hat{n}_x = 2\bar{\eta}h\left(2 \frac{\partial \bar{u}}{\partial x} + \frac{\partial \bar{v}}{\partial y}\right)\hat{n}_y - \frac{1}{2}\rho_i g h^2 \hat{n}_x + \bar{\eta}h \left(\frac{\partial \bar{u}}{\partial y} + \frac{\partial \bar{v}}{\partial x}\right)\hat{n}_y,\label{E:bc1}\\
+        -\frac{1}{2}\rho_w  h_w^2 \hat{n}_x = 2\bar{\eta}h\left(2 \frac{\partial \bar{u}}{\partial x} + \frac{\partial \bar{v}}{\partial y}\right)\hat{n}_x - \frac{1}{2}\rho_i g h^2 \hat{n}_x + \bar{\eta}h \left(\frac{\partial \bar{u}}{\partial y} + \frac{\partial \bar{v}}{\partial x}\right)\hat{n}_y,\label{E:bc1}\\
         -\frac{1}{2}\rho_w  h_w^2 \hat{n}_y = 2\bar{\eta}h\left(2 \frac{\partial \bar{v}}{\partial y} + \frac{\partial \bar{u}}{\partial x}\right)\hat{n}_y - \frac{1}{2}\rho_i g h^2 \hat{n}_y + \bar{\eta}h \left(\frac{\partial \bar{u}}{\partial y} + \frac{\partial \bar{v}}{\partial x}\right)\hat{n}_x, \label{E:bc2}
      \end{align}
 ```

@@ -103,53 +103,39 @@ function make_ncfile_from_filenames(filenames, format, nc_name_full)
     #setup attributes for spatiotemporal variables 
     x_atts, y_atts, time_atts = get_spatiotemporal_var_atts()
 
-    #setup Dimensions
-    t_ncdim = NcDim("TIME", t, atts = time_atts)
-    x_ncdim = NcDim("x", x, atts = x_atts)
-    y_ncdim = NcDim("y", y, atts = y_atts)
+    # Get the keys of variables to be written (excluding spatial and time dimensions)
+    filekeys = collect(keys(get_output_as_dict(filenames[1], format)))
+    data_keys = filter(k -> !(k in ["x", "y", "t"]), filekeys)
 
-    #create the nc file variables
-    output_dict = Dict() #dictionary for the output values
-    output_vars = Dict() #dictionary for the output variables
-    
-    #get the keys
-    if format == "mat"
-        filekeys = keys(matread(filenames[1]))
-    elseif format == "jld2"
-        filekeys = keys(load(filenames[1]))
-        #println(typeof(filekeys))
-    end
-
-    for key in filekeys
-        if ~(key in ["x", "y", "t"]) #if this isn't a spatial dimensions
-            var_out = zeros(length(x), length(y), length(t))
-    
-            #check the size of this variable in the first file
-            sz = size(get_output_as_dict(filenames[1],format)[key])
-            if sz == (length(x), length(y))
-                #if the size is OK, create a variable and add to the array
-                ncvar_key = NcVar(key, Array([x_ncdim, y_ncdim, t_ncdim]))
-                output_vars[key] = ncvar_key
-                
-                #get the data in an array
-                for i = 1:length(filenames)
-                    var_out[:,:,i] = get_output_as_dict(filenames[i],format)[key]
-                end
-
-                #add this to dictionary
-                output_dict[key] = var_out
-            else
-                @warn string("found an output variable (", key, ") who's spatial dimensions do not match the co-ordinates. Skipping this variable from the nc output...")
-            end
-        end
-    end
-
-    #make the nc file
+    # Remove existing file if it exists
     isfile(nc_name_full) && rm(nc_name_full)
-    NetCDF.create(nc_name_full, [val for val in values(output_vars)]) do nc
-        # Writing data to the file is done using putvar
-        for key in keys(output_dict) #for every variable of the correct size
-            NetCDF.putvar(nc,key,output_dict[key])
+    
+    NCDataset(nc_name_full, "c") do ds
+        defDim(ds, "x", length(x))
+        defDim(ds, "y", length(y))
+        defDim(ds,"TIME", length(t))
+
+        # Define and write coordinate variables
+        defVar(ds, "x", x, ("x",), attrib = x_atts)
+        defVar(ds, "y", y, ("y",), attrib = y_atts)
+        defVar(ds, "TIME", t, ("TIME",), attrib = time_atts)
+
+        for key in data_keys
+            # Get the data from the first file to determine its type and size
+            first_file_data = get_output_as_dict(filenames[1], format)[key]
+            sz = size(first_file_data)
+
+            if sz == (length(x), length(y))
+                # Define the variable in the NetCDF file
+                var_nc = defVar(ds, key, eltype(first_file_data), ("x", "y", "TIME"))
+
+                # Populate the variable by iterating through filenames
+                for i = 1:length(filenames)
+                    var_nc[:,:,i] = get_output_as_dict(filenames[i], format)[key]
+                end
+            else
+                @warn string("found an output variable (", key, ") who's spatial dimensions (", sz, ") do not match the co-ordinates. Skipping this variable from the nc output...")
+            end
         end
     end
     return nothing

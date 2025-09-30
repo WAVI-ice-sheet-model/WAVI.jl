@@ -1,9 +1,3 @@
-push!(LOAD_PATH,"../src/")
-import Pkg; 
-Pkg.activate(joinpath(@__DIR__, ".."))
-Pkg.add(name="Documenter", version="0.27.25")
-Pkg.instantiate()
-
 using Documenter
 using DocumenterCitations
 using Literate 
@@ -104,24 +98,27 @@ pages = [
 
 format = Documenter.HTML(
     collapselevel = 1,
-       prettyurls = get(ENV, "CI", nothing) == "true",
-        #canonical = "website_url_here",
-       mathengine = MathJax3()
+    prettyurls = get(ENV, "CI", nothing) == "true",
+    #canonical = "website_url_here",
+    mathengine = MathJax3()
 )
 
 
-makedocs(bib,
+makedocs(
     sitename = "WAVI.jl",
     format = format,
     pages = pages,
     modules = [WAVI],
-    doctest = false,
-    strict = false,
+    doctest = ("doctest" in ARGS),
+    linkcheck = ("linkcheck" in ARGS),
+    checkdocs = :none,
     clean = false,
-    checkdocs = :none)
+    plugins = [bib]
+)
+
 
 deploydocs(
-    repo="github.com/RJArthern/WAVI.jl",
+    repo="github.com/WAVI-ice-sheet-model/WAVI.jl",
     devbranch="docs-reconcile",
     versions = nothing
 )

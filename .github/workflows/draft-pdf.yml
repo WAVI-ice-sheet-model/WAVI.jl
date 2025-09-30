@@ -1,8 +1,21 @@
-on: [push]
+name: Paper Draft
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 jobs:
   paper:
+    if: '! github.event.pull_request.draft'
     runs-on: ubuntu-latest
+    
     name: Paper Draft
     steps:
       - name: Checkout
@@ -14,7 +27,7 @@ jobs:
           # This should be the path to the paper within your repo.
           paper-path: paper.md
       - name: Upload
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: paper
           # This is the output path where Pandoc will write the compiled

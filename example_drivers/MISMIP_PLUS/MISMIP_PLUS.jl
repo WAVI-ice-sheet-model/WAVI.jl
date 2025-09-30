@@ -44,7 +44,7 @@ function MISMIP_PLUS()
                      solver_params = solver_params)
 
     #timestepping parameters
-    niter0 = 600
+    niter0 = 0
     dt = 0.5
     end_time = 400.
     chkpt_freq = 1000.
@@ -57,8 +57,6 @@ function MISMIP_PLUS()
 
     #output parameters
     folder = "outputs"
-    #isdir(folder) && rm(folder, force = true, recursive = true)
-    #mkdir(folder) #make a clean folder for outputs
     outputs = (h = model.fields.gh.h,
                u = model.fields.gh.u,
                v = model.fields.gh.v,

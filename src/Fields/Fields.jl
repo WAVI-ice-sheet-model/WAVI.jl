@@ -40,45 +40,45 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     grounded_fraction =  deepcopy(initial_conditions.initial_grounded_fraction)
     ηav = deepcopy(initial_conditions.initial_viscosity[:,:,1]) #set to the viscosity on the first level for now
     gh=HGrid(
-    nxh=grid.nx,
-    nyh=grid.ny,
-    mask=h_mask,
-    h_isfixed = grid.h_isfixed,
-    b = bed_array,
-    h = h,
-    ηav = ηav,
-    grounded_fraction = grounded_fraction
+        nxh=grid.nx,
+        nyh=grid.ny,
+        mask=h_mask,
+        h_isfixed = grid.h_isfixed,
+        b = bed_array,
+        h = h,
+        ηav = ηav,
+        grounded_fraction = grounded_fraction
     )
 
     #u-grid
     gu=UGrid(
-    nxu=grid.nx+1,
-    nyu=grid.ny,
-    dx=grid.dx,
-    dy=grid.dy,
-    mask=u_mask,
-    u_isfixed=grid.u_isfixed,
-    u=deepcopy(initial_conditions.initial_u_veloc),
-    levels=solver_params.levels
+        nxu=grid.nx+1,
+        nyu=grid.ny,
+        dx=grid.dx,
+        dy=grid.dy,
+        mask=u_mask,
+        u_isfixed=grid.u_isfixed,
+        u=deepcopy(initial_conditions.initial_u_veloc),
+        levels=solver_params.levels
     )
 
     #v-grid
     gv=VGrid(
-    nxv=grid.nx,
-    nyv=grid.ny+1,
-    dx=grid.dx,
-    dy=grid.dy,
-    mask=v_mask,
-    v_isfixed=grid.v_isfixed,
-    v=deepcopy(initial_conditions.initial_v_veloc),
-    levels=solver_params.levels
+        nxv=grid.nx,
+        nyv=grid.ny+1,
+        dx=grid.dx,
+        dy=grid.dy,
+        mask=v_mask,
+        v_isfixed=grid.v_isfixed,
+        v=deepcopy(initial_conditions.initial_v_veloc),
+        levels=solver_params.levels
     )
 
     #c-grid
     gc=CGrid(
-    nxc=grid.nx-1,
-    nyc=grid.ny-1,
-    mask=c_mask
+        nxc=grid.nx-1,
+        nyc=grid.ny-1,
+        mask=c_mask
     )
 
     #3D-grid
@@ -98,16 +98,16 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     preBfactor=ones(grid.nx,grid.ny,grid.nσ)
         
     g3d=SigmaGrid(
-    nxs=grid.nx,
-    nys=grid.ny,
-    nσs=grid.nσ,
-    σ =grid.σ,
-    η = η,
-    θ = θ,
-    Φ = Φ,
-    glen_b = g3_glen_b,
-    quadrature_weights = grid.quadrature_weights,
-    preBfactor = preBfactor
+        nxs=grid.nx,
+        nys=grid.ny,
+        nσs=grid.nσ,
+        σ =grid.σ,
+        η = η,
+        θ = θ,
+        Φ = Φ,
+        glen_b = g3_glen_b,
+        quadrature_weights = grid.quadrature_weights
+        preBfactor = preBfactor
     )
 
     #Wavelet-grid, u-component.

@@ -9,28 +9,23 @@ Solve momentum equation to update the velocities, plus Picard iteration for non-
 
 """
 function update_velocities!(model::AbstractModel{T,N}) where {T,N}
-@unpack params,solver_params=model
-@unpack gu,gv,wu,wv = model.fields
+    @unpack params,solver_params=model
+    @unpack gu,gv,wu,wv = model.fields
 
-update_preconditioner!(model)
+    update_preconditioner!(model)
 
-converged::Bool = false
-i_picard::Int64 = 0
-rel_resid = Inf
-while !converged && (i_picard < solver_params.maxiter_picard)
+    converged::Bool = false
+    i_picard::Int64 = 0
+    rel_resid = Inf
+    while !converged && (i_picard < solver_params.maxiter_picard)
+        i_picard = i_picard + 1
+        inner_update!(model)
+        converged, rel_resid = precondition!(model)
+    end
+    println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
+        round(rel_resid,sigdigits=3)," at iteration ",i_picard)
 
-   i_picard = i_picard + 1
-
-   inner_update!(model)
-   
-   converged, rel_resid = precondition!(model)
-
-end
-if model.verbose
-println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
-      round(rel_resid,sigdigits=3)," at iteration ",i_picard)
-end
-return model
+    return model
 end
 
 
@@ -52,7 +47,7 @@ end
 
 precondition!(model::AbstractModel) = precondition!(model,get_parallel_spec(model))
 
-function precondition!(model::AbstractModel,::BasicParallelSpec)
+function precondition!(model::AbstractModel, ::BasicParallelSpec)
     @unpack solver_params=model
 
     x=get_start_guess(model)

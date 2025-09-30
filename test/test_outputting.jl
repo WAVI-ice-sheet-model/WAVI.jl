@@ -1,4 +1,4 @@
-using Test, WAVI, MAT, JLD2, NetCDF, Dates
+using Test, WAVI, MAT, JLD2, NCDatasets, Dates
 
 function output_test(; dt  = 0.5, 
                     end_time = 100., 
@@ -161,25 +161,29 @@ test_output_errors = true
                     @test isfile(fname) #check the zipped file exists
 
                     #test variables read from nc file
-                    x = ncread(fname, "x")
-                    y = ncread(fname, "y")
-                    h = ncread(fname, "h")
-                    u = ncread(fname, "u")
-                    v = ncread(fname, "v")
-                    b = ncread(fname, "b")
-                    t = ncread(fname, "TIME")
-                    if output_start
-                        @test ncread(fname, "TIME") == 0.:5.:100.
-                    else
-                        @test ncread(fname, "TIME") == 5.:5.:100.
+                    NCDataset(fname, "r") do ds
+                    # Read all necessary variables from the open dataset
+                        x = ds["x"][:]
+                        y = ds["y"][:]
+                        h = ds["h"][:,:,:]
+                        u = ds["u"][:,:,:]
+                        v = ds["v"][:,:,:]
+                        b = ds["b"][:,:,:]
+                        t = ds["TIME"][:]
+
+                        if output_start
+                            @test t == 0.:5.:100.
+                        else
+                            @test t == 5.:5.:100.
+                        end
+                            
+                        @test size(x) == (80,)
+                        @test size(y) == (10,)
+                        @test size(b) == (length(x), length(y), length(t))
+                        @test size(u) == (length(x), length(y), length(t))
+                        @test size(v) == (length(x), length(y), length(t))
+                        @test size(h) == (length(x), length(y), length(t))
                     end
-                        
-                    @test size(x) == (80,)
-                    @test size(y) == (10,)
-                    @test size(b) == (length(x),length(y),length(t))
-                    @test size(u) == (length(x),length(y),length(t))
-                    @test size(v) == (length(x),length(y),length(t))
-                    @test size(h) == (length(x),length(y),length(t))
             
                     #delete the folder
                     rm(folder, force = true, recursive = true)
@@ -208,7 +212,7 @@ test_output_errors = true
                             dump_vel = true, 
                             pchkpt_freq = 1.)
 
-                #get the time that the first file was outputted (test for https://github.com/RJArthern/WAVI.jl/issues/35)
+                #get the time that the first file was outputted (test for https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/35)
                 first_file_name = joinpath("outputs",string("outfile0000000001.", output_format));
                 @test isfile(first_file_name) #check the first output point exists
                 dt1 = Dates.unix2datetime(mtime(first_file_name)) #time of last modification
@@ -231,20 +235,23 @@ test_output_errors = true
                 #test variables read from nc file
                 fname = string(folder, sim.output_params.prefix, ".nc")
                 println(fname)
-                x = ncread(fname, "x")
-                y = ncread(fname, "y")
-                h = ncread(fname, "h")
-                u = ncread(fname, "u")
-                v = ncread(fname, "v")
-                b = ncread(fname, "b")
-                t = ncread(fname, "TIME")
-                @test ncread(fname, "TIME") == 0.5:0.5:20.
-                @test size(x) == (80,)
-                @test size(y) == (10,)
-                @test size(b) == (length(x),length(y),length(t))
-                @test size(u) == (length(x),length(y),length(t))
-                @test size(v) == (length(x),length(y),length(t))
-                @test size(h) == (length(x),length(y),length(t))
+                NCDataset(fname, "r") do ds
+                    x = ds["x"][:]
+                    y = ds["y"][:]
+                    h = ds["h"][:,:,:]
+                    u = ds["u"][:,:,:]
+                    v = ds["v"][:,:,:]
+                    b = ds["b"][:,:,:]
+                    t = ds["TIME"][:]
+
+                    @test ds["TIME"][:] == 0.5:0.5:20.
+                    @test size(x) == (80,)
+                    @test size(y) == (10,)
+                    @test size(b) == (length(x), length(y), length(t))
+                    @test size(u) == (length(x), length(y), length(t))
+                    @test size(v) == (length(x), length(y), length(t))
+                    @test size(h) == (length(x), length(y), length(t))
+                end
 
                 #check we have the right number of output files 
                 foldersim = sim.output_params.output_path 
@@ -267,20 +274,24 @@ test_output_errors = true
                 #test variables read from nc file
                 fname = string(folder, sim.output_params.prefix, ".nc")
                 println(fname)
-                x = ncread(fname, "x")
-                y = ncread(fname, "y")
-                h = ncread(fname, "h")
-                u = ncread(fname, "u")
-                v = ncread(fname, "v")
-                b = ncread(fname, "b")
-                t = ncread(fname, "TIME")
-                @test ncread(fname, "TIME") == 0.5:0.5:20.5
-                @test size(x) == (80,)
-                @test size(y) == (10,)
-                @test size(b) == (length(x),length(y),length(t))
-                @test size(u) == (length(x),length(y),length(t))
-                @test size(v) == (length(x),length(y),length(t))
-                @test size(h) == (length(x),length(y),length(t))
+
+                NCDataset(fname, "r") do ds
+                    x = ds["x"][:]
+                    y = ds["y"][:]
+                    h = ds["h"][:,:,:]
+                    u = ds["u"][:,:,:]
+                    v = ds["v"][:,:,:]
+                    b = ds["b"][:,:,:]
+                    t = ds["TIME"][:]
+
+                    @test ds["TIME"][:] == 0.5:0.5:20.5
+                    @test size(x) == (80,)
+                    @test size(y) == (10,)
+                    @test size(b) == (length(x), length(y), length(t))
+                    @test size(u) == (length(x), length(y), length(t))
+                    @test size(v) == (length(x), length(y), length(t))
+                    @test size(h) == (length(x), length(y), length(t))
+                end
 
                 #check we have the right number of files
                 foldersim = sim.output_params.output_path 

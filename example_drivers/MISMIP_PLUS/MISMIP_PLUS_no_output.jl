@@ -63,6 +63,4 @@ function MISMIP_PLUS()
 end
 
 
-@profview @time simulation = MISMIP_PLUS()
-
-simulation = MISMIP_PLUS();
+@time simulation = MISMIP_PLUS();

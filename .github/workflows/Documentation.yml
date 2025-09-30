@@ -3,24 +3,51 @@ name: Documentation
 on:
   push:
     branches:
+      - main
       - docs-reconcile
-      - main # update to match your development branch (master, main, dev, trunk, ...)
     tags: '*'
   pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+      - '**/*.jl'
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 jobs:
-  build:
+  docs:
+    name: Docs (Julia 1.11)
     permissions:
       contents: write
+    if: '! github.event.pull_request.draft'
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v1
         with:
-          version: '1.6'
-      - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      - name: Build and deploy
+          version: '1.11'
+
+      - name: Cache Julia packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-docs-artifacts-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-artifacts-
+
+      - name: Install dependencies and build docs
         env:
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
-        run: julia --project=docs/ docs/make.jl
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+        run: |
+          julia --project=docs/ -e '
+            using Pkg
+            Pkg.develop(path=".")
+            Pkg.instantiate()'
+          julia --project=docs/ docs/make.jl
+

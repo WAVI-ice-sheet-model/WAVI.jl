@@ -57,9 +57,7 @@ function MISMIP_EXP1_1(A)
                                             dt = dt, 
                                             end_time = end_time)
 
-    folder = joinpath(@__DIR__, "./outputs_mismip_exp1")
-    isdir(folder) && rm(folder, force = true, recursive = true)
-    mkdir(folder) #make a clean folder for outputs
+    folder = "outputs_mismip_exp1"
     outputs = (h = model.fields.gh.h,
                 u = model.fields.gh.u,
                 v = model.fields.gh.v,
@@ -89,38 +87,38 @@ simulation = MISMIP_EXP1_1(A)
 
 ################################################
 function plot_evolution()
-outfolder = joinpath(@__DIR__, "outputs_mismip_exp1")
-files = [joinpath(outfolder, file) for file in readdir(outfolder) if endswith( joinpath(outfolder, file), ".jld2") ] 
-nout = length(files)
+    outfolder = "outputs_mismip_exp1"
+    files = [joinpath(outfolder, file) for file in readdir(outfolder) if endswith( joinpath(outfolder, file), ".jld2") ] 
+    nout = length(files)
 
-#get the bed
-dd = load(files[1])
-bed  = dd["b"][:,1]
-x    = dd["x"][:,1]
-nx = length(bed[:,1])
-h_out = zeros(nx, nout)
-s_out = zeros(nx, nout)
-ib_out = zeros(nx, nout)
-t_out = zeros(1,nout)
- 
-#load solution files into matrix
-for i = 1:nout
-    fname = files[i]
-    d = load(fname)
+    #get the bed
+    dd = load(files[1])
+    bed  = dd["b"][:,1]
+    x    = dd["x"][:,1]
+    nx = length(bed[:,1])
+    h_out = zeros(nx, nout)
+    s_out = zeros(nx, nout)
+    ib_out = zeros(nx, nout)
+    t_out = zeros(1,nout)
     
-    h_out[:,i] = d["h"][:,1]
-    ib_out[:,i] = d["s"][:,1] .- d["h"][:,1]
-    s_out[:,i] = d["s"][:,1]
-    t_out[i] = d["t"]
-end
-    
-#plot things
-plot1 = Plots.plot(x, bed, legend = false)
-Plots.plot!(x, s_out)
-Plots.plot!(x, ib_out)
+    #load solution files into matrix
+    for i = 1:nout
+        fname = files[i]
+        d = load(fname)
+        
+        h_out[:,i] = d["h"][:,1]
+        ib_out[:,i] = d["s"][:,1] .- d["h"][:,1]
+        s_out[:,i] = d["s"][:,1]
+        t_out[i] = d["t"]
+    end
+        
+    #plot things
+    plot1 = Plots.plot(x, bed, legend = false)
+    Plots.plot!(x, s_out)
+    Plots.plot!(x, ib_out)
 
-display(plot1)
-return nothing
+    display(plot1)
 end
 
+println("Displaying a plot for you!")
 plot_evolution()

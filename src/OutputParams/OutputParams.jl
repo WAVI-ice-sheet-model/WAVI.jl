@@ -51,10 +51,10 @@ function OutputParams(;
     #check output_freq
     ((output_freq == Inf) || (output_freq > 0)) || throw(ArgumentError("output frequency must be positive or Inf"))
 
-    #if you don't find folder, set it to the working directory
+    #if you don't find folder, be helpful and create it for the user
     if ~isdir(output_path)
-        @warn string("Did not find output path ", output_path, ". Any outputs will go to the working directory", pwd())
-        output_path = "./"
+        @warn string("Did not find output path ", output_path, ", we're creating it for you!")
+        mkdir(output_path)
     end
 
     #append a "/" to folder if it doesn't have one

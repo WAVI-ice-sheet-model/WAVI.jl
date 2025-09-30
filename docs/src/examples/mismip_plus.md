@@ -11,10 +11,10 @@ First let's make sure we have all required packages installed.
 
 ```julia 
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/RJArthern/WAVI.jl.git", rev = "main"))
+Pkg.add(PackageSpec(url="https://github.com/WAVI-ice-sheet-model/WAVI.jl.git", rev = "main"))
 Pkg.add("Plots")
-Pkg.add("NetCDF")
-using WAVI, Plots, NetCDF
+Pkg.add("NCDatasets")
+using WAVI, Plots, NCDatasets
 ```
 
 ## Basal Topography
@@ -51,7 +51,7 @@ plt =  Plots.heatmap(x/1e3, y/1e3, mismip_plus_bed.(xx,yy)',
 plot!(size = (600,400))
 ```
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_bed.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_bed.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 ## Boundary Conditions 
@@ -116,15 +116,11 @@ timestepping_params = TimesteppingParams(dt = 0.5,
 ```
 Note that as in other example, we have to specify the end time as `10000.` (a float number) rather than `10000` (an integer) because WAVI.jl expects the same numeric type for the timestep `dt` and the end time `end_time`.
 
-We'll output the solution along the way, and use this to convince ourselves later than we are in steady state. First let's make a directory to store the output
-```julia
-folder = joinpath(@__DIR__, "mismip");
-isdir(folder) && rm(folder, force = true, recursive = true);
-mkdir(folder) ;
-```
+We'll output the solution along the way, and use this to convince ourselves later than we are in steady state. 
 
-Then we define our output parameters. We'll output the thickness and grounded fraction every 200 years, and set the zip_format keyword argument to zip the output files to an nc format when the simulation is finished.
+First we define our output parameters. We'll output the thickness and grounded fraction every 200 years, and set the zip_format keyword argument to zip the output files to an nc format when the simulation is finished.
 ```julia
+folder = "mismip_1_output"
 output_params = OutputParams(outputs = (h = model.fields.gh.h,grfrac = model.fields.gh.grounded_fraction),
                             output_freq = 200.,
                             output_path = folder,
@@ -167,21 +163,46 @@ plot!(size = (600,400))
 You can see, by comparing with the plot of the bed earlier, that the grounding line sits on an overdeepened section of the bed! You can also compare it with the other MISMIP submissions (figure 3 in [Cornford et al., 2020](https://tc.copernicus.org/articles/14/2283/2020/)) and see that the grounding line position agrees pretty well with other models, despite being lower resolution.
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_thickness_and_gl.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_thickness_and_gl.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 Finally, let's check that it's in steady state, by looking at the evolution of the volume above floatation:
 ```julia
 filename = joinpath(folder, "outfile.nc");
+<<<<<<< HEAD
+
+ds = NCDataset(filename, "r") do ds
+    h_data = ds["h"][:, :, :]
+    grfrac_data = ds["grfrac"][:, :, :]
+    time_data = ds["TIME"][:]
+
+    #compute the volume above floatation
+    vaf = zeros(length(time_data)) 
+
+    for i = 1:length(time_data)
+        vaf[i] = volume_above_floatation(h_data[:, :, i], 
+                                         simulation.model.fields.gh.b, 
+                                         Ref(simulation.model.params), 
+                                         simulation.model.grid)
+    end
+
+    return time_data, vaf
+end
+
+time, vaf = ds
+
+Plots.plot(time, vaf[:]/1e9,
+=======
 h = ncread(filename, "h");
 grfrac = ncread(filename, "grfrac");
-time = ncread(filename, "TIME");
+tm = ncread(filename, "TIME");
 #compute the volume above floatation
-vaf = zeros(1,length(time))
-for i = 1:length(time)
+vaf = zeros(1,length(tm))
+for i = 1:length(tm)
     vaf[i] = volume_above_floatation(h[:,:,i], simulation.model.fields.gh.b, Ref(simulation.model.params), simulation.model.grid )
 end
-Plots.plot(time, vaf[:]/1e9,
+Plots.plot(tm, vaf[:]/1e9,
+>>>>>>> f78657e349634950e3aeebd5b278a0bf6b94d87b
              marker = true, 
              label = :none,
              xlabel = "time (years)",
@@ -191,7 +212,7 @@ Plots.plot(time, vaf[:]/1e9,
 The volume above floatation reaches a plateau, suggesting that we have indeed reached a steady state.
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_vaf_evolution.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/MISMIP/mismip_vaf_evolution.png" alt="" title="" width="600" height="600" /></center>
 ```
 
 Finally, we clear up the files we just outputted

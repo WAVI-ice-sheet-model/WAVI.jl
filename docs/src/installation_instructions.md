@@ -6,7 +6,7 @@ Julia command prompt) to add the package and instantiate/build all dependencies
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(url="https://github.com/RJArthern/WAVI.jl")
+julia> Pkg.add(url="https://github.com/WAVI-ice-sheet-model/WAVI.jl")
 
 julia> Pkg.instantiate()
 ```
@@ -17,7 +17,7 @@ The above will install the WAVI code in the 'main' branch. To install code conta
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(url="https://github.com/RJArthern/WAVI.jl", rev="BranchName")
+julia> Pkg.add(url="https://github.com/WAVI-ice-sheet-model/WAVI.jl", rev="BranchName")
 
 julia> Pkg.instantiate()
 ```

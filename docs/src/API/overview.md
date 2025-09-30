@@ -3,7 +3,7 @@
 WAVI.jl uses a hierachical data structure, which is shown schematically below. This page provides a brief overview of each of these structures; you can find out more information about each of these via the tabs in the sidebar.
 
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/build-docs/docs/src/assets/structure_flowchart.jpg" alt="" title="" width="500" height="400" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/build-docs/docs/src/assets/structure_flowchart.jpg" alt="" title="" width="500" height="400" /></center>
 ```
 
 At the top of the hierarchy are `Simulations`. Simulations are to be ran! A `Simulation` object must be passed the sub-structures describing the following (terms in brackets are the names of the corresponding structures in `WAVI.jl`):

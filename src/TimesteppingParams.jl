@@ -23,7 +23,7 @@ TimesteppingParams(;
                     dt = 1.0,
                     ntimesteps_velocity_update = 1,
                     end_time = 1.0,
-                    t0 = nothing,
+                    n_iter_total = nothing, 
                     chkpt_freq = Inf,
                     pchkpt_freq = Inf,
                     chkpt_path = './',
@@ -39,7 +39,7 @@ Keyword arguments
 - 'dt': Model timestep
 - 'ntimesteps_velocity_update': number of substeps at which to update the velocity (i.e. the velocity is updated every dt*ntimesteps_velocity_update)
 - 'end_time': Simulation termination time
-- 't0': Starting time of the simulation
+- 'n_iter_total': Total number of timesteps counting from zero
 - 'chkpt_freq': Frequency of outputting temporary checkpoints
 - 'pchkpt_freq': Frequecy with which permanent checkpoints are pass
 - 'chkpt_path' : Path to location checkpoint output
@@ -51,7 +51,6 @@ function TimesteppingParams(;
                         ntimesteps_velocity_update = 1,
                         end_time = nothing,
                         n_iter_total = nothing, 
-                        t0 = nothing,
                         chkpt_freq = Inf,
                         pchkpt_freq = Inf,
                         chkpt_path = "./",
@@ -69,7 +68,7 @@ function TimesteppingParams(;
 
 
     #check compatibility of n_iter_total and end_time, and compute them 
-    end_time, n_iter_total = compute_iterations_and_end_time(end_time, n_iter_total,dt)
+    end_time, n_iter_total = compute_iterations_and_end_time(end_time, n_iter_total, dt)
 
     #compute number of timesteps checkpoint number of timesteps
     chkpt_freq == Inf ? n_iter_chkpt = Inf : n_iter_chkpt  = round(Int, chkpt_freq/dt)

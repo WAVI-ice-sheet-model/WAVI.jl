@@ -13,10 +13,8 @@ First let's make sure we have all required packages installed. We're also going 
 
 ```julia
 using Pkg
-Pkg.add("https://github.com/RJArthern/WAVI.jl")
-Pkg.add("Plots")
-Pkg.add("Downloads")
-using WAVI, Plots, Downloads
+Pkg.add("https://github.com/WAVI-ice-sheet-model/WAVI.jl")
+using WAVI, Downloads, Plots
 ```
 
 ## Reading in data
@@ -70,10 +68,10 @@ Before moving on, let's have a look at the h_mask (i.e. which grid points are in
 Plots.spy(hm)
 ```
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/WAIS/hmask_spy.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/WAIS/hmask_spy.png" alt="" title="" width="600" height="600" /></center>
 ```
 
-Those familiar with it will recognise the ice fronts of Pine Island, Thwaites and Smith ice shelves and the drainage basins of their glacies. For those not familiar, trust me: this is a rough outline of the Amundsen sea sector of West Antarctica! 
+Those familiar with it will recognise the ice fronts of Pine Island, Thwaites and Smith ice shelves and the drainage basins of their glaciers. For those not familiar, trust me: this is a rough outline of the Amundsen sea sector of West Antarctica! 
 
 Next up: the bed, which will be passed to a model via the `bed_elevation` keyword article:
 ```julia
@@ -93,27 +91,27 @@ plt = Plots.heatmap(grid.xxh[:,1]/1e3, grid.yyh[1,:]/1e3, bed',
                     framestyle = "box")
 ```
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/WAIS/WAIS_bed.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/WAIS/WAIS_bed.png" alt="" title="" width="600" height="600" /></center>
 ```
-It's a little hard to see here, but the bed gets deeper towards the right of the plot, which is the direction of retreat of Thwaites and Pine Island Glaciers. This might lead to feedbacks which promote their retreat (the so-called '[marine ice sheet instability](https://www.antarcticglaciers.org/antarctica-2/west-antarctic-ice-sheet-2/marine-ice-sheets/)')
+It's a little hard to see here, but the bed gets deeper towards the right of the plot, which is the direction of retreat of Thwaites and Pine Island Glaciers. This might lead to feedbacks which promote their retreat (the so-called '[marine ice sheet instability](https://www.antarcticglaciers.org/antarctica-2/west-antarctic-ice-sheet-2/marine-ice-sheets/)').
 
 Initial temperature, damage, viscosity, and thickness will be passed to a model via initial conditions (these quantities are time dependent and would evolve with the simulation)
  
 ```julia
 temp=Array{Float64}(undef,nx,ny,nσ);
-read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_3Dtemp_clip_noNan_BedmachineV3.bin"),temp)
-temp.=ntoh.(temp)
+read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_3Dtemp_clip_noNan_BedmachineV3.bin"),temp);
+temp.=ntoh.(temp);
 
 damage=Array{Float64}(undef,nx,ny,nσ);
-read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_damage3D_clip_noNan_BedmachineV3.bin"),damage)
-damage.=ntoh.(damage)
+read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_damage3D_clip_noNan_BedmachineV3.bin"),damage);
+damage.=ntoh.(damage);
 
 h=Array{Float64}(undef,nx,ny);
 read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_thickness_clip_noNan_BedmachineV3.bin"),h);
-h.=ntoh.(h)
+h.=ntoh.(h);
 
 viscosity=Array{Float64}(undef,nx,ny,nσ);
-read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_viscosity3D_clip_noNan_BedmachineV3.bin"),viscosity)
+read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_viscosity3D_clip_noNan_BedmachineV3.bin"),viscosity);
 viscosity.=ntoh.(viscosity);
 
 initial_conditions = InitialConditions(initial_thickness = h,initial_viscosity = viscosity,initial_temperature = temp,initial_damage = damage)
@@ -142,7 +140,7 @@ plt = Plots.heatmap(grid.xxh[:,1]/1e3, grid.yyh[1,:]/1e3, model.fields.gh.av_spe
                     clim=(0,4000))
 ```
 ```@raw html
-<center><img src="https://raw.githubusercontent.com/RJArthern/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/WAIS/WAIS_velocs.png" alt="" title="" width="600" height="600" /></center>
+<center><img src="https://raw.githubusercontent.com/WAVI-ice-sheet-model/WAVI.jl/docs-reconcile/docs/src/assets/example-plots/WAIS/WAIS_velocs.png" alt="" title="" width="600" height="600" /></center>
 ```
 Ice velocities on ice shelves can be above 5km/yr! Inland, they're smaller.
 
