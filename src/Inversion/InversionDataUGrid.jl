@@ -16,24 +16,28 @@ end
     
 """
     InversionDataUGrid(;
-            nxu,
-            nyu,
-            mask = trues(nxu,nyu),
-            u_isfixed = falses(nxu,nyu)
-            )
+                nxu,
+                nyu,
+                mask = trues(nxu,nyu),
+                u_isfixed = falses(nxu,nyu),
+                speed_u = zeros(nxu,nyu),
+                residual = zeros(nxu,nyu),
+                model = model,
+                )
 
 Construct a WAVI.jl InversionDataUGrid with size (nxu,nyu)
-InversionDataUGrid stores fields that are defined on the problem's U grid. 
+InversionDataUGrid stores fields that are defined on the problem's DataU grid. 
 (Co-ordinates of InversionDataUGrid stored in a Grid under xxu and yyu fields)
 
 Keyword arguments
 =================
     - 'nxu': (required) Number of grid cells in x-direction in InversionDataUGrid (should be same as grid.nx + 1)
-            Note that we store the grid size here, even though it can be easily inferred from grid, to increase transparency in velocity solve.
     - 'nyu': (required) Number of grid cells in y-direction in InversionDataUGrid (should be same as grid.ny)
     - 'mask': Mask specifying the model domain with respect to U grid
-    - 'u_isfixed' Mask specifying where u velocities are fixed.
-    - 'speed_u' surface speed on u data
+    - 'u_isfixed': Mask specifying where u velocities are fixed.
+    - 'speed_u': u-component of surface speed data
+    - 'residual': 
+    - 'model': needed to smooth the speed data
 """
 function InversionDataUGrid(;
                 nxu,

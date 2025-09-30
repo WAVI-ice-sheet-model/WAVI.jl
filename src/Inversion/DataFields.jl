@@ -1,7 +1,3 @@
-#include("InversionDataHGrid.jl")
-#include("InversionDataUGrid.jl")
-#include("InversionDataVGrid.jl")
-
 
 """
     Structure to hold all datafield variables in WAVI.jl
@@ -15,7 +11,7 @@ end
 """
     setup_datafields(grid)
 
-Acts as a constructor for the datafields (no explicit constructor as datafields `only ever called when setting up a model)
+Acts as a constructor for the datafields (no explicit constructor as datafields only ever called when setting up a model)
 """
 
 function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate, dhdtacc_mask, model)

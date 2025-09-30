@@ -9,31 +9,14 @@ function JKVstep!(inversion_simulation)
    
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
-    model_inversion_links!(model,inversion)
+    update_betas_dirichlet!(model,inversion)
     update_rheological_operators!(model)
-
-  #  solve_dirichelt_velocities!(model,inversion,clock)
-
- #   t_start=time()  
- #   mem_usage = @allocated  solve_dirichelt_neumann_velocities!(model, inversion,clock) 
- #   println("     Memory allocated in solving dirichlet and neumann velocs is : ", mem_usage, " bytes") 
- #   t_end = time()  # Get end time
- #   println("     Solving dirichlet and neumann velocs took: ", t_end - t_start, " seconds")
- #   GC.gc()
-    t_start=time()  
-  #  println("         Memory before function call model: ", Base.summarysize(model))
-   # println("         Memory before function call inversion: ", Base.summarysize(inversion))
     solve_dirichelt_neumann_velocities!(model, inversion, clock)
-    #println("         Memory after function call model: ", Base.summarysize(model))
-    #println("         Memory after function call inversion: ", Base.summarysize(inversion))
-    t_end = time()  # Get end time
-    println(" Solving dirichlet and neumann velocs took: ", t_end - t_start, " seconds")
-    GC.gc()
-    
-    #do updates update_velocity does for both Neumann and Dirichlet velocities:
     update_surf_stress_dirichelt!(inversion)
      
+
     ###ISSUE is that gh.quad are only on model grid and not also inversion, but I don't want to copy them, or to call model and inversion to all these functions...
+
     update_velocities_on_h_grid!(model)  
     update_velocities_on_h_grid_dirichlet!(inversion)
     #
@@ -67,15 +50,14 @@ function JKVstep!(inversion_simulation)
     update_drag_heating!(inversion)
    
     update_β_inversion!(model,inversion)
-
     update_preBfactor_inversion!(model,inversion)
-   # update_preBfactor_3d!(model)
     update_damage!(model)
     update_glen_b!(model)
 
     inner_update_viscosity!(model)
     update_av_viscosity!(model)
     update_quadrature_falpha!(model)
+    update_viscosities_quadratures_dirichlet(model,inversion)
   
     update_JKV!(model,inversion,clock)
     update_JRMS!(model,inversion,clock)
@@ -106,11 +88,8 @@ function run_inversion_simulation!(inversion_simulation)
 
 
 
-   # while !converged && (inversion_simulation.clock.n_iter+1 < inversion.inversion_params.max_JKV_iterations+1)
-     for   i = (inversion_simulation.clock.n_iter+1): JKVstepping_params.n_iter_total
-        #      for i = (inversion_simulation.clock.n_iter+1):JKVstepping_params.n_iter_total
+    for   i = (inversion_simulation.clock.n_iter+1): JKVstepping_params.n_iter_total
 
-      #  i=inversion_simulation.clock.n_iter+1
       if inversion_simulation.clock.n_iter == 0
       update_surface_elevation!(model)
       update_geometry_on_uv_grids!(model)
@@ -121,6 +100,7 @@ function run_inversion_simulation!(inversion_simulation)
       start_guess_η_inversion!(model,inversion)
       update_quadrature_falpha!(model)
       update_av_viscosity!(model)
+      update_viscosities_quadratures_dirichlet(model,inversion)
       end
 
         JKVstep!(inversion_simulation)

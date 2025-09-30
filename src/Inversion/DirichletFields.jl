@@ -29,13 +29,14 @@ function setup_dirichletfields(grid,bed_array,solver_params,initial_conditions,p
 
     #h-grid
     #gh=HGrid(grid, params) #uncomment if using the explicit constructor method
+      h =  deepcopy(initial_conditions.initial_thickness)
     gh=HGrid(
     nxh=grid.nx,
     nyh=grid.ny,
     mask=h_mask,
     h_isfixed = grid.h_isfixed,
     b = bed_array,
-  #  h = h,
+    h = h
    # ηav = ηav,
     #grounded_fraction = grounded_fraction
     )
@@ -84,7 +85,7 @@ function setup_dirichletfields(grid,bed_array,solver_params,initial_conditions,p
         end
     end
       
-    preBfactor=zeros(grid.nx,grid.ny,grid.nσ)
+    preBfactor=ones(grid.nx,grid.ny,grid.nσ)
 
     g3d=SigmaGrid(
     nxs=grid.nx,

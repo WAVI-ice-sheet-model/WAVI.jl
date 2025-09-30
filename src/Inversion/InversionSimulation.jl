@@ -9,6 +9,7 @@ end
 """
     InversionSimulation(;
             model = nothing,
+            inversion = nothing,
             JKVstepping_params = nothing,
             output_params = OutputParams(),
             pickup_output_update_flag = false)
@@ -32,19 +33,14 @@ function InversionSimulation(;
 
     (JKVstepping_params !== nothing) || throw(ArgumentError("You must specify a JKVstepping parameters"))
 
-   # #set number of JKVsteps per output:
-   # output_params.n_iter_out =  JKVstepping_params.n_iter_out
 
     #initialize the clock
     clock = Clock(n_iter = 0, time = 0.0)
 
-   # #set the JKVstep in model parameters (fudge to allow model to see the JKVstep in velocity solve)
-   #  model = set_dt_in_model!(model, JKVstepping_params.dt)
-
     #build the simulation
     inversion_simulation = InversionSimulation(model, inversion, JKVstepping_params, output_params, clock)
 
-    #pickup? NOT SETUP FOR PICKUP YET!!!
+    #pickup?
     pickup_inversion!(inversion_simulation, pickup_output_update_flag)
 
     return inversion_simulation 

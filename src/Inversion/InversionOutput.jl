@@ -7,11 +7,13 @@ end
 """
 InversionOutput(; <kwargs>)
 
-Construct a WAVI.jl parameters object for holding physical parameters.
+Construct a WAVI.jl InversionOutput object for holding the inversion output parameters.
+
 
 Keyword arguments
 =================
-- 
+- JKV:                   Vector of JKV values
+- JRMS:                  Vector of JRMS values
 """
 function InversionOutput(; JRMS = nothing,
                         JKV=nothing )

@@ -1,17 +1,16 @@
 #run inversion 
 
-function model_inversion_links!(model,inversion)
+"""
+     update_betas_dirichlet!(model,inversion)
+
+update beta and beta_eff for the dirichlet solution by setting as equal to the Neumann (model) fields
+"""
+
+function update_betas_dirichlet!(model,inversion)
     inversion.fields.gh.β[inversion.fields.gh.mask] .= model.fields.gh.β[model.fields.gh.mask]
-    inversion.fields.gh.ηav[inversion.fields.gh.mask] =model.fields. gh.ηav[model.fields.gh.mask]
-    inversion.fields.gh.quad_f0[inversion.fields.gh.mask] =model.fields.gh.quad_f0[model.fields.gh.mask]
-    inversion.fields.gh.quad_f1[inversion.fields.gh.mask] =model.fields.gh.quad_f1[model.fields.gh.mask]
-    inversion.fields.gh.quad_f2[inversion.fields.gh.mask] =model.fields.gh.quad_f2[model.fields.gh.mask]
     inversion.fields.gh.βeff[inversion.fields.gh.mask]  =model.fields.gh.βeff[model.fields.gh.mask]
     inversion.fields.gu.βeff[inversion.fields.gu.mask] =model.fields.gu.βeff[model.fields.gu.mask]
     inversion.fields.gv.βeff[inversion.fields.gv.mask] =model.fields.gv.βeff[model.fields.gv.mask]
- for k=1:model.fields.g3d.nσs
-    inversion.fields.g3d.η[inversion.fields.gh.mask,k] =model.fields.g3d.η[model.fields.gh.mask,k]
- end
  return inversion
 end
 
@@ -25,7 +24,6 @@ function start_guess_β_inversion!(model::AbstractModel, inversion)
     @unpack inversion_params=inversion
     aground = (gh.haf .>= 0)
     gh.β .= inversion_params.βfloating_start*ones(gh.nxh,gh.nyh)
- #   gh.β[gh.grounded_fraction .< 0.5].=
     gh.β[aground].=inversion_params.βgrounded_start
     return model
 end
@@ -71,7 +69,6 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         op_C=get_op_C(model,inversion)
 
         #using inbuilt function op_diag:
-        #pre-allocate??
         A_diag_vals=get_op_diag(model,op_A)
         M1 = Diagonal(A_diag_vals)
         M2=[]
@@ -1302,9 +1299,7 @@ Update the preBfactor in the inversion
 """
 function update_preBfactor_inversion!(model::AbstractModel,inversion)
     @unpack gh=model.fields
-   # @unpack gh_inversion=inversion.fields
     @unpack inversion_params=inversion
-    #####MASKS OR NOT HERE??
     BPower=inversion_params.Bpower_shelf.*ones(gh.nxh,gh.nyh)
     #### WHAT ABOUT PARTIALLY FLOATING?!
     aground = (gh.haf .>= 0)
@@ -1353,7 +1348,7 @@ end
 """
     update_damage!(model::AbstractModel)
 
-update to damage in the  inversion on the 3d grid at all sigma levels.
+update to damage in the inversion on the 3d grid at all sigma levels.
 """
 function update_damage!(model::AbstractModel)
     @unpack gh,g3d=model.fields
@@ -1396,6 +1391,24 @@ function update_glen_b!(model::AbstractModel)
     
     return model
 end
+
+"""
+    update_viscosities_quadratures_dirichlet(model::AbstractModel,inversion)
+
+Update the viscosities and quadrates for the dirichlet solution by setting as equal to the Neumann (model) fields
+"""
+
+function update_viscosities_quadratures_dirichlet(model::AbstractModel,inversion)
+    inversion.fields.gh.ηav[inversion.fields.gh.mask] =model.fields. gh.ηav[model.fields.gh.mask]
+    inversion.fields.gh.quad_f0[inversion.fields.gh.mask] =model.fields.gh.quad_f0[model.fields.gh.mask]
+    inversion.fields.gh.quad_f1[inversion.fields.gh.mask] =model.fields.gh.quad_f1[model.fields.gh.mask]
+    inversion.fields.gh.quad_f2[inversion.fields.gh.mask] =model.fields.gh.quad_f2[model.fields.gh.mask]
+ for k=1:model.fields.g3d.nσs
+    inversion.fields.g3d.η[inversion.fields.gh.mask,k] =model.fields.g3d.η[model.fields.gh.mask,k]
+ end
+    return inversion
+end
+
 
 """
     update_JKV!(model::AbstractModel)

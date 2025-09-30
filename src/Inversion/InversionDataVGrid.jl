@@ -16,11 +16,14 @@ end
     
 """
     InversionDataVGrid(;
-            nxv,
-            nyv,
-            mask = trues(nxv,nyv),
-            v_isfixed = falses(nxv,nyv)
-            )
+                nxv,
+                nyv,
+                mask = trues(nxv,nyv),
+                v_isfixed = falses(nxv,nyv),
+                speed_v = zeros(nxv,nyv),
+                residual = zeros(nxv,nyv),
+                model = model
+                )
 
 Construct a WAVI.jl InversionDataVGrid with size (nxv,nyv)
 InversionDataVGrid stores fields that are defined on the problem's v grid. 
@@ -32,8 +35,10 @@ Keyword arguments
             Note that we store the grid size here, even though it can be easily inferred from grid, to increase transparency in velocity solve.
     - 'nyv': (required) Number of grid cells in y-direction in InversionDataVGrid (should be same as grid.ny)
     - 'mask': Mask specifying the model domain with respect to v grid
-    - 'u_isfixed' Mask specifying where v velocities are fixed.
-    - 'speed_v' surface speed on v data
+    - 'u_isfixed': Mask specifying where v velocities are fixed.
+    - 'speed_v': surface speed on v data
+    - 'residual': 
+    - 'model': needed to smooth the speed data
 """
 function InversionDataVGrid(;
                 nxv,
