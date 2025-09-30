@@ -18,3 +18,12 @@ driver_updated.jl
 *.data
 **/Attribution_driver
 
+example_drivers/Rosie_examples/relax_driver_10km.jl
+example_drivers/Rosie_examples/save_surf_speeds.jl
+example_drivers/Rosie_examples/PIG_idealised.jl
+example_drivers/MISMIP/MISMIP_driver.jl
+Project.toml
+Project.toml
+gendata.m
+PIG_ideal_bed_plot.m
+Project.toml
