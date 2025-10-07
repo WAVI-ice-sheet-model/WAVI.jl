@@ -41,6 +41,7 @@ function inner_update!(model::AbstractModel)
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
     update_rheological_operators!(model)
+  #  update_surface_velocities_on_uv_grid!(model)
     return model
 end
 

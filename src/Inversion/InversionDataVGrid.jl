@@ -11,7 +11,6 @@ struct InversionDataVGrid{T <: Real, N <: Integer}
                spread :: SparseMatrixCSC{T,N}                  # Spread matrix: take model domain to full domain
          spread_inner :: SparseMatrixCSC{T,N}                  # Spread matrix: take interior of model domain to full domain
               speed_v :: Array{T,2}                            # Surface speed data on v
-            residual  :: Array{T,2}                            # Residuals in y direction
 end
     
 """
@@ -20,9 +19,7 @@ end
                 nyv,
                 mask = trues(nxv,nyv),
                 v_isfixed = falses(nxv,nyv),
-                speed_v = zeros(nxv,nyv),
-                residual = zeros(nxv,nyv),
-                model = model
+                speed_v = zeros(nxv,nyv)
                 )
 
 Construct a WAVI.jl InversionDataVGrid with size (nxv,nyv)
@@ -37,20 +34,16 @@ Keyword arguments
     - 'mask': Mask specifying the model domain with respect to v grid
     - 'u_isfixed': Mask specifying where v velocities are fixed.
     - 'speed_v': surface speed on v data
-    - 'residual': 
-    - 'model': needed to smooth the speed data
 """
 function InversionDataVGrid(;
                 nxv,
                 nyv,
                 mask = trues(nxv,nyv),
                 v_isfixed = falses(nxv,nyv),
-                speed_v = zeros(nxv,nyv),
-                residual = zeros(nxv,nyv),
-                model = model
+                speed_v = zeros(nxv,nyv)
                 )
 
-    @unpack gu,gv,gh = model.fields
+#    @unpack gu,gv,gh = model.fields
 
     #check the sizes of inputs
     (size(mask) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to InversionDataVGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
@@ -59,7 +52,7 @@ function InversionDataVGrid(;
 
 
     #refine masks to only include points in the model mask:
-    mask = ((mask .== 1) .& (gv.mask .== 1))
+   # mask = ((mask .== 1) .& (gv.mask .== 1))
     mask=convert(Array{Bool,2}, mask)
 
 
@@ -73,7 +66,7 @@ function InversionDataVGrid(;
     spread = sparse(samp')
     spread_inner = sparse(samp_inner')
 
-    #Do smoothing here:
+#=     #Do smoothing here:
     vs_data_vec=speed_v[mask]
     vs_data_spread=spread*vs_data_vec
     #
@@ -93,11 +86,18 @@ function InversionDataVGrid(;
     speed_v=vs_data_smoothed
 
     ##pre-select points not near data gaps:  
-    v_neargap = imfilter((gv.mask .& .!(mask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+ #   v_neargap = imfilter((gv.mask .& .!(mask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+     data_gap = gv.mask .& .!mask 
+     outside_model = .!gv.mask
+     gap_mask = data_gap .| outside_model 
+      v_neargap = imfilter((gap_mask) .|> Int, Kernel.ones(3,3),  Pad(:replicate)) .> 0
+    mask = ((mask .== 1) .& (gv.mask .== 1) .& (v_neargap .== 0)) 
 
-    mask = ((mask .== 1) .& (gv.mask .== 1) .& (v_neargap .== 0))
-    #
 
+     #  mask[1, :] .= false
+     #  mask[end, :] .= false
+     #  mask[:,1] .= false
+      # mask[:, end] .= false
 
     #construct operators
     n = count(mask)
@@ -107,7 +107,7 @@ function InversionDataVGrid(;
     samp = sparse(1:n,(1:(nxv*nyv))[mask[:]],ones(n),n,nxv*nyv)
     samp_inner = sparse(1:ni,(1:(nxv*nyv))[mask_inner[:]],ones(ni),ni,nxv*nyv)
     spread = sparse(samp')
-    spread_inner = sparse(samp_inner')
+    spread_inner = sparse(samp_inner') =#
 
 
     #size assertions
@@ -136,7 +136,6 @@ function InversionDataVGrid(;
                 samp_inner,
                 spread,
                 spread_inner,
-                speed_v,
-                residual
+                speed_v
                 )
 end

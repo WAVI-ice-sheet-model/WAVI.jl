@@ -18,6 +18,7 @@ function update_state!(model, clock)
     update_surf_speed!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+    update_surface_velocities_on_uv_grid!(model)
     return nothing
 end
 
@@ -40,6 +41,7 @@ function update_state!(model)
     update_surf_speed!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+    update_surface_velocities_on_uv_grid!(model)
     return nothing
 end
 
@@ -60,6 +62,7 @@ function update_state_novelocity!(model, clock)
     update_velocities_on_h_grid!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+     update_surface_velocities_on_uv_grid!(model)
     return nothing
 end
 

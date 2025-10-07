@@ -11,7 +11,6 @@ struct InversionDataUGrid{T <: Real, N <: Integer}
                spread :: SparseMatrixCSC{T,N}                  # Spread matrix: take model domain to full domain
          spread_inner :: SparseMatrixCSC{T,N}                  # Spread matrix: take interior of model domain to full domain
               speed_u :: Array{T,2}                            # Surface speed data on u
-             residual :: Array{T,2}                            # Residuals in x direction
 end
     
 """
@@ -21,8 +20,6 @@ end
                 mask = trues(nxu,nyu),
                 u_isfixed = falses(nxu,nyu),
                 speed_u = zeros(nxu,nyu),
-                residual = zeros(nxu,nyu),
-                model = model,
                 )
 
 Construct a WAVI.jl InversionDataUGrid with size (nxu,nyu)
@@ -36,20 +33,15 @@ Keyword arguments
     - 'mask': Mask specifying the model domain with respect to U grid
     - 'u_isfixed': Mask specifying where u velocities are fixed.
     - 'speed_u': u-component of surface speed data
-    - 'residual': 
-    - 'model': needed to smooth the speed data
 """
 function InversionDataUGrid(;
                 nxu,
                 nyu,
                 mask = trues(nxu,nyu),
                 u_isfixed = falses(nxu,nyu),
-                speed_u = zeros(nxu,nyu),
-                residual = zeros(nxu,nyu),
-                model = model,
+                speed_u = zeros(nxu,nyu)
                 )
 
-    @unpack gu,gv,gh = model.fields
 
     #check the sizes of inputs
     (size(mask) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
@@ -57,7 +49,7 @@ function InversionDataUGrid(;
     (size(speed_u) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
 
     #refine masks to only include points in the model mask:
-    mask = ((mask .== 1) .& (gu.mask .== 1))
+    # mask = ((mask .== 1) .& (gu.mask .== 1))
     mask=convert(Array{Bool,2}, mask)
 
     #construct operators
@@ -70,7 +62,7 @@ function InversionDataUGrid(;
     spread = sparse(samp')
     spread_inner = sparse(samp_inner')
 
-    #Smooth velocities:
+  #=    #Smooth velocities:
     us_data_vec=speed_u[mask]
     us_data_spread=spread*us_data_vec
     #
@@ -86,15 +78,25 @@ function InversionDataUGrid(;
 
     us_data_smoothed=zeros(gu.nxu,gu.nyu)
     us_data_smoothed[mask]=us_data_sampi
-    speed_u=us_data_smoothed
-
+    speed_u=us_data_smoothed 
+ 
     ##pre-select points not near data gaps:  
-    u_neargap = imfilter((gu.mask .& .!(mask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+#    u_neargap = imfilter((gu.mask .& .!(mask .> 0)) .|> Int, Kernel.ones(3,3), Pad(1,1)) .> 0
+     data_gap = gu.mask .& .!mask 
+     outside_model = .!gu.mask
+     gap_mask = data_gap .| outside_model
+      u_neargap = imfilter((gap_mask) .|> Int, Kernel.ones(3,3),  Pad(:replicate)) .> 0
 
     mask = ((mask .== 1) .& (gu.mask .== 1) .& (u_neargap .== 0))
-    #
+    
+    mask[1, :] .= false
+    mask[end, :] .= false
+ #   mask[:,1] .= false
+ #   mask[:, end] .= false 
+
 
     #construct operators
+    
     n = count(mask)
     mask_inner = mask .& .! u_isfixed
     ni = count(mask_inner)
@@ -102,7 +104,7 @@ function InversionDataUGrid(;
     samp = sparse(1:n,(1:(nxu*nyu))[mask[:]],ones(n),n,nxu*nyu)
     samp_inner = sparse(1:ni,(1:(nxu*nyu))[mask_inner[:]],ones(ni),ni,nxu*nyu)
     spread = sparse(samp')
-    spread_inner = sparse(samp_inner')
+    spread_inner = sparse(samp_inner') =#
 
 
     #size assertions
@@ -131,7 +133,6 @@ function InversionDataUGrid(;
                 samp_inner,
                 spread,
                 spread_inner,
-                speed_u,
-                residual
+                speed_u
                 )
 end

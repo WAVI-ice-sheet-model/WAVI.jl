@@ -106,7 +106,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
         θ = θ,
         Φ = Φ,
         glen_b = g3_glen_b,
-        quadrature_weights = grid.quadrature_weights
+        quadrature_weights = grid.quadrature_weights,
         preBfactor = preBfactor
     )
 

@@ -1,3 +1,6 @@
+include("InversionDataHGrid.jl")
+include("InversionDataUGrid.jl")
+include("InversionDataVGrid.jl")
 
 """
     Structure to hold all datafield variables in WAVI.jl
@@ -14,7 +17,20 @@ end
 Acts as a constructor for the datafields (no explicit constructor as datafields only ever called when setting up a model)
 """
 
-function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate, dhdtacc_mask, model)
+#function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,accumulation_rate, dhdtacc_mask)
+function DataFields(;
+                    grid = nothing,
+                    speed_u = nothing,
+                    speed_u_mask = nothing,
+                    speed_v = nothing,
+                    speed_v_mask = falses(nxv,nyv),
+                    dhdt = nothing,
+                    accumulation_rate = nothing,
+                    dhdtacc_mask = nothing)
+ 
+    grid = deepcopy(grid)
+  #  accumulation_rate = deepcopy(model.params.accumulation_rate)
+
     #Define masks for points on h-, u-, v- and c-grids that lie in model domain.
     h_mask = dhdtacc_mask 
     u_mask = speed_u_mask
@@ -41,8 +57,8 @@ function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,ac
     nyu=grid.ny,
     mask=u_mask,
     u_isfixed=grid.u_isfixed,
-    speed_u=speed_u,
-    model=model
+    speed_u=speed_u
+   # model=model
     )
 
     #v-grid
@@ -51,8 +67,8 @@ function setup_datafields(grid,speed_u,speed_u_mask,speed_v,speed_v_mask,dhdt,ac
     nyv=grid.ny+1,
     mask=v_mask,
     v_isfixed=grid.v_isfixed,
-    speed_v=speed_v,
-    model=model
+    speed_v=speed_v
+  #  model=model
     )
 
     return DataFields(ghdata,gudata,gvdata)

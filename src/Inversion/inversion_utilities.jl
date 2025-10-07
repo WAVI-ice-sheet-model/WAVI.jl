@@ -15,13 +15,13 @@ function update_betas_dirichlet!(model,inversion)
 end
 
 """
-    start_guess_β_inversion!(model::AbstractModel)
+    start_guess_β_inversion!(model::AbstractModel,model::AbstractModel, Any)
 
 set the drag coefficient at the start of the inversion.
 """
-function start_guess_β_inversion!(model::AbstractModel, inversion)
+function start_guess_β_inversion!(model::AbstractModel,inversion::AbstractModel, inversion_params)
     @unpack gh=model.fields
-    @unpack inversion_params=inversion
+  #  @unpack inversion_params=inversion
     aground = (gh.haf .>= 0)
     gh.β .= inversion_params.βfloating_start*ones(gh.nxh,gh.nyh)
     gh.β[aground].=inversion_params.βgrounded_start
@@ -33,9 +33,9 @@ end
 
 set  η at the start of the inversion.
 """
-function start_guess_η_inversion!(model::AbstractModel, inversion)
+function start_guess_η_inversion!(model::AbstractModel, inversion, inversion_params)
     @unpack gh,g3d=model.fields
-    @unpack inversion_params=inversion
+ #   @unpack inversion_params=inversion
     for k=1:g3d.nσs
         for j=1:g3d.nys
             for i=1:g3d.nxs
@@ -49,74 +49,52 @@ function start_guess_η_inversion!(model::AbstractModel, inversion)
 end
 
 
-function solve_dirichelt_neumann_velocities!(model, inversion,clock) 
+function solve_dirichlet_neumann_velocities!(model, inversion,clock) 
 
     @unpack params,solver_params=model
     @unpack gu,gv,wu,wv,gh = model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
+  #   gudata = data.gudata
+   #  gvdata = data.gvdata
+    # ghdata = data.ghdata
     @unpack inversion_params=inversion
 
-        #get rhs f1, and get rhsf2:
-        #using f1 same as in forward problem: this is b1 in Arthern at al 2015 (A3) 
+       
         f1=get_rhs_dirichlet_inversion(model)
-
-        #Contruct A:
         op_A=get_op_A(model)
-        #Constuct B:
         op_B=get_op_B(model,inversion)
-        #Constuct B-transpose:
         op_BT=get_op_BT(model,inversion)
         op_C=get_op_C(model,inversion)
 
-        #using inbuilt function op_diag:
         A_diag_vals=get_op_diag(model,op_A)
         M1 = Diagonal(A_diag_vals)
         M2=[]
 
         #Neumann solve:
         uN=get_start_guess(model)
-        
         uN, ch1 = cg!(uN, op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, log=true, verbose=false, Pl=M1)
         if !@isdefined residuN
-            residuN = similar(f1)  # Allocate once
+            residuN = similar(f1)  
         end
-        get_resid!(residuN, uN, op_A, f1)  # In-place operation
+        get_resid!(residuN, uN, op_A, f1) 
         total_iters = ch1.iters
         true_rel_resid_norm = norm(residuN)/norm(f1)
         println("uN solved after $total_iters iterations, with True Relative Residual Norm = $true_rel_resid_norm")
-        #set Neumann velocites:
         set_velocities!(model,uN)
 
-         #get f2
+
         f2=get_rhs_dirichlet_inverse_data(model,inversion)
-
-        # Define MSchur as a linear operator
-        t_start = time()  # Get start time
-       
         mi=gudata.ni+gvdata.ni+ghdata.n
-
-        println("mi is " ,mi)
-        println("gudata.ni is" ,gudata.ni)
-        println("gvdata.ni is" ,gvdata.ni)
-        println("ghdata.ni is" ,gudata.n)
-        println("size of f2 is" ,size(f2))
-
         # Define the LinearMap with the modified schur_apply
         MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
-        #  MSchur_op = LinearMap(x -> schur_apply(x, op_B, op_BT, A_diag_vals, op_C), mi, mi, ismutating = false)
-        MSchur_new=get_op_diag_inversion(inversion, model, MSchur_op)
-        t_end = time()  # Get end time
-     #   println("MSchur_new linearmap computation took: ", t_end - t_start, " seconds")
-
+        MSchur=get_op_diag_inversion(inversion, model, MSchur_op)
         xD_guess=get_start_guess_dirichlet(inversion)
 
         #Dirichlet solve
-        #Define right hand side for Schur (pressure) solve
         u0=xD_guess[1:gu.ni+gv.ni]
-      #  u0 = gmres!(u0,op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, restart=inversion_params.gmres_restart, log=false,verbose=false,Pl=M1)
         u0, chu0 = cg!(u0,op_A, f1,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, log=true,verbose=false,Pl=M1)
         if !@isdefined residu0
-            residu0 = similar(f1)  # Allocate once
+            residu0 = similar(f1) 
         end
         get_resid!(residu0,u0,op_A,f1)
         relative_residual = norm(residu0) / norm(f1)
@@ -124,45 +102,35 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         true_rel_resid_norm_u0 = norm(residuN)/norm(f1)
         println("u0 solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
 
-        # Pass tolerance for inner iterative solver
         inner_tol = inversion_params.inner_tol
         inner_maxiters=inversion_params.inner_maxiters
-
-     #   bSchur=-op_B*u0+f2;
-        bSchur = similar(f2,size(op_B, 1))  # Preallocate bSchur with the same size as f2
-        mul!(bSchur, op_B, vec(u0))  # Compute bSchur = op_B * u0
-        bSchur .*= -1           # In-place negation (bSchur = -op_B * u0)
-        bSchur .+= f2           # In-place addition (bSchur = -op_B * u0 + f2)
+        bSchur = similar(f2,size(op_B, 1)) 
+        mul!(bSchur, op_B, vec(u0)) 
+        bSchur .*= -1         
+        bSchur .+= f2          
         schur_output = similar(bSchur)  
-        u = similar(bSchur,size(op_BT, 1))  # Buffer for PCG solve
-        b = similar(bSchur,size(op_BT, 1))  # Buffer for right-hand side
-        residBu = similar(bSchur,size(op_B, 1))  # Buffer for intermediate residuals
+        u = similar(bSchur,size(op_BT, 1))  
+        b = similar(bSchur,size(op_BT, 1)) 
+        residBu = similar(bSchur,size(op_B, 1)) 
  
-      SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inversion_params.inner_tol, inversion_params.inner_maxiters)), size(op_C, 1), size(op_C, 2))
-
-    
-       ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
-        pD = similar(xD_guess, ni - (gu.ni + gv.ni))  # Preallocate correct size
-       # pD=xD_guess[gu.ni+gv.ni+1:ni]
+        SchurOp = LinearMap(x -> (schurVec!(schur_output, x, op_A, op_B, op_BT, op_C, M1, M2, inversion_params, u, b, residBu, inversion_params.inner_tol, inversion_params.inner_maxiters)), size(op_C, 1), size(op_C, 2))
+        ni=gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n
+        pD = similar(xD_guess, ni - (gu.ni + gv.ni)) 
         fill!(pD,0)
 
         ch_pD = nothing
         t_start=time()  
         num_restarts = inversion_params.maxiter ÷ inversion_params.gmres_restart
-        Pl = Diagonal(MSchur_new)  # Store once outside loop
+        Pl = Diagonal(MSchur) 
 
         if inversion_params.gmres
-                  # this one is to try and control stopping criteria:
             for i in 1:num_restarts
-                #  mem_usage = @allocated pD, ch = gmres!(pD,SchurOp, bSchur,  abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
                 pD, ch_pD =  gmres!(pD,SchurOp, bSchur, abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
-                # println("Memory allocated: ", mem_usage, " bytes") 
                  total_iters_pD = ch_pD.iters
-                # Compute true residual norm
                 if !@isdefined residpD
-                residpD = similar(bSchur)  # Allocate once
+                residpD = similar(bSchur) 
                 end 
-                get_resid!(residpD, pD, SchurOp, bSchur)  # In-place operation
+                get_resid!(residpD, pD, SchurOp, bSchur)
                 true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
                 #compute total number of iterations:
                 iter_total_pD=total_iters_pD+(i-1)*inversion_params.gmres_restart
@@ -177,32 +145,26 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
             elseif inversion_params.cg              
                 pD, ch_pD =  cg!(pD,SchurOp, bSchur,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, Pl=Pl,verbose=false,log=true)
                 total_iters = ch_pD.iters
-                # Compute true residual norm
                 if !@isdefined residpD
-                residpD = similar(bSchur)  # Allocate once
+                residpD = similar(bSchur) 
                 end 
-                get_resid!(residpD, pD, SchurOp, bSchur)  # In-place operation
+                get_resid!(residpD, pD, SchurOp, bSchur) 
                 true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
                 total_iters_pD = ch_pD.iters
                 println("pD solved after $total_iters_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
             else
                 error("Error: iterative solver for pD isn't specified. Exiting..")
         end
-        t_end = time()  # Get end time
-        println("pD computation took: ", t_end - t_start, " seconds")
 
-        #Define right hand side for velocity solve
-#        b=f1-op_BT*pD;
-        brhs = similar(f1, size(op_BT, 1))  # Ensure b has the same size as f1
-        mul!(brhs, op_BT, vec(pD))  # Computes b = op_BT * pD in-place
-        brhs .= f1 .- b # b=f1-b          Element-wise subtraction
+        brhs = similar(f1, size(op_BT, 1))
+        mul!(brhs, op_BT, vec(pD)) 
+        brhs .= f1 .- b 
 
         #Solve for Dirichlet velocity
         uD=xD_guess[1:gu.ni+gv.ni]
-#        uD, ch_uD= cg!(uD,op_A,brhs,reltol=inversion_params.abstol, maxiter=inversion_params.maxiter,Pl=M1,log=true)
         uD, ch_uD= cg!(uD,op_A,brhs,abstol=inversion_params.abstol, maxiter=inversion_params.maxiter,Pl=M1,log=true)
         if !@isdefined residuD
-            residuD = similar(brhs)  # Allocate once
+            residuD = similar(brhs)
         end
         residuD=get_resid!(residuD,uD,op_A,brhs)
         true_rel_resid_norm_uD = norm(residuD) / norm(b)
@@ -210,11 +172,7 @@ function solve_dirichelt_neumann_velocities!(model, inversion,clock)
         println("uD solved after $total_iters_uD iterations, with True Relative Residual Norm = $true_rel_resid_norm_uD")
 
         x_output=[uD;pD]
-
-        #set Dirichelt velocites:
-        set_velocities!(inversion,x_output)
-
-        #set pressues:
+        set_velocities!(inversion.model,x_output)
         set_inversion_pressure!(model,inversion,x_output)
 end
 
@@ -224,8 +182,8 @@ end
  Get diagonal of operator for use in preconditioner.
 
 """
-function get_op_diag_inversion(inversion::AbstractModel,model::AbstractModel,op::LinearMap)
-    @unpack gudata,gvdata, ghdata=inversion.data_fields
+function get_op_diag_inversion(inversion,model::AbstractModel,op::LinearMap)
+    @unpack gudata,gvdata, ghdata=inversion.data
     @unpack params,solver_params=model
     mi,ni = size(op)
     
@@ -236,8 +194,7 @@ function get_op_diag_inversion(inversion::AbstractModel,model::AbstractModel,op:
 
     sweep=[[1+mod((i-1),sm)+sm*mod((j-1),sm) for i=1:gudata.nxu, j=1:gudata.nyu][gudata.mask_inner];
            [1+sm^2+mod((i-1),sm)+sm*mod((j-1),sm) for i=1:gvdata.nxv, j=1:gvdata.nyv][gvdata.mask_inner];
-           [1+2*sm^2+mod(i-1,sm)+sm*mod(j-1,sm) for i=1:ghdata.nxh, j=1:ghdata.nyh][ghdata.mask]]  # New `ghdata` part
-          # sweep = vcat(sweep, zeros(Int, ghdata.n))  # Extend with zeros to match `gh` size
+           [1+2*sm^2+mod(i-1,sm)+sm*mod(j-1,sm) for i=1:ghdata.nxh, j=1:ghdata.nyh][ghdata.mask]] 
     e=zeros(Bool,ni)
     for i = unique(sweep)
         e .= sweep .== i
@@ -248,29 +205,19 @@ function get_op_diag_inversion(inversion::AbstractModel,model::AbstractModel,op:
 end
 
 
- # Define the schur_apply! function to accept the preallocated arrays
 function schur_apply(x, op_B, op_BT, A_diag_vals, op_C)
 
     # Preallocate the arrays based on the size of `x` (input vector)
-    temp = similar(x,size(op_BT, 1))         # Preallocate temp, the same size as x
-    result = similar(x, size(op_B, 1))       # Preallocate result, the same size as x
-    A_inv = similar(A_diag_vals)  # Preallocate A_inv, same size as A_diag_vals
-    temp_scaled = similar(temp)  # Preallocate temp_scaled, the same size as x
+    temp = similar(x,size(op_BT, 1))       
+    result = similar(x, size(op_B, 1))     
+    A_inv = similar(A_diag_vals) 
+    temp_scaled = similar(temp)  
 
-    # Compute B^T * x
     mul!(temp, op_BT, vec(x))
-    
-    # Inverse of diagonal (A_diag_vals) and apply element-wise scaling
-    A_inv .= 1.0 ./ A_diag_vals  # Inverse of diagonal, A_inv is updated in place
-    
-    # Compute the final result: -B * (A_inv * (B^T * x))
-    mul!(temp_scaled, Diagonal(A_inv), temp)  # In-place scaling
-
-    # Compute -B * (A_inv * (B^T * x))
-    mul!(result, op_B, temp_scaled, -1.0, 0.0)  # Scale and overwrite
-
-    # Add diagonal contribution of op_C directly to result
-    mul!(result, op_C, vec(x), 1.0, 1.0)  # Efficient accumulation
+    A_inv .= 1.0 ./ A_diag_vals 
+    mul!(temp_scaled, Diagonal(A_inv), temp) 
+    mul!(result, op_B, temp_scaled, -1.0, 0.0) 
+    mul!(result, op_C, vec(x), 1.0, 1.0)  
 
     return result
 end 
@@ -279,20 +226,12 @@ end
     function schurVec!(uc, x, A, B, BT, C, M1, M2, inversion_params, u, b, residBu, inner_tol, inner_maxiters)
     # Solve A * u = B' * x 
     mem_BT_x = @allocated mul!(b, BT, x)
-  #  println("Memory allocated inside BT * x mul: ", mem_BT_x, " bytes")
-
     fill!(u,0)
-    # Solve using CG with preconditioners M1 and M2 (if provided)
     cg!(u,A, b, reltol=inner_tol, maxiter=inner_maxiters,Pl=M1)
-
-    # Compute final Schur complement operation
-    #  return -B * u + C * x
-        mul!(residBu, B, u)   # resid = B * u
-        residBu .*= -1        # resid = -B * u
-    #    uc=similar(x,  size(C, 1))
-         mul!(uc, C, x)       # uC = C * x
-        uc .+= residBu         # u = -B * u + C * x
-    
+        mul!(residBu, B, u)   
+        residBu .*= -1        
+         mul!(uc, C, x)      
+        uc .+= residBu         
 end
 
 
@@ -303,9 +242,8 @@ end
 
 """
 function get_start_guess_dirichlet(inversion)
-    #still needs editing!!
-    @unpack gu,gv,gh=inversion.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gu,gv,gh=inversion.model.fields
+    @unpack gudata, gvdata, ghdata=inversion.data 
     @assert eltype(gu.u)==eltype(gv.v)
     x=[gu.samp_inner*gu.u[:];gv.samp_inner*gv.v[:]; gudata.samp_inner*gu.τsurf[:]; gvdata.samp_inner*gv.τsurf[:]; ghdata.samp*gh.σzzsurf[:]]
     return x
@@ -318,13 +256,13 @@ function get_op_A(model::AbstractModel{T,N}) where {T,N}
     n_output=gu.ni + gv.ni 
     op_fun_A! = get_op_fun_A(model)
     op_A=LinearMap{T}(
-        op_fun_A!,           # The mutating function for A
-        n_output,                  # Output size
-        n_input,                 # Input size
-        issymmetric=false,    # A is not symmetric in general
-        ismutating=true,      # Function modifies input/output
-        ishermitian=false,    # A is not Hermitian
-        isposdef=false        # A is not positive definite
+        op_fun_A!,          
+        n_output,               
+        n_input,                
+        issymmetric=false,    
+        ismutating=true,     
+        ishermitian=false,   
+        isposdef=false        
     )
 end
 
@@ -332,7 +270,7 @@ end
 function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
     @unpack gh,gu,gv,gc=model.fields
     
-    #Preallocate intermediate variables used by op_fun
+    #Preallocate intermediate variables used by op_A_fun
     nxnyh :: N = gh.nxh*gh.nyh
     nxnyu :: N = gu.nxu*gu.nyu
     nxnyv :: N = gv.nxv*gv.nyv
@@ -352,10 +290,6 @@ function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
     r_xy_strain_rate_sum_c :: Vector{T} = zeros(nxnyc);             @assert length(r_xy_strain_rate_sum_c) == nxnyc
     r_xy_strain_rate_sum_crop_c :: Vector{T} = zeros(nxnyc);        @assert length(r_xy_strain_rate_sum_crop_c) == nxnyc
     r_xy_c :: Vector{T} = zeros(nxnyc);                             @assert length(r_xy_c) == nxnyc
-    ###added to match matlab...
-    r_xy_strain_rate_sum :: Vector{T} = zeros(nxnyh);               @assert length(r_xy_strain_rate_sum) == nxnyh
-    r_xy :: Vector{T} = zeros(nxnyh);                               @assert length(r_xy) == nxnyh
-    ######
     r_xy_crop_c :: Vector{T} = zeros(nxnyc);                        @assert length(r_xy_crop_c) == nxnyc
     d_rxx_dx :: Vector{T} = zeros(nxnyu);                           @assert length(d_rxx_dx) == nxnyu
     d_rxy_dy :: Vector{T} = zeros(nxnyu);                           @assert length(d_rxy_dy) == nxnyu
@@ -416,12 +350,6 @@ function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
         @!  dvdx_c = gv.∂x*vspread
         @.  r_xy_strain_rate_sum_c = dudy_c + dvdx_c
         @!  r_xy_strain_rate_sum_crop_c = gc.crop*r_xy_strain_rate_sum_c
-        ##EDIT TO MATCH WITH MATLAB!!!!
-     #   @!  r_xy_strain_rate_sum = gc.cent*r_xy_strain_rate_sum_crop_c
-     #   @!  r_xy = gh.dneghηav[]*r_xy_strain_rate_sum
-     #   @.  r_xy = -r_xy
-     #   @!  r_xy_c = gc.centᵀ*r_xy
-     #CORRECT code for julia:
         @!  r_xy_c = gc.dneghηav[]*r_xy_strain_rate_sum_crop_c
         @.  r_xy_c = -r_xy_c
         @!  r_xy_crop_c = gc.crop*r_xy_c
@@ -474,7 +402,6 @@ function get_op_fun_A(model::AbstractModel{T,N}) where {T,N}
             return opvecprod
     end
 
-    #Return op_fun as a closure
     return op_fun_A!
 end
 
@@ -482,18 +409,18 @@ end
 
 function get_op_B(model::AbstractModel{T,N},inversion) where {T,N}
         @unpack gu,gv,gh=model.fields
-        @unpack gudata, gvdata, ghdata=inversion.data_fields 
+        @unpack gudata, gvdata, ghdata=inversion.data 
         n_input = gu.ni + gv.ni
         n_output=gudata.ni + gvdata.ni+ghdata.n
         op_fun_B! = get_op_fun_B(model,inversion)
         op_B=LinearMap{T}(
-            op_fun_B!,           # The mutating function for B^T
-            n_output,                  # Output size
-            n_input,                 # Input size
-            issymmetric=false,    # B^T is not symmetric in general
-            ismutating=true,      # Function modifies input/output
-            ishermitian=false,    # B^T is not Hermitian
-            isposdef=false        # B^T is not positive definite
+            op_fun_B!,          
+            n_output,              
+            n_input,                
+            issymmetric=false,   
+            ismutating=true,     
+            ishermitian=false,  
+            isposdef=false      
         )
 end
 
@@ -501,7 +428,7 @@ end
 
 function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
     @unpack gh,gu,gv,gc=model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
         
     #Preallocate intermediate variables used by op_fun
     nxnyh :: N = gh.nxh*gh.nyh
@@ -512,7 +439,6 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
     vsampi :: Vector{T} = zeros(gv.ni);                             @assert length(vsampi) == gv.ni
     uspread :: Vector{T} = zeros(nxnyu);                            @assert length(uspread) == nxnyu
     vspread :: Vector{T} = zeros(nxnyv);                            @assert length(vspread) == nxnyv
-#    R :: Array{T,2} = zeros(gh.nxh,gh.nyh);                               @assert length(R) == nxnyh
     beta_f1 :: Vector{T} = zeros(nxnyh);                            @assert length(beta_f1) == nxnyh
     beta_f2 :: Vector{T} = zeros(nxnyh);                            @assert length(beta_f2) == nxnyh
     R :: Vector{T} = zeros(nxnyh);                                  @assert length(R) == nxnyh
@@ -521,12 +447,10 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
     u_on_h :: Vector{T} = zeros(nxnyh);                             @assert length(u_on_h) == nxnyh
     Ru_on_h :: Vector{T} = zeros(nxnyh);                            @assert length(Ru_on_h) == nxnyh
     Ru_on_u :: Vector{T} = zeros(nxnyu);                            @assert length(Ru_on_u) == nxnyu
- #   Ru_on_u_i:: Vector{T} = zeros(gu.ni);                           @assert length(Ru_on_u_i) == gu.ni
     vspread_cent :: Vector{T} = zeros(nxnyh);                       @assert length(vspread_cent) == nxnyh
     v_on_h :: Vector{T} = zeros(nxnyh);                             @assert length(v_on_h) == nxnyh
     Rv_on_h :: Vector{T} = zeros(nxnyh);                            @assert length(Rv_on_h) == nxnyh
     Rv_on_v :: Vector{T} = zeros(nxnyv);                            @assert length(Rv_on_v) == nxnyv
- #   Rv_on_v_i:: Vector{T} = zeros(gv.ni);                           @assert length(Rv_on_v_i) == gv.ni
     fx1 :: Vector{T} = zeros(nxnyu);                                @assert length(fx1) == nxnyu
     fy1 :: Vector{T} = zeros(nxnyv);                                @assert length(fy1) == nxnyv
     fx1_sampi :: Vector{T} = zeros(gudata.ni);                      @assert length(fx1_sampi) == gudata.ni
@@ -539,15 +463,11 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
     hv_crop :: Vector{T} = zeros(nxnyv);                            @assert length(hv_crop) == nxnyv
     divhv :: Vector{T} = zeros(nxnyh);                              @assert length(divhv) == nxnyh
     divhv_crop :: Vector{T} = zeros(nxnyh);                         @assert length(divhv_crop) == nxnyh
-  #  div_huv :: Vector{T} = zeros(nxnyh);                            @assert length(div_huv) == nxnyh 
-  #  div_huv_samp :: Vector{T} = zeros(gh.n);                        @assert length(div_huv_samp) == gh.n 
     fx :: Vector{T} = zeros(nxnyh);                                 @assert length(fx) == nxnyh
     fx_sampi :: Vector{T} = zeros(ghdata.n);                        @assert length(fx_sampi) == ghdata.n
     opvecprod :: Vector{T} = zeros(gudata.ni+gvdata.ni+ghdata.n);   @assert length(opvecprod) == gudata.ni + gvdata.ni + ghdata.n
-#    opvecprod :: Vector{T} = zeros(udi + vdi + hdi);                @assert length(opvecprod) == udi + vdi + hdi
 
     function op_fun_B!(opvecprod::AbstractVector,inputVector::AbstractVector;vecSampled::Bool=true)
-       #vecSampled=false
        if vecSampled
         @assert length(inputVector)==(gu.ni+gv.ni)
 
@@ -566,10 +486,7 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
         vspread .= @view inputVector[(gu.nxu*gu.nyu+1):(gu.nxu*gu.nyu+gv.nxv*gv.nyv)]
         end
     
-        #Compute R from Arthern et al 2015 and build the R term from equation (28):
-     #   R[gh.mask] .= (1.0 .+ gh.β[gh.mask].*gh.quad_f1[gh.mask])./ (1.0 .+ gh.β[gh.mask].*gh.quad_f2[gh.mask])
-      #  @! R_crop=gh.crop*vec(R)
-         #R .= (1.0 .+ vec(gh.β).*vec(gh.quad_f1))./ (1.0 .+ vec(gh.β).*vec(gh.quad_f2))
+        #Compute R from Arthern et al 2015 equation (28):
 
          beta_f1 .= vec(gh.β).*vec(gh.quad_f1)
          beta_f1 .+=1
@@ -582,25 +499,19 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
         @! u_on_h=gh.crop*uspread_cent
         @. Ru_on_h=R_crop*u_on_h
         @! Ru_on_u=gu.centᵀ*Ru_on_h
-      #  @! Ru_on_u_i=gu.samp_inner*Ru_on_u
         @! fx1=gu.crop*Ru_on_u
-       #  fx1=Ru_on_u
 
-       @! vspread_cent = gv.cent*vspread
+        @! vspread_cent = gv.cent*vspread
         @! v_on_h=gh.crop*vspread_cent
         @. Rv_on_h=R_crop*v_on_h
         @! Rv_on_v=gv.centᵀ*Rv_on_h
-    #    @! Rv_on_v=gv.samp_inner*Rv_on_v
         @! fy1=gv.crop*Rv_on_v
-    #      fy1=Rv_on_v
        
         #sample these to only include data masked points:
         @! fx1_sampi = gudata.samp_inner*fx1
         @! fy1_sampi = gvdata.samp_inner*fy1
 
-        #Then look at the div term in the B matrix - this will multiply the velocties:
         #-div(hu)
-
             hu.=vec(gu.h).*uspread
         @!  hu_crop=gu.crop*hu
         @!  divhu=gu.∂x*hu_crop
@@ -613,6 +524,7 @@ function get_op_fun_B(model::AbstractModel{T,N},inversion) where {T,N}
 
         @. fx = divhu_crop + divhv_crop
         @. fx = -fx 
+
         #sample these to only include data masked points:
         @! fx_sampi = ghdata.samp*fx
 
@@ -630,26 +542,26 @@ end
 
 function get_op_BT(model::AbstractModel{T,N},inversion) where {T,N}
         @unpack gu,gv,gh=model.fields
-        @unpack gudata, gvdata, ghdata=inversion.data_fields 
+        @unpack gudata, gvdata, ghdata=inversion.data 
      #   n_input = udi + vdi + hdi
         n_input = gudata.ni + gvdata.ni+ghdata.n
         n_output=gu.ni + gv.ni
         op_fun_BT! = get_op_fun_BT(model,inversion)
         op_BT = LinearMap{T}(
-            op_fun_BT!,           # The mutating function for B^T
-            n_output,                  # Output size
-            n_input;                 # Input size
-            issymmetric=false,    # B^T is not symmetric in general
-            ismutating=true,      # Function modifies input/output
-            ishermitian=false,    # B^T is not Hermitian
-            isposdef=false        # B^T is not positive definite
+            op_fun_BT!,          
+            n_output,                
+            n_input;                 
+            issymmetric=false,   
+            ismutating=true,     
+            ishermitian=false,   
+            isposdef=false       
         )
 end
 
 
 function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
     @unpack gh,gu,gv,gc=model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
         
     #Preallocate intermediate variables used by op_fun
     nxnyh :: N = gh.nxh*gh.nyh
@@ -665,22 +577,17 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
     R :: Vector{T} = zeros(nxnyh);                                  @assert length(R) == nxnyh
     beta_f1 :: Vector{T} = zeros(nxnyh);                            @assert length(beta_f1) == nxnyh
     beta_f2 :: Vector{T} = zeros(nxnyh);                            @assert length(beta_f2) == nxnyh
-  #  R :: Vector{T} = zeros(nxnyh);                                  @assert length(R) == nxnyh
     R_crop :: Vector{T} = zeros(nxnyh);                             @assert length(R_crop) == nxnyh
-  #  RT :: Array{T,2} = zeros(gh.nyh,gh.nxh);                        @assert length(RT) == gh.nxh*gh.nyh
     tauspreadu_on_h :: Vector{T} = zeros(nxnyh);                      @assert length(tauspreadu_on_h) == nxnyh
     tauspreadu_c :: Vector{T} = zeros(nxnyu);                         @assert length(tauspreadu_c) == nxnyu
     tauspreadu_c_on_h :: Vector{T} = zeros(nxnyh);                      @assert length(tauspreadu_c_on_h) == nxnyh
     Rtauu_on_h :: Vector{T} = zeros(nxnyh);                           @assert length(Rtauu_on_h) == nxnyh
     Rtauu_on_u :: Vector{T} = zeros(nxnyu);                           @assert length(Rtauu_on_u) == nxnyu
-   # RTtauu_on_u_crop :: Vector{T} = zeros(nxnyu);                   @assert length(RTtauu_on_u_crop) == nxnyu
     tauspreadv_on_h :: Vector{T} = zeros(nxnyh);                        @assert length(tauspreadv_on_h) == nxnyh
     tauspreadv_c :: Vector{T} = zeros(nxnyv);                         @assert length(tauspreadv_c) == nxnyv
     tauspreadv_c_on_h :: Vector{T} = zeros(nxnyh);                      @assert length(tauspreadv_c_on_h) == nxnyh
     Rtauv_on_h :: Vector{T} = zeros(nxnyh);                           @assert length(Rtauv_on_h) == nxnyh
     Rtauv_on_v :: Vector{T} = zeros(nxnyv);                           @assert length(Rtauv_on_v) == nxnyv 
-   # RTtauv_on_v_crop :: Vector{T} = zeros(nxnyv);                   @assert length(RTtauv_on_v_crop) == nxnyv
-    #
     sigmasspread_crop :: Vector{T} = zeros(nxnyh);                    @assert length(sigmasspread_crop) == nxnyh 
     dsigmadx :: Vector{T} = zeros(nxnyu);                           @assert length(dsigmadx) == nxnyu
     dsigmady :: Vector{T} = zeros(nxnyv);                           @assert length(dsigmady) == nxnyv
@@ -729,15 +636,15 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
     
         end
     
-        #Compute R^T from Arthern et al 2015 and build the R^T term from equation (28):
-       # @. R = (1.0 + gh.β[:]*gh.quad_f1[:])/ (1.0 + gh.β[:]*gh.quad_f2[:])
+        #Compute R^T from Arthern et al 2015 equation (28):
+
 
         beta_f1 .= vec(gh.β).*vec(gh.quad_f1)
         beta_f1 .+=1
         beta_f2 .= vec(gh.β).*vec(gh.quad_f2)
         beta_f2 .+=1
-       @. R = beta_f1 / beta_f2
-       @! R_crop=gh.crop*R
+        @. R = beta_f1 / beta_f2
+        @! R_crop=gh.crop*R
 
         @!  tauspreadu_c=gu.crop*(tausspreadu)
         @!  tauspreadu_on_h=gu.cent*(tauspreadu_c)
@@ -757,16 +664,14 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
         #Then calculate grad term in the B matrix: hgrad(sigma_s)
         @!  sigmasspread_crop=gh.crop*sigmasspread
         @!  dsigmadx=gu.∂xᵀ*sigmasspread_crop
-   #    @.  dsigmadx = -dsigmadx
         @!  dsigmadx_crop=gu.crop*dsigmadx
             h_dsigmadx.=vec(gu.h).*dsigmadx_crop
         @!  h_dsigmadx_crop=gu.crop*h_dsigmadx
         @.   h_dsigmadx_crop =-h_dsigmadx_crop
 
         @!  dsigmady=gv.∂yᵀ*sigmasspread_crop
-    #    @.  dsigmady=-dsigmady
         @!  dsigmady_crop=gv.crop*dsigmady
-        @views vec_gvh .= gv.h[:]  # no new memory allocation
+        @views vec_gvh .= gv.h[:]  
         @.  h_dsigmady.=vec_gvh*dsigmady_crop
         @!  h_dsigmady_crop=gv.crop*h_dsigmady
         @.  h_dsigmady_crop = -h_dsigmady_crop
@@ -774,7 +679,7 @@ function get_op_fun_BT(model::AbstractModel{T,N}, inversion) where {T,N}
         @!  fx2_sampi = gu.samp_inner*h_dsigmadx_crop
         @!  fy2_sampi = gv.samp_inner*h_dsigmady_crop
 
-        #Putting together both parts of BT operator using addition:
+     
         fx_sampi.= fx1_sampi.+ fx2_sampi
         fy_sampi.= fy1_sampi.+ fy2_sampi
 
@@ -789,7 +694,7 @@ end
 
 function get_op_C(model::AbstractModel{T,N},inversion) where {T,N}
     @unpack gu,gv,gh=model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
     ni = gudata.ni + gvdata.ni + ghdata.n
     op_fun_C! = get_op_fun_C(model,inversion)
     op_C=LinearMap{T}(op_fun_C!,ni;issymmetric=true,ismutating=true,ishermitian=true,isposdef=true)
@@ -797,7 +702,7 @@ end
 
 function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
     @unpack gh,gu,gv,gc=model.fields
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
         
     #Preallocate intermediate variables used by op_fun_C
     nxnyh :: N = gh.nxh*gh.nyh
@@ -832,7 +737,6 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
     Ptauv_on_v :: Vector{T} = zeros(nxnyv);                           @assert length(Ptauv_on_v) == nxnyv 
     Ptauv_on_h_crop :: Vector{T} = zeros(nxnyh);                      @assert length(Ptauv_on_h_crop) == nxnyh
     Ptauv_on_v_crop :: Vector{T} = zeros(nxnyv);                      @assert length(Ptauv_on_v_crop) == nxnyv 
-   # Psigma :: Vector{T} = zeros(nxnyh);                             @assert length(Psigma) == nxnyh
     fx1 :: Vector{T} = zeros(nxnyu);                                 @assert length(fx1) == nxnyu
     fy1 :: Vector{T} = zeros(nxnyv);                                 @assert length(fy1) == nxnyv
     fh :: Vector{T} = zeros(nxnyh);                                  @assert length(fh)== nxnyh
@@ -867,8 +771,7 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
     
         end
 
-            #Compute R from Arthern et al 2015 and build the R term from equation (28):
-     #   @.  R = (1.0 + gh.β[:]*gh.quad_f1[:])/ (1.0 + gh.β[:]*gh.quad_f2[:])
+            #Compute R from Arthern et al 2015 equation (28):
         
         beta_f1 .= vec(gh.β).*vec(gh.quad_f1)
         beta_f1 .+=1
@@ -876,11 +779,11 @@ function get_op_fun_C(model::AbstractModel{T,N},inversion) where {T,N}
         beta_f2 .+=1
        @. R = beta_f1 / beta_f2
 
-         R_plus_1 .= R .+ 1  # Add 1 to each element of R
+         R_plus_1 .= R .+ 1  
 
-         term_1 .= R_plus_1 .* vec(gh.quad_f1)  # (R + 1) * gh.quad_f1
-         term_2 .= R .* vec(gh.quad_f2)  # R * gh.quad_f2
-          P .= vec(gh.quad_f0) .- term_1 .+ term_2  # Compute final P
+         term_1 .= R_plus_1 .* vec(gh.quad_f1) 
+         term_2 .= R .* vec(gh.quad_f2) 
+          P .= vec(gh.quad_f0) .- term_1 .+ term_2 
             
         @!  tausspreadu_crop=gu.crop*tausspreadu
         @!  tauspreadu_on_h=gu.cent*tausspreadu_crop
@@ -921,7 +824,7 @@ end
 function get_rhs_dirichlet_inverse_data(model, inversion)
     @unpack gh,gu,gv,gc=model.fields
     @unpack params, solver_params = model
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
     
      #Preallocate intermediate variables used 
      nxnyh = gh.nxh*gh.nyh
@@ -947,28 +850,7 @@ function get_rhs_dirichlet_inverse_data(model, inversion)
      us_data_vec=us_data[gudata.mask]
      vs_data_vec=vs_data[gvdata.mask]
 
-#     us_data_spread=gudata.spread*us_data_vec
-#    us_data_crop = gu.crop * us_data_spread[:]  
-#    us_data_cent = gu.cent * us_data_crop 
-#    us_data_cent_samp = gh.samp  * us_data_cent
-#    us_data_cent_samp_spread= gh.spread*us_data_cent_samp
-    #
- #   us_data_centT = gu.centᵀ*us_data_cent_samp_spread
- #   us_data_centT_crop = gu.crop*us_data_centT
-
-  #  vs_data_spread=gvdata.spread*vs_data_vec
-  #  vs_data_crop = gv.crop * vs_data_spread[:]    
-  #  vs_data_cent = gv.cent * vs_data_crop 
-  #  vs_data_cent_samp = gh.samp  * vs_data_cent 
-  #  vs_data_cent_samp_spread= gh.spread*vs_data_cent_samp
-   # vs_data_centT = gv.centᵀ*vs_data_cent_samp_spread
-  #  vs_data_centT_crop = gv.crop*vs_data_centT
-
-   
-    # us_data_sampi = gudata.samp_inner*us_data_centT_crop
-    # vs_data_sampi =gvdata.samp_inner*vs_data_centT_crop
-
-    us_data_sampi = us_data_vec
+     us_data_sampi = us_data_vec
      vs_data_sampi = vs_data_vec
 
           f1[1:gudata.ni] .= us_data_sampi
@@ -1066,7 +948,7 @@ end
 function get_rhs_neumann_data_check(model, inversion)
     @unpack gh,gu,gv,gc=model.fields
     @unpack params, solver_params = model
-    @unpack gudata, gvdata, ghdata=inversion.data_fields 
+    @unpack gudata, gvdata, ghdata=inversion.data 
        
      #Preallocate intermediate variables used 
      nxnyh = gh.nxh*gh.nyh
@@ -1134,18 +1016,19 @@ end
 
 Set velocities to particular values. Input vector x represents stacked u and v components at valid grid points.
 """
-function set_inversion_pressure!(model::AbstractModel,inversion::AbstractModel,x)
+function set_inversion_pressure!(model::AbstractModel,inversion,x)
     @unpack gh,gu,gv,gc=model.fields
-    @views inversion.fields.gu.τsurf[inversion.data_fields.gudata.mask] .= x[(gu.ni+gv.ni+1):(gu.ni+gv.ni+inversion.data_fields.gudata.ni)]
-    @views inversion.fields.gv.τsurf[inversion.data_fields.gvdata.mask] .= x[(gu.ni+gv.ni+inversion.data_fields.gudata.ni+1):(gu.ni+gv.ni+inversion.data_fields.gudata.ni+inversion.data_fields.gvdata.ni)]
-    @views inversion.fields.gh.σzzsurf[inversion.data_fields.ghdata.mask] .= x[(gu.ni+gv.ni+inversion.data_fields.gudata.ni+inversion.data_fields.gvdata.ni+1):(gu.ni+gv.ni+inversion.data_fields.gudata.ni+inversion.data_fields.gvdata.ni+inversion.data_fields.ghdata.n)]
+  #  @unpack data = inversion
+    @views inversion.model.fields.gu.τsurf[inversion.data.gudata.mask] .= x[(gu.ni+gv.ni+1):(gu.ni+gv.ni+inversion.data.gudata.ni)]
+    @views inversion.model.fields.gv.τsurf[inversion.data.gvdata.mask] .= x[(gu.ni+gv.ni+inversion.data.gudata.ni+1):(gu.ni+gv.ni+inversion.data.gudata.ni+inversion.data.gvdata.ni)]
+    @views inversion.model.fields.gh.σzzsurf[inversion.data.ghdata.mask] .= x[(gu.ni+gv.ni+inversion.data.gudata.ni+inversion.data.gvdata.ni+1):(gu.ni+gv.ni+inversion.data.gudata.ni+inversion.data.gvdata.ni+inversion.data.ghdata.n)]
     return inversion
 end
 
 """
     update_velocities_on_h_grid_dirichlet!(model::AbstractModel)
 
-Update the velocities (depth averaged, surface and bed) on the h grid dirichelt 
+Update the velocities (depth averaged, surface and bed) on the h grid dirichlet 
 """
 function update_velocities_on_h_grid_dirichlet!(model)
     @unpack gh,gu,gv = model.fields
@@ -1154,7 +1037,6 @@ function update_velocities_on_h_grid_dirichlet!(model)
     gh.v[:] .= gv.cent*gv.v[:] #(gv.v[:,1:end-1] + gv.v[:, 2:end])./2
 
     #bed velocities
-#    gh.ub[gh.mask] .=(gh.u[gh.mask].-(gh.quad_f1[gh.mask] .- gh.quad_f2[gh.mask]).*gh.τx_surf[gh.mask])./(1.0 .+ gh.quad_f2[gh.mask] .* gh.β[gh.mask])
     gh.ub .=(gh.u.-(gh.quad_f1 .- gh.quad_f2).*gh.τx_surf)./(1.0 .+ gh.quad_f2 .* gh.β)
     gh.vb .= (gh.v.-(gh.quad_f1 .- gh.quad_f2).*gh.τy_surf)./(1.0 .+ gh.quad_f2 .* gh.β);
     gh.bed_speed  .= sqrt.(gh.ub.^2 .+gh.vb.^2);
@@ -1167,11 +1049,11 @@ function update_velocities_on_h_grid_dirichlet!(model)
 end
 
 """
-    update_surf_stress_dirichelt!(model::AbstractModel)
+    update_surf_stress_dirichlet!(model::AbstractModel)
 
-Find the surface stress dirichelt on the h-grid.
+Find the surface stress dirichlet on the h-grid.
 """
-function update_surf_stress_dirichelt!(model::AbstractModel)
+function update_surf_stress_dirichlet!(model::AbstractModel)
     @unpack gv,gu,gh=model.fields
     gh.τx_surf[gh.mask] .= gh.samp*(gu.cent*gu.τsurf[:])
     gh.τy_surf[gh.mask] .= gh.samp*(gv.cent*gv.τsurf[:])
@@ -1234,7 +1116,7 @@ end
 """
     update_shelf_heating_dirichlet!(model::AbstractModel)
 
-Find the shelf_heating on the h-grid for dirichelt.
+Find the shelf_heating on the h-grid for dirichlet.
 """
 function update_shelf_heating_dirichlet!(model,inversion)
     @unpack gv,gu,gh=model.fields
@@ -1288,7 +1170,7 @@ Update the drag coefficient at the bed in the inversion
 function update_β_inversion!(model::AbstractModel,inversion)
     @unpack gh=model.fields
     @unpack inversion_params=inversion
-    gh.β[gh.mask] .=  gh.β[gh.mask].*(gh.drag_heating[gh.mask]./inversion.fields.gh.drag_heating[gh.mask]).^inversion_params.βpower
+    gh.β[gh.mask] .=  gh.β[gh.mask].*(gh.drag_heating[gh.mask]./inversion.model.fields.gh.drag_heating[gh.mask]).^inversion_params.βpower
     return model
 end
 
@@ -1305,7 +1187,7 @@ function update_preBfactor_inversion!(model::AbstractModel,inversion)
     aground = (gh.haf .>= 0)
     BPower[aground] .= inversion_params.Bpower_grounded
 
-    gh.preBfactor[gh.mask] .= gh.preBfactor[gh.mask].*((gh.shelf_heating[gh.mask] .+ gh.vert_shear_heating[gh.mask])./(inversion.fields.gh.shelf_heating[gh.mask] .+ inversion.fields.gh.vert_shear_heating[gh.mask])).^BPower[gh.mask];
+    gh.preBfactor[gh.mask] .= gh.preBfactor[gh.mask].*((gh.shelf_heating[gh.mask] .+ gh.vert_shear_heating[gh.mask])./(inversion.model.fields.gh.shelf_heating[gh.mask] .+ inversion.model.fields.gh.vert_shear_heating[gh.mask])).^BPower[gh.mask];
     return model
 end
 
@@ -1376,9 +1258,6 @@ Update  glen_b
 function update_glen_b!(model::AbstractModel)
     @unpack gh,g3d=model.fields
     @unpack params=model
- #   @unpack gh_inversion=inversion.fields
- #   @unpack inversion_params=inversion
-    #####MASKS OR NOT HERE??
     for i = 1:g3d.nxs
         for j = 1:g3d.nys
             for k = 1:g3d.nσs
@@ -1395,7 +1274,7 @@ end
 """
     update_viscosities_quadratures_dirichlet(model::AbstractModel,inversion)
 
-Update the viscosities and quadrates for the dirichlet solution by setting as equal to the Neumann (model) fields
+    Update the viscosities and quadrates for the dirichlet solution by setting as equal to the Neumann (model) fields
 """
 
 function update_viscosities_quadratures_dirichlet(model::AbstractModel,inversion)
@@ -1418,17 +1297,16 @@ Find JKV and store
 function update_JKV!(model::AbstractModel,inversion,clock)
     @unpack gh=model.fields
     @unpack grid=model
-    if inversion.data_fields.ghdata.n==0
+    if inversion.data.ghdata.n==0
         σzzsurf_comp=0
-     #   println("Not using dhdt so setting  σzzsurf_comp=0 ")
+        println("Not using dhdt: setting  σzzsurf_comp=0 ")
     else
-    σzzsurf_comp=inversion.fields.gh.σzzsurf[gh.mask]'*(inversion.data_fields.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]).*(grid.dx*grid.dy) 
+    σzzsurf_comp=inversion.model.fields.gh.σzzsurf[gh.mask]'*(inversion.data.ghdata.dhdt[gh.mask].-gh.dhdt[gh.mask]).*(grid.dx*grid.dy) 
     end
-    τx_surf_comp=inversion.fields.gh.τx_surf[gh.mask]'*(inversion.fields.gh.us[gh.mask].-gh.us[gh.mask]).*(grid.dx*grid.dy)
-    τy_surf_comp=inversion.fields.gh.τy_surf[gh.mask]'*(inversion.fields.gh.vs[gh.mask].-gh.vs[gh.mask]).*(grid.dx*grid.dy)
+    τx_surf_comp=inversion.model.fields.gh.τx_surf[gh.mask]'*(inversion.model.fields.gh.us[gh.mask].-gh.us[gh.mask]).*(grid.dx*grid.dy)
+    τy_surf_comp=inversion.model.fields.gh.τy_surf[gh.mask]'*(inversion.model.fields.gh.vs[gh.mask].-gh.vs[gh.mask]).*(grid.dx*grid.dy)
 
     JKV=σzzsurf_comp .+ τx_surf_comp .+ τy_surf_comp
-  #  inversion.inversion_output.JKV[clock.n_iter+1]=JKV
     push!(inversion.inversion_output.JKV, JKV)
     println("   JKV is " ,inversion.inversion_output.JKV)
     return model
@@ -1441,7 +1319,7 @@ Find JRMS and store
 """
 function update_JRMS!(model::AbstractModel,inversion,clock)
     @unpack gu,gv,gh=model.fields
-    @unpack gudata,gvdata,ghdata=inversion.data_fields
+    @unpack gudata,gvdata,ghdata=inversion.data
     @unpack grid=model
 
     surf_speed_data_on_h=zeros(gh.nxh,gh.nyh)
@@ -1462,7 +1340,7 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     ghdata.vs[:] .= vs_data_cent
     ghdata.surf_speed .= surf_speed_data_on_h
 
-    # Assume u_mask and v_mask are boolean arrays (true = valid, false = invalid)
+
     surf_speed_data_on_h_mask = falses(size(gh.mask))  # Initialize h_mask with all false
 
     # Check validity of the surrounding u and v masks and update h_mask accordingly
@@ -1477,7 +1355,6 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
     ghdata.surf_speed_mask .= surf_speed_data_on_h_mask
 
     JRMS=sqrt(mean((surf_speed_data_on_h[data_and_model_mask] .- gh.surf_speed[data_and_model_mask]).^2));
-   # inversion.inversion_output.JRMS[clock.n_iter+1]=JRMS
     push!(inversion.inversion_output.JRMS, JRMS)
     println("   JRMS is " ,inversion.inversion_output.JRMS)
     return model
@@ -1488,24 +1365,6 @@ function update_surface_velocities_on_uv_grid!(model)
     #surface  velocities
     gu.us[:].=gu.crop*(gu.centᵀ*gh.crop*(gh.us[:]))
     gv.vs[:].=gv.crop*(gv.centᵀ*gh.crop*(gh.vs[:]))
-
     return model
 end
 
-"""
-    set_residual_inversion!(model::AbstractModel,residual)
-
-Set residuals to particular values.
-"""
-function set_residual_inversion!(model::AbstractModel,inversion,residual)
-    @unpack gu,gv=model.fields
-    @unpack gudata,gvdata,ghdata=inversion.data_fields
-#### WILL ERROR if dhdt not provided!!!!! 
-
-    @views inversion.fields.gu.residual[gu.mask_inner] .= residual[1:gu.ni]
-    @views inversion.fields.gv.residual[gv.mask_inner] .= residual[(gu.ni+1):(gu.ni+gv.ni)]
-    @views gudata.residual[gudata.mask_inner] .= residual[(gu.ni+gv.ni+1):(gu.ni+gv.ni+gudata.ni)]
-    @views gvdata.residual[gvdata.mask_inner] .= residual[(gu.ni+gv.ni+gudata.ni+1):(gu.ni+gv.ni+gudata.ni+gvdata.ni)]
-    @views ghdata.residual[ghdata.mask] .= residual[(gu.ni+gv.ni+gudata.ni+gvdata.ni+1):(gu.ni+gv.ni+gudata.ni+gvdata.ni+ghdata.n)]
-    return model, inversion
-end

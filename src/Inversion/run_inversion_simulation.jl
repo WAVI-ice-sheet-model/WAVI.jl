@@ -9,45 +9,43 @@ function JKVstep!(inversion_simulation)
    
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
-    update_betas_dirichlet!(model,inversion)
+    update_betas_dirichlet!(model,inversion.model)
     update_rheological_operators!(model)
-    solve_dirichelt_neumann_velocities!(model, inversion, clock)
-    update_surf_stress_dirichelt!(inversion)
-     
-
-    ###ISSUE is that gh.quad are only on model grid and not also inversion, but I don't want to copy them, or to call model and inversion to all these functions...
-
+    solve_dirichlet_neumann_velocities!(model, inversion, clock)
+    update_surf_stress_dirichlet!(inversion.model)
     update_velocities_on_h_grid!(model)  
-    update_velocities_on_h_grid_dirichlet!(inversion)
+    update_velocities_on_h_grid_dirichlet!(inversion.model)
     #
     update_shelf_strain_rate!(model)
-    update_shelf_strain_rate!(inversion)
+    update_shelf_strain_rate!(inversion.model)
     #
     update_av_speed!(model)
-    update_av_speed!(inversion)
+    update_av_speed!(inversion.model)
     #
     update_bed_speed!(model)
     #dirichlet already done above.
     #
     update_surf_speed!(model)
-    update_surf_speed!(inversion)
-    
+    update_surf_speed!(inversion.model)
+
     update_surface_velocities_on_uv_grid!(model)
-    update_surface_velocities_on_uv_grid!(inversion)
+    update_surface_velocities_on_uv_grid!(inversion.model)
 
     update_basal_drag_components!(model)
-    update_basal_drag_components!(inversion)
+    update_basal_drag_components!(inversion.model)
+
     #
     update_dhdt!(model)
+
     #
     update_shelf_heating!(model)
-    update_shelf_heating_dirichlet!(model,inversion)
+    update_shelf_heating_dirichlet!(model,inversion.model)
     #
     update_vert_shear_heating!(model)
-    update_vert_shear_heating_dirichlet!(model,inversion)
+    update_vert_shear_heating_dirichlet!(model,inversion.model)
     #
     update_drag_heating!(model)
-    update_drag_heating!(inversion)
+    update_drag_heating!(inversion.model)
    
     update_β_inversion!(model,inversion)
     update_preBfactor_inversion!(model,inversion)
@@ -57,7 +55,7 @@ function JKVstep!(inversion_simulation)
     inner_update_viscosity!(model)
     update_av_viscosity!(model)
     update_quadrature_falpha!(model)
-    update_viscosities_quadratures_dirichlet(model,inversion)
+    update_viscosities_quadratures_dirichlet(model,inversion.model)
   
     update_JKV!(model,inversion,clock)
     update_JRMS!(model,inversion,clock)
@@ -74,7 +72,6 @@ Update the inversion_simulation clock
 function update_clock_inversion!(inversion_simulation)
     @unpack clock=inversion_simulation
     clock.n_iter += 1
-   # clock.time += JKVstepping_params.dt
     return inversion_simulation
 end
 
@@ -96,11 +93,12 @@ function run_inversion_simulation!(inversion_simulation)
       update_height_above_floatation!(model)
       update_grounded_fraction_on_huv_grids!(model)
       update_accumulation_rate!(model)
-      start_guess_β_inversion!(model,inversion)
-      start_guess_η_inversion!(model,inversion)
+      methods(start_guess_β_inversion!)
+      start_guess_β_inversion!(model,inversion.model,inversion.inversion_params)
+      start_guess_η_inversion!(model,inversion.model,inversion.inversion_params)
       update_quadrature_falpha!(model)
       update_av_viscosity!(model)
-      update_viscosities_quadratures_dirichlet(model,inversion)
+      update_viscosities_quadratures_dirichlet(model,inversion.model)
       end
 
         JKVstep!(inversion_simulation)

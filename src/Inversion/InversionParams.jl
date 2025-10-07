@@ -22,9 +22,9 @@ Construct a WAVI.jl parameters object for holding physical parameters.
 
 Keyword arguments
 =================
-- `reltol`: 
-- `abstol`:
-- `maxiter`: 
+- `reltol`: relative tolerance 
+- `abstol`: asbolute tolerance
+- `maxiter`: maximum number of iterations in matrix solves 
 - ` gmres_restart`: number of iterations before restarting in gmres
 - `βgrounded_start`: initial guess of β over grounded ice (scalar)
 - `βfloating_start`: initial guess of β over floating ice (scalar)

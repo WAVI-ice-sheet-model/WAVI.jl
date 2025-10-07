@@ -13,7 +13,6 @@ struct InversionDataHGrid{T <: Real, N <: Integer}
                     vs :: Array{T,2}                            # v speed data (surf)  on h
             surf_speed :: Array{T,2}                            # speed data (surf)  on h
        surf_speed_mask :: Array{Bool,2}                         # surf speed data mask of valid points on h
-             residual  :: Array{T,2}                            # residuals on h
 end
     
 """
@@ -24,11 +23,6 @@ end
                 h_isfixed = falses(nxh,nyh),
                 dhdt = nothing,
                 accumulation_rate = zeros(nxh,nyh)
-            #    us=zeros(nxh,nyh),
-            #    vs=zeros(nxh,nyh),
-             #   surf_speed=zeros(nxh,nyh),
-             #   surf_speed_mask=falses(nxh,nyh),
-             #   residual = zeros(nxh,nyh)
                 )
 
 Construct a WAVI.jl InversionDataHGrid with size (nxh,nyh)
@@ -42,12 +36,7 @@ Keyword arguments
     - 'mask': Mask specifying the model domain
     - 'h_isfixed': Mask specifying points where ice thickness is fixed
     - 'dhdt': dhdt data 
-    - 'accumulation_rate': accumlate rate data 
-#    - 'us': u surface speed data
-#    - 'vs': v surface speed data 
-#    - 'surf_speed': surface speed data
-#    - 'surf_speed_mask': mask of valid speed data
- #   - 'residual':     
+    - 'accumulation_rate': accumlate rate data      
 """
 
 function InversionDataHGrid(;
@@ -57,11 +46,6 @@ function InversionDataHGrid(;
                 h_isfixed = falses(nxh,nyh),
                 dhdt = nothing,
                 accumulation_rate = zeros(nxh,nyh)
-              #  us=zeros(nxh,nyh),
-              #  vs=zeros(nxh,nyh),
-               # surf_speed=zeros(nxh,nyh),
-               # surf_speed_mask=falses(nxh,nyh),
-               # residual = zeros(nxh,nyh)
                 )
 
     #check the sizes of inputs
@@ -82,7 +66,7 @@ function InversionDataHGrid(;
     (size(accumulation_rate) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to InversionDataHGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
         else
                 accumulation_rate = accumulation_rate === nothing ? fill(NaN, nxh, nyh) : accumulation_rate
-                println("WARNING: accumulation is not provided as is set as NaNs")
+                println("WARNING: accumulation is not provided and is set as NaNs")
         end
 
 
@@ -132,7 +116,6 @@ function InversionDataHGrid(;
                 us,
                 vs,
                 surf_speed,
-                surf_speed_mask,
-                residual
+                surf_speed_mask
                 )
 end

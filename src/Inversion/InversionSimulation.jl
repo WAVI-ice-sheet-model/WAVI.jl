@@ -3,6 +3,7 @@ mutable struct InversionSimulation{M1,M2,TS,O,C}
     inversion:: M2
     JKVstepping_params::TS
     output_params::O
+ #   inversion_output::IO
     clock::C
 end
 
@@ -29,6 +30,7 @@ function InversionSimulation(;
                     inversion = nothing,
                     JKVstepping_params = nothing,
                     output_params = OutputParams(),
+         #           inversion_output = InversionOutput(),
                     pickup_output_update_flag = false)
 
     (JKVstepping_params !== nothing) || throw(ArgumentError("You must specify a JKVstepping parameters"))
@@ -73,7 +75,8 @@ include("run_inversion_simulation.jl")
             inversion_simulation.model = sim_load.model
             inversion_simulation.inversion = sim_load.inversion
             inversion_simulation.clock = sim_load.clock
-            inversion_simulation.output_params = sim_load.output_params #pointer based outputting system means we have to use same output parameters after pickup
+            inversion_simulation.output_params = sim_load.output_params
+          #  inversion_simulation.inversion_output = sim_load.inversion_output #pointer based outputting system means we have to use same output parameters after pickup
 
         catch e
             println("Error while loading: ", e)
