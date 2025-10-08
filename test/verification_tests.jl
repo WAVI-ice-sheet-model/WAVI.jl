@@ -1,4 +1,4 @@
-using Test, WAVI, LinearAlgebra
+using Test, WAVI, LinearAlgebra, ImageFiltering
 @testset  "WAVI tests" begin
     @testset "Iceberg" begin
         @info "Performing tests on a spinning, drifting iceberg."
@@ -15,7 +15,9 @@ if true
     @testset "MISMIP+ Ice0 verification experiments" begin
         @info "Performing MISMIP+ Ice0 verification experiments"
         include(joinpath("verification_tests","MISMIP_PLUS_Ice0.jl"))
+         include(joinpath("verification_tests","MISMIP_PLUS_inversion.jl"))
         simulation=MISMIP_PLUS_Ice0()
+        inversion_simulation=MISMIP_PLUS_inversion(simulation)
         glx=WAVI.get_glx(simulation.model)
         glxtest=glx[[1,div(simulation.model.grid.ny,2),div(simulation.model.grid.ny,2)+1,simulation.model.grid.ny]]
         @test length(glx) == simulation.model.grid.ny #check that the grounding line covers the whole domain in the y-direction
@@ -34,6 +36,8 @@ if true
             @test 430000<glxtest[2]<490000
             @test 430000<glxtest[3]<490000
         end
+        @test all((inversion_simulation.model.fields.gh.preBfactor) .< 1.1)
+        @test all((inversion_simulation.model.fields.gh.preBfactor) .> 0.9)
 
         #check the melt rate for ice_1r is doing something sensible
         function m1(h, b)

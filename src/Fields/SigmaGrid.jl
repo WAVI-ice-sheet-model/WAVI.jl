@@ -9,8 +9,7 @@ SigmaGrid(;
         η,
         θ,
         Φ,
-        glen_b,
-        preBfactor
+        glen_b
         )
 
 Construct a WAVI.jl SigmaGrid with size (nxs,nys,nσs)
@@ -30,7 +29,6 @@ Keyword arguments
 - 'θ' : (required) three dimensional temperature field
 - 'Φ' : (required) three dimensional damage field
 - 'glen_b': (required) three dimensional field of glen_b values in viscosity calcluations
--  'preBfactor' preBfactor calculated at each level
 """
 
 @with_kw struct SigmaGrid{T <: Real, N <: Integer}
@@ -44,5 +42,4 @@ quadrature_weights :: Vector{T} = 0.5*[ σ[2] .- σ[1] ; σ[3:end] .- σ[1:end-2
 θ :: Array{T,3}; @assert size(θ)==(nxs,nys,nσs)
 Φ :: Array{T,3}; @assert size(Φ)==(nxs,nys,nσs)
 glen_b :: Array{T,3} = glen_b.(θ,Φ); @assert size(glen_b)==(nxs,nys,nσs)
-preBfactor :: Array{T,3}; @assert size(η)==(nxs,nys,nσs)
 end

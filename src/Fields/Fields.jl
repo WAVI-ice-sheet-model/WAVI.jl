@@ -94,9 +94,6 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
         end
     end
 
-
-    preBfactor=ones(grid.nx,grid.ny,grid.nσ)
-        
     g3d=SigmaGrid(
         nxs=grid.nx,
         nys=grid.ny,
@@ -106,8 +103,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
         θ = θ,
         Φ = Φ,
         glen_b = g3_glen_b,
-        quadrature_weights = grid.quadrature_weights,
-        preBfactor = preBfactor
+        quadrature_weights = grid.quadrature_weights
     )
 
     #Wavelet-grid, u-component.
