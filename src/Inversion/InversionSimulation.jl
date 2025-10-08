@@ -3,7 +3,6 @@ mutable struct InversionSimulation{M1,M2,TS,O,C}
     inversion:: M2
     JKVstepping_params::TS
     output_params::O
- #   inversion_output::IO
     clock::C
 end
 
@@ -52,7 +51,6 @@ end
 include("run_inversion_simulation.jl")
 
  function pickup_inversion!(inversion_simulation, pickup_output_update_flag)
-    #@unpack model, JKVstepping_params, clock = simulation
 
     if inversion_simulation.JKVstepping_params.niter0 > 0
         n_iter_string =  lpad(inversion_simulation.JKVstepping_params.niter0, 10, "0"); #filename as a string with 10 digits
@@ -76,8 +74,7 @@ include("run_inversion_simulation.jl")
             inversion_simulation.inversion = sim_load.inversion
             inversion_simulation.clock = sim_load.clock
             inversion_simulation.output_params = sim_load.output_params
-          #  inversion_simulation.inversion_output = sim_load.inversion_output #pointer based outputting system means we have to use same output parameters after pickup
-
+       
         catch e
             println("Error while loading: ", e)
             rethrow()  # Re-throws the original error so you can see it

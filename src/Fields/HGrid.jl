@@ -59,7 +59,8 @@ end
             b,
             h,
             ηav = zeros(nxh,nyh),
-            grounded_fraction = ones(nxh,nyh))
+            grounded_fraction = ones(nxh,nyh),
+            preBfactor = ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -76,6 +77,7 @@ Keyword arguments
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
+    - 'preBfactor : preBfactor (1=no damage)
 """
 
 
@@ -87,10 +89,12 @@ function HGrid(;
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh))
+                grounded_fraction = ones(nxh,nyh),
+                preBfactor = ones(nxh,nyh)
+)
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(preBfactor) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -136,7 +140,7 @@ function HGrid(;
     vert_shear_heating=zeros(nxh,nyh) 
     drag_heating=zeros(nxh,nyh) 
     #
-    preBfactor=ones(nxh,nyh) 
+    #preBfactor=ones(nxh,nyh) 
 
 
     #check sizes of everything

@@ -27,16 +27,14 @@ function JKVstep!(inversion_simulation)
     #
     update_surf_speed!(model)
     update_surf_speed!(inversion.model)
-
+    #
     update_surface_velocities_on_uv_grid!(model)
     update_surface_velocities_on_uv_grid!(inversion.model)
-
+    #
     update_basal_drag_components!(model)
     update_basal_drag_components!(inversion.model)
-
     #
     update_dhdt!(model)
-
     #
     update_shelf_heating!(model)
     update_shelf_heating_dirichlet!(model,inversion.model)
@@ -83,8 +81,6 @@ function run_inversion_simulation!(inversion_simulation)
     @unpack model, inversion, JKVstepping_params, output_params = inversion_simulation
     chkpt_tag = "A"
 
-
-
     for   i = (inversion_simulation.clock.n_iter+1): JKVstepping_params.n_iter_total
 
       if inversion_simulation.clock.n_iter == 0
@@ -93,17 +89,18 @@ function run_inversion_simulation!(inversion_simulation)
       update_height_above_floatation!(model)
       update_grounded_fraction_on_huv_grids!(model)
       update_accumulation_rate!(model)
-      methods(start_guess_β_inversion!)
-      start_guess_β_inversion!(model,inversion.model,inversion.inversion_params)
+      start_guess_β_inversion!(model,inversion)
       start_guess_η_inversion!(model,inversion.model,inversion.inversion_params)
+    #  aground = (model.fields.gh.haf .>= 0)
+    #  float = (model.fields.gh.grounded_fraction .< 0.00000001)
+     # model.fields.gh.β[float] .= inversion.inversion_params.βfloating_start
+    
       update_quadrature_falpha!(model)
       update_av_viscosity!(model)
       update_viscosities_quadratures_dirichlet(model,inversion.model)
       end
 
         JKVstep!(inversion_simulation)
-
-
 
         #check if we have hit a temporary checkpoint
         if mod(i,JKVstepping_params.n_iter_chkpt) == 0

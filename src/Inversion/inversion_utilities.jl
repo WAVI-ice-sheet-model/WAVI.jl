@@ -19,12 +19,15 @@ end
 
 set the drag coefficient at the start of the inversion.
 """
-function start_guess_β_inversion!(model::AbstractModel,inversion::AbstractModel, inversion_params)
+function start_guess_β_inversion!(model::AbstractModel,inversion)
     @unpack gh=model.fields
   #  @unpack inversion_params=inversion
-    aground = (gh.haf .>= 0)
-    gh.β .= inversion_params.βfloating_start*ones(gh.nxh,gh.nyh)
-    gh.β[aground].=inversion_params.βgrounded_start
+   # aground = (gh.grounded_fraction .>= 0.000000001)
+   aground = (gh.haf .>= 0.0)
+   # float = (model.fields.gh.grounded_fraction .< 0.00000001)
+    gh.β .= inversion.inversion_params.βfloating_start
+   # gh.β[float] .= inversion.inversion_params.βfloating_start
+    gh.β[aground].=inversion.inversion_params.βgrounded_start
     return model
 end
 

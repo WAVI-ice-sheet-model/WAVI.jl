@@ -51,11 +51,6 @@ function InversionDataVGrid(;
     (size(speed_v) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to InversionDataVGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
 
 
-    #refine masks to only include points in the model mask:
-   # mask = ((mask .== 1) .& (gv.mask .== 1))
-    mask=convert(Array{Bool,2}, mask)
-
-
     #construct operators
     n = count(mask)
     mask_inner = mask .& .! v_isfixed
@@ -66,6 +61,10 @@ function InversionDataVGrid(;
     spread = sparse(samp')
     spread_inner = sparse(samp_inner')
 
+
+        #refine masks to only include points in the model mask:
+   # mask = ((mask .== 1) .& (gv.mask .== 1))
+    mask=convert(Array{Bool,2}, mask)
 #=     #Do smoothing here:
     vs_data_vec=speed_v[mask]
     vs_data_spread=spread*vs_data_vec

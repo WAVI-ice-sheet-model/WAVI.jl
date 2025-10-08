@@ -48,8 +48,7 @@ function InversionDataUGrid(;
     (size(u_isfixed) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
     (size(speed_u) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to InversionDataUGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
 
-    #refine masks to only include points in the model mask:
-    # mask = ((mask .== 1) .& (gu.mask .== 1))
+ 
     mask=convert(Array{Bool,2}, mask)
 
     #construct operators
@@ -62,7 +61,10 @@ function InversionDataUGrid(;
     spread = sparse(samp')
     spread_inner = sparse(samp_inner')
 
+       #refine masks to only include points in the model mask:
+    # mask = ((mask .== 1) .& (gu.mask .== 1))
   #=    #Smooth velocities:
+  
     us_data_vec=speed_u[mask]
     us_data_spread=spread*us_data_vec
     #
