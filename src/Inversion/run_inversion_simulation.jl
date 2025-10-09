@@ -103,7 +103,7 @@ function run_inversion_simulation!(inversion_simulation)
         JKVstep!(inversion_simulation)
 
         #check if we have hit a temporary checkpoint
-        if mod(i,JKVstepping_params.n_iter_chkpt) == 0
+        if mod(i,inversion_simulation.JKVstepping_params.n_iter_chkpt) == 0
             #output a temporary checkpoint
             fname = string("Chkpt",chkpt_tag, ".jld2")
             @save fname inversion_simulation
@@ -121,7 +121,7 @@ function run_inversion_simulation!(inversion_simulation)
         end
 
         #check if we have hit an output timestep
-        if mod(i,inversion_simulation.output_params.n_iter_out) == 0
+        if mod(i,inversion_simulation.JKVstepping_params.n_iter_out) == 0
             write_output(inversion_simulation)
         end   
 

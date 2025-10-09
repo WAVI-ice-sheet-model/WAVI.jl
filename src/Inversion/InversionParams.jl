@@ -13,12 +13,13 @@ struct InversionParams{T <: Real}
                     inner_maxiters:: Int
                     cg:: Bool
                     gmres:: Bool
+                    verbose :: Bool   
 end
 
 """
 InversionParams(; <kwargs>)
 
-Construct a WAVI.jl parameters object for holding physical parameters.
+Construct a WAVI.jl parameters object for holding physical parameters
 
 Keyword arguments
 =================
@@ -36,6 +37,7 @@ Keyword arguments
 - `inner_maxiters`: maximum number of iterations for the inner problem
 - `cg`: use congugate gradient
 - `gmres`: use gmres 
+-  `verbose`: whether to output inversion statuses)
 """
 
 function InversionParams(; reltol::T = 1e-6, 
@@ -51,7 +53,8 @@ function InversionParams(; reltol::T = 1e-6,
                     inner_tol::T = 1.e-4,
                     inner_maxiters::Int=1000,
                     cg::Bool=false,
-                    gmres::Bool=true) where {T <: Real}
+                    gmres::Bool=true,
+                    verbose = false) where {T <: Real}
                       
   return InversionParams{T}(reltol,
                   abstol, 
@@ -66,6 +69,7 @@ function InversionParams(; reltol::T = 1e-6,
                   inner_tol, 
                   inner_maxiters,
                   cg,
-                  gmres
+                  gmres,
+                  verbose
                   )
 end

@@ -82,7 +82,9 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
         get_resid!(residuN, uN, op_A, f1) 
         total_iters = ch1.iters
         true_rel_resid_norm = norm(residuN)/norm(f1)
+        if inversion_params.verbose
         println("uN solved after $total_iters iterations, with True Relative Residual Norm = $true_rel_resid_norm")
+        end
         set_velocities!(model,uN)
 
 
@@ -103,7 +105,7 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
         relative_residual = norm(residu0) / norm(f1)
         total_iters_u0 = chu0.iters
         true_rel_resid_norm_u0 = norm(residuN)/norm(f1)
-        println("u0 solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
+       # println("u0 solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
 
         inner_tol = inversion_params.inner_tol
         inner_maxiters=inversion_params.inner_maxiters
@@ -137,11 +139,15 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
                 true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
                 #compute total number of iterations:
                 iter_total_pD=total_iters_pD+(i-1)*inversion_params.gmres_restart
+                 if inversion_params.verbose
                 println("Loop $i : True Relative Residual Norm = $true_rel_resid_norm_pD")
+                 end
                 if  true_rel_resid_norm  < inversion_params.reltol
+                     if inversion_params.verbose
                 println("Stopping early: Relative Residual below tolerance.")
                 println("pD solved after $iter_total_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
-                    break
+                     end  
+                break
                 end
                 
             end
@@ -154,7 +160,9 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
                 get_resid!(residpD, pD, SchurOp, bSchur) 
                 true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
                 total_iters_pD = ch_pD.iters
+                 if inversion_params.verbose
                 println("pD solved after $total_iters_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
+                 end
             else
                 error("Error: iterative solver for pD isn't specified. Exiting..")
         end
@@ -172,8 +180,9 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
         residuD=get_resid!(residuD,uD,op_A,brhs)
         true_rel_resid_norm_uD = norm(residuD) / norm(b)
         total_iters_uD = ch_uD.iters
+         if inversion_params.verbose
         println("uD solved after $total_iters_uD iterations, with True Relative Residual Norm = $true_rel_resid_norm_uD")
-
+         end
         x_output=[uD;pD]
         set_velocities!(inversion.model,x_output)
         set_inversion_pressure!(model,inversion,x_output)
@@ -1311,7 +1320,9 @@ function update_JKV!(model::AbstractModel,inversion,clock)
 
     JKV=σzzsurf_comp .+ τx_surf_comp .+ τy_surf_comp
     push!(inversion.inversion_output.JKV, JKV)
+     if inversion.inversion_params.verbose
     println("   JKV is " ,inversion.inversion_output.JKV)
+     end
     return model
 end
 
@@ -1359,7 +1370,9 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
 
     JRMS=sqrt(mean((surf_speed_data_on_h[data_and_model_mask] .- gh.surf_speed[data_and_model_mask]).^2));
     push!(inversion.inversion_output.JRMS, JRMS)
+     if inversion.inversion_params.verbose
     println("   JRMS is " ,inversion.inversion_output.JRMS)
+     end
     return model
 end
 

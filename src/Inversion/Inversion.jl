@@ -32,7 +32,7 @@ function Inversion(;
     if !all(data.ghdata.accumulation_rate .== model.params.accumulation_rate)
     println("WARNING: a different accumulation_rate is being used in model and inversion.data!")
     else
-    println("The same accumulation_rate is being used in model and inversion.data!")
+    #println("The same accumulation_rate is being used in model and inversion.data!")
     end
 
     inversion=Inversion(model,data,inversion_params,inversion_output)

@@ -13,7 +13,7 @@ end
 if true 
 @testset "MISMIP+ verification experiments" begin 
     @testset "MISMIP+ Ice0 verification experiments" begin
-        @info "Performing MISMIP+ Ice0 verification experiments"
+        @info "Performing MISMIP+ Ice0 verification experiments: forward and inversion"
         include(joinpath("verification_tests","MISMIP_PLUS_Ice0.jl"))
          include(joinpath("verification_tests","MISMIP_PLUS_inversion.jl"))
         simulation=MISMIP_PLUS_Ice0()
