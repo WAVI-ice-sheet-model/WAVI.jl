@@ -126,12 +126,24 @@ function make_ncfile_from_filenames(filenames, format, nc_name_full)
             sz = size(first_file_data)
 
             if sz == (length(x), length(y))
+                # Convert Bool type to Int8 for NetCDF compatibility
+                data_type = eltype(first_file_data)
+                if data_type == Bool
+                    data_type = Int8
+                end
+                
                 # Define the variable in the NetCDF file
-                var_nc = defVar(ds, key, eltype(first_file_data), ("x", "y", "TIME"))
+                var_nc = defVar(ds, key, data_type, ("x", "y", "TIME"))
 
                 # Populate the variable by iterating through filenames
                 for i = 1:length(filenames)
-                    var_nc[:,:,i] = get_output_as_dict(filenames[i], format)[key]
+                    data = get_output_as_dict(filenames[i], format)[key]
+                    # Convert Bool arrays to Int8 for NetCDF compatibility
+                    if eltype(data) == Bool
+                        var_nc[:,:,i] = Int8.(data)
+                    else
+                        var_nc[:,:,i] = data
+                    end
                 end
             else
                 @warn string("found an output variable (", key, ") who's spatial dimensions (", sz, ") do not match the co-ordinates. Skipping this variable from the nc output...")
