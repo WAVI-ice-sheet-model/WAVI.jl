@@ -3,11 +3,10 @@
 using Pkg
 
 # Use docs project
-Pkg.develop(path = joinpath(@__DIR__, "..")) # This adds local WAVI to docs/Project.toml
 Pkg.activate(@__DIR__)
 
 # Add WAVI source path
-#Pkg.develop(path = joinpath(@__DIR__, "..")) # This adds local WAVI to docs/Project.toml
+Pkg.develop(path = joinpath(@__DIR__, "..")) # This adds local WAVI to docs/Project.toml
 #insert!(LOAD_PATH, 1, joinpath(@__DIR__, "..")) # Add local WAVI git clone - prioritise over a normal install
 
 Pkg.instantiate()
