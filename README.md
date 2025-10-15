@@ -53,7 +53,27 @@ It's as easy as that: entry into the state of the art ice sheet model intercompa
 
 ## Getting help
 
-## Contributing
+### Building documentation
+
+If working on developing the codebase, you can build the documentation locally using:
+
+```julia
+julia docs/build.jl
+```
+
+or:
+
+```julia
+./docs/build.jl
+```
+
+And optionally, using the `--live` flag to enable hot-reloading, which will reload the browser upon any changes in the markdown, or source code (including docstrings).
+
+```julia
+./docs/build.jl --live
+```
+
+### Contributing
 If you're interested in contributing to the development of WAVI we want your help no matter how big or small a contribution you make! Contributing guidelines can be found in our [contributing guide](https://WAVI-ice-sheet-model.github.io/WAVI.jl/contributing/)
 
 ## Credits
