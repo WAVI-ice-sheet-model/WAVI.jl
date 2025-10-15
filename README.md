@@ -58,19 +58,19 @@ It's as easy as that: entry into the state of the art ice sheet model intercompa
 If working on developing the codebase, you can build the documentation locally using:
 
 ```julia
-julia docs/build.jl
+julia docs/serve.jl
 ```
 
 or:
 
 ```julia
-./docs/build.jl
+./docs/serve.jl
 ```
 
 And optionally, using the `--live` flag to enable hot-reloading, which will reload the browser upon any changes in the markdown, or source code (including docstrings).
 
 ```julia
-./docs/build.jl --live
+./docs/serve.jl --live
 ```
 
 ### Contributing
