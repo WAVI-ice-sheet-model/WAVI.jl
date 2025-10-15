@@ -2,10 +2,17 @@ using Documenter
 using DocumenterCitations
 using Literate 
 using Plots
+using Revise
 using WAVI
+
+# Track changes in WAVI source code
+# Handle need for re-compiling instead of using previous cache
+Revise.track(WAVI)
 
 bib_filepath = joinpath(dirname(@__FILE__), "wavi.bib")
 bib = CitationBibliography(bib_filepath)
+
+@info "Running makedocs()"
 
 
 ENV["GKSwstype"] = "100"
