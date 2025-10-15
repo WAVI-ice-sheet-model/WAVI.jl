@@ -45,9 +45,5 @@ jobs:
         env:
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
         run: |
-          julia --project=docs/ -e '
-            using Pkg
-            Pkg.develop(path=".")
-            Pkg.instantiate()'
-          julia --project=docs/ docs/make.jl
+          julia docs/build.jl
 
