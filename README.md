@@ -32,7 +32,7 @@ Note that WAVI requires Julia v1.5 or newer.
 Updating WAVI is also achieved using the package manager
 ```julia
 julia>using Pkg
-julia>Pkg.update("WAVI"))
+julia>Pkg.update("WAVI")
 ```
 Note that updating should be done with care as WAVI is still developing rapidly; while we aim to keep breaking changes to a minimum, this cannot be guaranteed at present.
 
