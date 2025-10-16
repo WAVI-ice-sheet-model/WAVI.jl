@@ -20,7 +20,7 @@ julia> include('./test/test_XXXXX.jl')
 The output will appear as below (in this case for `/test/test_fields.jl`). The test summary lists the total number of tests, alongside the number which pass and fail. 
 
 ```@raw html
-<center><img src="../assets/test_output.png" alt="" title="" style="max-width: 100%" /></center>
+<center><img src="../../assets/test_output.png" alt="" title="" style="max-width: 100%" /></center>
 ```
 
 The full suite of tests can be run using the `runtests.jl` script. 
