@@ -117,7 +117,7 @@ end
 ```
 
 ```@raw html
-<center><img src="../assets/example-plots/MISMIP/ice1r_vaf.png" alt="" title="" style="max-width: 100%" /></center>
+<center><img src="../../assets/example-plots/MISMIP/ice1r_vaf.png" alt="" title="" style="max-width: 100%" /></center>
 ```
 The volume above floatation decreases, indicating that the ice sheet is retreating. That's to be expected: the initial condition is in steady state with no melting, and the melting in this experiemnt is quite aggressive. 
 

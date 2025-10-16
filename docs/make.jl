@@ -105,7 +105,7 @@ pages = [
 
 format = Documenter.HTML(
     collapselevel = 1,
-    prettyurls = get(ENV, "CI", nothing) == "true",
+    prettyurls = true,
     #canonical = "website_url_here",
     mathengine = MathJax3()
 )

@@ -48,7 +48,7 @@ plot!(size = (600,400))
 ```
 
 ```@raw html
-<center><img src="../assets/example-plots/bumpy/bed.png" alt="" title="" style="max-width: 100%" /></center>
+<center><img src="../../assets/example-plots/bumpy/bed.png" alt="" title="" style="max-width: 100%" /></center>
 ```
 
 ## Model Instantiation and Initial Conditions
@@ -82,7 +82,7 @@ plot!(size = (600,400))
 ```
 
 ```@raw html
-<center><img src="../assets/example-plots/bumpy/velocity_L80.png" alt="" title="" style="max-width: 100%" /></center>
+<center><img src="../../assets/example-plots/bumpy/velocity_L80.png" alt="" title="" style="max-width: 100%" /></center>
 ```
 
 ## Different lengthscales
@@ -127,7 +127,7 @@ display(p)
 plot!(size = (1000,550))
 ```
 ```@raw html
-<center><img src="../assets/example-plots/bumpy/velocity_diffL.png" alt="" title="" style="max-width: 100%" /></center>
+<center><img src="../../assets/example-plots/bumpy/velocity_diffL.png" alt="" title="" style="max-width: 100%" /></center>
 ```
 
 As expected, when the bumps have a smaller aspect ratio (smaller `L`) the flow speed is smaller.
