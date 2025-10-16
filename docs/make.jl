@@ -126,7 +126,7 @@ makedocs(
 
 deploydocs(
     repo="github.com/WAVI-ice-sheet-model/WAVI.jl",
-    devbranch="docs-reconcile",
+    devbranch="main",
     versions = nothing
 )
 
