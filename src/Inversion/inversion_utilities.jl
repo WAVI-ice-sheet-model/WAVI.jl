@@ -1384,3 +1384,47 @@ function update_surface_velocities_on_uv_grid!(model)
     return model
 end
 
+
+function smooth_veloc_data(g, gh, data, datamask_raw, veloc_fixed)
+
+    nx = hasfield(typeof(g), :nxu) ? g.nxu : g.nxv
+    ny = hasfield(typeof(g), :nyu) ? g.nyu : g.nyv
+
+   # datamask_raw = ((datamask_raw .== 1) .& (g.mask .== 1))
+
+    #construct operators on u data grid:
+    n = count(datamask_raw)
+    mask_inner = datamask_raw .& .! veloc_fixed 
+    ni = count(mask_inner)
+    # crop = Diagonal(float(udatamask_raw[:]))
+    samp = sparse(1:n,(1:(nx*ny))[datamask_raw[:]],ones(n),n,nx*ny)
+    samp_inner = sparse(1:ni,(1:(nx*ny))[mask_inner[:]],ones(ni),ni,nx*ny)
+    spread = sparse(samp')
+    spread_inner = sparse(samp_inner')
+
+    # Move raw u data on to h grid and back on to u grid:  
+    data_vec=data[datamask_raw]
+    data_spread=spread*data_vec
+    #
+    data_crop = g.crop * data_spread[:]  
+    data_cent = g.cent * data_crop 
+    data_cent_samp = gh.samp  * data_cent
+    data_cent_samp_spread= gh.spread*data_cent_samp
+    #
+    data_centT =  g.centᵀ*data_cent_samp_spread
+    data_centT_crop =  g.crop*data_centT
+    #
+    data_sampi = samp_inner*data_centT_crop
+    data_smoothed=zeros(nx,ny)
+    data_smoothed[datamask_raw]=data_sampi
+    speed=data_smoothed 
+ 
+    ##pre-select points not near data gaps for using in the inversion:
+   gap_mask = g.mask .& .!datamask_raw 
+   neargap = imfilter((gap_mask) .|> Int, Kernel.ones(3,3),  Pad(1,1)) .> 0 
+   datamask = ((datamask_raw .== 1) .& (g.mask .== 1) .& (neargap .== 0))
+
+    
+    return speed, datamask
+    
+end
