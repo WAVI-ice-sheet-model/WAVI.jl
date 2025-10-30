@@ -26,7 +26,7 @@ import WAVI.Wavelets: UWavelets, VWavelets
 Struct to represent the MPI parallel specification of a model.
 
 """
-mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec 
+mutable struct MPISpec{N <: Integer, T <: Number, M, G} <: AbstractDecompSpec 
     # MPI Specification information
     px::N
     py::N
@@ -49,7 +49,11 @@ mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
     bottom::Union{N, Nothing}
     left::Union{N, Nothing}
 
-    function MPISpec(px::Int, py::Int, halo::Int, grid::AbstractGrid)
+    # Halo merging
+    damping::T
+    pou::Bool
+
+    function MPISpec(px::Int, py::Int, halo::Int, grid::AbstractGrid, pou::Bool = true, damping::Number = 0.0)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
 
@@ -69,7 +73,7 @@ mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
 
         @info "[$(rank+1)/$(size)] Neighbours $(top),$(right),$(bottom),$(left)"
         
-        return new{Int, MPI.Comm, AbstractGrid}(
+        return new{Int, Float64, MPI.Comm, AbstractGrid}(
             px, 
             py, 
             halo,
@@ -81,7 +85,9 @@ mutable struct MPISpec{N <: Integer, M, G} <: AbstractDecompSpec
             rank,
             cart_comm,
             [x_coord, y_coord],
-            top, right, bottom, left)
+            top, right, bottom, left,
+            damping,
+            pou)
     end
 end
 
@@ -188,7 +194,7 @@ function Model(grid::G,
 
     bed_array = get_bed_elevation(bed_elevation, local_grid)
     # FIXME: WOAH, bed_array is the wrong size!!! [x_start:x_end, y_start:y_end]
-    fields = GridField(local_grid, bed_array[x_start:x_end, y_start:y_end]; initial_conditions=conditions, params=local_params, solver_params)
+    fields = GridField(local_grid, bed_array; initial_conditions=conditions, params=local_params, solver_params)
     model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, local_params, solver_params, spec, melt_rate)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)

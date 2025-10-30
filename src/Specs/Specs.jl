@@ -6,6 +6,7 @@ export AbstractDecompSpec
 
 abstract type AbstractDecompSpec <: AbstractSpec end
 
+include("utils.jl")
 include("basic.jl")
 include("threaded.jl")
 include("mpi.jl")

@@ -3,13 +3,12 @@ export ThreadedSpec
 using LinearAlgebra
 using Parameters
 
-include("SchwarzDecomposition/SchwarzDecomposition.jl")
-using .SchwarzDecomposition
-
 using WAVI
 using WAVI.Processes
 import WAVI: AbstractGrid, AbstractModel, AbstractSpec
 import WAVI.Processes: update_preconditioner!, precondition!
+
+include("SchwarzDecomposition/SchwarzDecomposition.jl")
 
 """
 Struct to represent the shared memory parallel specification of a model.

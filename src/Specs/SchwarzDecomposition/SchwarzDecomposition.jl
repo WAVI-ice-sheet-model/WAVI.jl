@@ -1,5 +1,3 @@
-module SchwarzDecomposition
-
 using WAVI
 import WAVI: AbstractModel
 using WAVI.Models: Model
@@ -67,7 +65,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     u_isfixed_g = u_isfixed[i_start_g:i_stop_g+1,j_start_g:j_stop_g] 
     v_isfixed_g = v_isfixed[i_start_g:i_stop_g,j_start_g:j_stop_g+1]
 
-    #Set halo points as fixed velocity points
+    #Set edge of halo as fixed velocity points
     (igrid==1) || (u_isfixed_g[1,:] .= true)
     (igrid==ngridsx) || (u_isfixed_g[nx_g+1,:] .= true)
     (igrid==1) || (v_isfixed_g[1,:] .= true)
@@ -218,38 +216,11 @@ function schwarzProlongVelocities!(model::AbstractModel,
     nx_g = i_stop_g - i_start_g + 1
     ny_g = j_stop_g - j_start_g + 1
 
-    upou = schwarzPartitionOfUnity(nx_g+1,ny_g,igrid==1,igrid==ngridsx,jgrid==1,jgrid==ngridsy,2*overlap,2*overlap-1)
-    vpou = schwarzPartitionOfUnity(nx_g,ny_g+1,igrid==1,igrid==ngridsx,jgrid==1,jgrid==ngridsy,2*overlap-1,2*overlap)
+    upou = partition_of_unity(nx_g+1,ny_g,igrid==1,igrid==ngridsx,jgrid==1,jgrid==ngridsy,2*overlap,2*overlap-1)
+    vpou = partition_of_unity(nx_g,ny_g+1,igrid==1,igrid==ngridsx,jgrid==1,jgrid==ngridsy,2*overlap-1,2*overlap)
 
     model.fields.gu.u[i_start_g:i_stop_g+1,j_start_g:j_stop_g] .+= (one(damping)-damping) .* upou .* model_g.fields.gu.u
     model.fields.gv.v[i_start_g:i_stop_g,j_start_g:j_stop_g+1] .+= (one(damping)-damping) .* vpou .* model_g.fields.gv.v
 
     return model
-end
-
-"""
-schwarzPartitionOfUnity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj)
-
-Returns a partition of unity array pou(i,j) of size m x n. The partition of unity ramps from 1 in interior to zero at edges.
-
-leavei1(Bool):  Flag. If set, we leave the partition of unity as one towards the edge i=1
-leaveim(Bool):  Flag. If set, we leave the partition of unity as one towards the edge i=m
-leavej1(Bool):  Flag. If set, we leave the partition of unity as one towards the edge j=1 
-leavejn(Bool):  Flag. If set, we leave the partition of unity as one towards the edge j=m  
-overlapi:       The ramp is applied over overlapi cells in direction i.
-overlapj:       The ramp is applied over overlapj cells in direction j.
-
-"""
-function schwarzPartitionOfUnity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj)
-    @assert m > (~leavei1 && overlapi) + (~leaveim && overlapi)
-    @assert n > (~leavej1 && overlapj) + (~leavejn && overlapj)
-    pou = [min(1.0, 
-        leavei1 ? Inf : (i-1)./(overlapi),
-        leaveim ? Inf : (m-i)./(overlapi)) for i=1:m, j=1:n] .*
-        [min(1.0, 
-        leavej1 ? Inf : (j-1)./(overlapj),
-        leavejn ? Inf : (n-j)./(overlapj)) for i=1:m, j=1:n]
-    return pou
-end
-
 end

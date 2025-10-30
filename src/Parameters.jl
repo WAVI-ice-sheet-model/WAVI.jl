@@ -190,10 +190,10 @@ function TimesteppingParams(;
 
     #check compatibility of n_iter_total and end_time, and compute them 
     end_time, n_iter_total = compute_iterations_and_end_time(end_time, n_iter_total, dt)
-    @info "Caluated end time $(end_time) and n_iter_total $(n_iter_total)"
+    @info "Calculated end time $(end_time) and n_iter_total $(n_iter_total)"
 
     #compute number of timesteps checkpoint number of timesteps
-    chkpt_freq == Inf ? n_iter_chkpt = Inf : n_iter_chkpt  = round(Int, chkpt_freq/dt)
+    chkpt_freq == Inf ? n_iter_chkpt = Inf : n_iter_chkpt = round(Int, chkpt_freq/dt)
     
     #check the output path ends in '/' and exists
     endswith(chkpt_path, "/") || (chkpt_path = string(chkpt_path, "/"))
