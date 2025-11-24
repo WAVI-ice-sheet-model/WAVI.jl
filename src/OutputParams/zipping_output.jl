@@ -110,7 +110,7 @@ function get_spatial_dimensions_for_grid(fname, grid_type::Symbol)
             # Create v-grid coordinates from h-grid coordinates
             xh = vars["x"][:,1]
             yh = vars["y"][1,:]
-            dy = length(yh) > 1 ? yh[2] - yh[1] : 8000.0 
+            dy = length(yh) > 1 ? yh[2] - yh[1] : 8000.0 # default spacing 
             X = xh  # x coordinates same as h-grid
             Y = [yh[1] - dy/2; yh .+ dy/2]  # v-grid has ny+1 points
         end
@@ -122,41 +122,10 @@ function get_spatial_dimensions_for_grid(fname, grid_type::Symbol)
 end
 
 """
-    get_spatial_dimensions()
+    get_times(filenames)
 
-Return one-dimensional arrays of the spatial variables - legacy h-grid only version
+Extract time values from the output files.
 """
-function get_spatial_dimensions(fname)
-    return get_spatial_dimensions_for_grid(fname, :h)
-end
-
-"""
-    get_all_grid_dimensions(fname)
-
-Return coordinate arrays for all available grid types (h, u, v).
-Returns a dictionary with grid_type => (X, Y) pairs.
-"""
-function get_all_grid_dimensions(fname)
-    grid_coords = Dict{Symbol, Tuple{Vector, Vector}}()
-    
-    for grid_type in [:h, :u, :v]
-        try
-            X, Y = get_spatial_dimensions_for_grid(fname, grid_type)
-            grid_coords[grid_type] = (X, Y)
-        catch e
-            @warn "Could not extract coordinates for $grid_type grid: $e"
-        end
-    end
-    
-    return grid_coords
-end
-
-"""
-    get_time_output(filenames)
-
-Return the times associated with filenames
-"""
-
 function get_times(filenames)
     t = zeros(length(filenames))
     for i = 1:length(filenames)
@@ -166,6 +135,7 @@ function get_times(filenames)
     end
     return t
 end
+
 """
     get_output_as_dict(filename,format)
 
@@ -188,7 +158,7 @@ Return the extension of the input file
 return_extension(file) =  file[(findlast(isequal('.'),file)+1):end];
 
 """
-make_ncfile(folder,format)
+    make_ncfile(folder,format)
 
 Wrapper script to zip the output files in "folder" with type "format" to an nc file with name nc_name_full (including path)
 """
