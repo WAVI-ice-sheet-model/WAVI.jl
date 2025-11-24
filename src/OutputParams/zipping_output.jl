@@ -59,8 +59,7 @@ function get_spatiotemporal_var_atts(grid_type::Symbol)
     grid_name = string(grid_type)
     x_atts = Dict("long_name" => "x coordinates of grid points ($grid_name grid)", "units" => "m")
     y_atts = Dict("long_name" => "y coordinates of grid points ($grid_name grid)", "units" => "m")
-    time_atts = Dict("long_name" => "time", "units" => "years")
-    return x_atts, y_atts, time_atts
+    return x_atts, y_atts
 end
 
 """
@@ -242,7 +241,7 @@ function make_ncfile_from_filenames(filenames, format, nc_name_full)
             defDim(ds, y_dim_name, length(Y))
             
             # Get attributes for this grid type
-            x_atts, y_atts, _ = get_spatiotemporal_var_atts(grid_type)
+            x_atts, y_atts = get_spatiotemporal_var_atts(grid_type)
             
             # Define coordinate variables
             defVar(ds, x_var_name, X, (x_dim_name,), attrib = x_atts)
