@@ -57,8 +57,8 @@ Return the variable attributes for the spatiotemporal variable (x,y,t) for a spe
 """
 function get_spatiotemporal_var_atts(grid_type::Symbol)
     grid_name = string(grid_type)
-    x_atts = Dict("longname" => "x co-ordinates of ice grid points ($grid_name grid)",  "units" => "m")
-    y_atts = Dict("longname" => "y co-ordinates of ice grid points ($grid_name grid)",  "units" => "m")
+    x_atts = Dict("longname" => "x co-ordinates of grid points ($grid_name grid)",  "units" => "m")
+    y_atts = Dict("longname" => "y co-ordinates of grid points ($grid_name grid)",  "units" => "m")
     time_atts = Dict("longname" => "Time", "units" => "years")
     return x_atts, y_atts, time_atts
 end
@@ -97,7 +97,7 @@ function get_spatial_dimensions_for_grid(fname, grid_type::Symbol)
             # Create u-grid coordinates from h-grid coordinates
             xh = vars["x"][:,1]
             yh = vars["y"][1,:]
-            dx = length(xh) > 1 ? xh[2] - xh[1] : 8000.0  # default spacing
+            dx = length(xh) > 1 ? xh[2] - xh[1] : 8000.0
             X = [xh[1] - dx/2; xh .+ dx/2]  # u-grid has nx+1 points
             Y = yh  # y coordinates same as h-grid
         end
@@ -110,7 +110,7 @@ function get_spatial_dimensions_for_grid(fname, grid_type::Symbol)
             # Create v-grid coordinates from h-grid coordinates
             xh = vars["x"][:,1]
             yh = vars["y"][1,:]
-            dy = length(yh) > 1 ? yh[2] - yh[1] : 8000.0  # default spacing
+            dy = length(yh) > 1 ? yh[2] - yh[1] : 8000.0 
             X = xh  # x coordinates same as h-grid
             Y = [yh[1] - dy/2; yh .+ dy/2]  # v-grid has ny+1 points
         end
@@ -207,12 +207,10 @@ end
     make_ncfile_from_filenames(filenames, format)
 
 Output an nc file from filenames, which have format "format" to a file with name nc_name.
-nc_name must contain the path as well!
-Now supports multiple grids (h, u, v) with automatic grid type detection.
+nc_name must contain the path as well! Supports multiple grids (h, u, v) with grid type detection.
 """
 function make_ncfile_from_filenames(filenames, format, nc_name_full)
-    # Get all grid coordinates and time
-    grid_coords = get_all_grid_dimensions(filenames[1])
+    # Get time
     t = get_times(filenames)
     
     # Get the grid dimensions for type detection
@@ -221,6 +219,29 @@ function make_ncfile_from_filenames(filenames, format, nc_name_full)
     # Get the keys of variables to be written (excluding spatial and time dimensions)
     filekeys = collect(keys(get_output_as_dict(filenames[1], format)))
     data_keys = filter(k -> !(k in ["x", "y", "xu", "yu", "xv", "yv", "t"]), filekeys)
+    
+    # Determine which grids are actually used by analyzing variable dimensions
+    used_grids = Set{Symbol}()
+    first_file_vars = get_output_as_dict(filenames[1], format)
+    
+    for key in data_keys
+        dims = size(first_file_vars[key])
+        grid_type = detect_grid_type(dims, grid_dims)
+        if grid_type != :unknown
+            push!(used_grids, grid_type)
+        end
+    end
+    
+    # Only extract coordinates for grids that are actually used
+    grid_coords = Dict{Symbol, Tuple{Vector, Vector}}()
+    for grid_type in used_grids
+        try
+            X, Y = get_spatial_dimensions_for_grid(filenames[1], grid_type)
+            grid_coords[grid_type] = (X, Y)
+        catch e
+            @warn "Could not extract coordinates for $grid_type grid: $e"
+        end
+    end
 
     # Remove existing file if it exists
     isfile(nc_name_full) && rm(nc_name_full)
