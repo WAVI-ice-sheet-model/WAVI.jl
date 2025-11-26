@@ -63,15 +63,6 @@ function get_spatiotemporal_var_atts(grid_type::Symbol)
 end
 
 """
-    get_spatiotemporal_var_atts()
-
-Return the variable attributes for the spatiotemporal variable (x,y,y) - legacy h-grid only version
-"""
-function get_spatiotemporal_var_atts()
-    return get_spatiotemporal_var_atts(:h)
-end
-
-"""
     get_spatial_dimensions_for_grid(fname, grid_type::Symbol)
 
 Return one-dimensional arrays of the spatial variables for a specific grid type.
