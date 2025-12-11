@@ -1,15 +1,29 @@
-"""
-    update_tensile_strain_history!(model::AbstractModel)
 
-Find the tensile strain energy history function from 'ice shelf' parts of strain rate tensor, neglecting all vertical shear.
+
+struct ConstantDamage <: AbstractFracture end
+struct DruckerPragerPhaseField <: AbstractFracture end
+
+get_fracture(model::AbstractModel{T,N}) where {T,N} = model.fracture
+
 """
-function update_tensile_strain_history!(model::AbstractModel{T,N}) where {T,N}
+    update_damage!(model::AbstractModel)
+
+Update the damage field and the strain history from 'ice shelf' parts of strain rate tensor, neglecting all vertical shear.
+"""
+update_damage!(model::AbstractModel{T,N};kwargs ...) where {T,N} = update_damage!(get_fracture(model),model; kwargs ...)
+
+function update_damage!(fracture::ConstantDamage,model::AbstractModel{T,N};kwargs...) where {T,N}
+  return model
+end
+
+function update_damage!(fracture::DruckerPragerPhaseField,model::AbstractModel{T,N}; store_strain_history = false) where {T,N}
     @unpack gh,gu,gv,gc,g3d = model.fields
     @unpack params,solver_params=model
 
-    tol = solver_params.tol_tensile_eig_solve
-    maxiter = solver_params.maxiter_tensile_eig_solve
-    max_strain_error = zero(T)
+    A_drucker_prager = 2.0* (params.ice_tensile_strength .* params.ice_compressive_strength) ./
+                   (sqrt(3.0)*(params.ice_tensile_strength .+ params.ice_compressive_strength))
+    B_drucker_prager = (params.ice_tensile_strength .- params.ice_compressive_strength) ./
+                   (sqrt(3.0)*(params.ice_tensile_strength .+ params.ice_compressive_strength))
 
     resistive_stress_eig1=zeros(T,gh.nxh,gh.nyh)
     resistive_stress_eig2=zeros(T,gh.nxh,gh.nyh)
@@ -26,35 +40,48 @@ function update_tensile_strain_history!(model::AbstractModel{T,N}) where {T,N}
               (gc.cent*(gc.crop*( gu.∂y*(gu.crop*gu.u[:]) .+ gv.∂x*(gv.crop*gv.v[:])) )).^2
                  ) )
 
-    advect3D!(g3d.tensile_strain_history,model)
-
     for k=1:g3d.nσs
         for j=1:g3d.nys
             for i=1:g3d.nxs
                 if gh.mask[i,j]
-                    sigma3 = -params.density_ice.*params.g.*gh.h[i,j]*g3d.ζ[k]
-                    sigma2 = resistive_stress_eig2[i,j] .+ sigma3
-                    sigma1 = resistive_stress_eig1[i,j] .+ sigma3
+                    water_depth = max(params.sea_level_wrt_geoid - gh.s[i,j] + gh.h[i,j]*g3d.ζ[k],zero(T))
+                    water_pressure = params.density_ocean.*params.g * water_depth
+                    sigma3_effective = -params.density_ice.*params.g.*gh.h[i,j]*g3d.ζ[k] + water_pressure
+                    sigma2_effective = resistive_stress_eig2[i,j] .+ sigma3_effective
+                    sigma1_effective = resistive_stress_eig1[i,j] .+ sigma3_effective
                     degradation = one(T) - g3d.Φ[i,j,k] 
-                    tensile_energy, strain_error = tensile_elastic_strain_energy(sigma1,sigma2,sigma3;
+                    drucker_prager_elastic_energy = drucker_prager_elastic_strain_energy(sigma1_effective,sigma2_effective,sigma3_effective;
                          lambda=params.elastic_lambda,
                          mu=params.elastic_mu,
-                         degradation=degradation,
-                         tol=tol,
-                         maxiter=maxiter) 
-                    max_strain_error = max(strain_error,max_strain_error)
-                    g3d.tensile_strain_history[i,j,k] = max(g3d.tensile_strain_history[i,j,k] , positivePart(
-                       tensile_energy .- params.critical_elastic_energy))
+                         A = A_drucker_prager,
+                         B = B_drucker_prager,
+                         degradation = degradation) 
+                    strain_history = max(g3d.strain_history[i,j,k] , drucker_prager_elastic_energy)
                     phase_field = one(T) - one(T)./
-                      (one(T) + 2*params.phase_field_length*g3d.tensile_strain_history[i,j,k]/params.energy_release_rate)
+                      (one(T) + 2*params.phase_field_length*strain_history/params.energy_release_rate)
                     phase_field=clamp(phase_field,zero(T),one(T))
-                    g3d.Φ[i,j,k]=one(T) - degradation_function(phase_field;k_reg = params.degradation_regularisation)    
+                    g3d.Φ[i,j,k]=one(T) - degradation_function(phase_field;k_reg = params.degradation_regularisation)  
+                    store_strain_history && (g3d.strain_history[i,j,k] = strain_history)
                 end
             end
         end
     end
-    println(max_strain_error)
     return model
+end
+
+"""
+    update_strain_history!(model::AbstractModel)
+
+Advect the strain history neglecting all vertical shear.
+"""
+function update_strain_history!(model::AbstractModel{T,N}) where {T,N} 
+@unpack g3d = model.fields
+
+update_damage!(model;store_strain_history = true)
+advect3D!(g3d.strain_history,model)
+
+return model
+
 end
 
 """
@@ -62,64 +89,35 @@ end
 
 Degradation function used in phase field model.
 """
-function degradation_function(d;k_reg=0)
+function degradation_function(d::T;k_reg=zero(T)) where T
   degradation = k_reg + (one(k_reg)-k_reg)*(one(d)-d)^2
   return degradation
 end
 
 """
-    tensile_ealstic_strain_energy(sigma1,sigma2,sigma3)
+    drucker_prager_elastic_strain_energy(sigma1,sigma2,sigma3)
 
-Find the tensile part of the elastic strain energy from the three principal stresses using a fixed-point iteration
+Find the degraded part of the elastic strain energy from the three principal stresses.
 """
-function tensile_elastic_strain_energy(sigma1::T,sigma2::T,sigma3::T;lambda,mu,degradation=1.0,tol=eps(),maxiter=100) where T
+function drucker_prager_elastic_strain_energy(sigma1::T,sigma2::T,sigma3::T;lambda,mu,A,B,degradation=one(T)) where T
 
     p = -(sigma1 .+ sigma2 .+ sigma3)./3.0
     K = lambda .+ (2/3)*mu
-    eig3StartGuess = undegrade(-p./K,degradation) 
-    eig3 = eig3StartGuess
-    f3 = degrade(eig3,degradation)
-    strain_error = Inf
-    iterations=0
-    alpha = 1.0
 
-    while (strain_error > tol) & (iterations < maxiter)
-        iterations += 1
-        f3last=f3
-        eig1=undegrade(f3+(sigma1-sigma3)./(2*mu),degradation)
-        eig2=undegrade(f3+(sigma2-sigma3)./(2*mu),degradation)
-        eig3=undegrade(f3,degradation)
-        trace=eig1+eig2+eig3
-        f3new = (sigma3 - lambda.*degrade(trace,degradation))./(2*mu)
-        degTrace = (trace >= 0) ? degradation : one(degradation)
-        invDeg1 = (eig1 >= 0) ? one(degradation)./degradation : one(degradation)
-        invDeg2 = (eig2 >= 0) ? one(degradation)./degradation : one(degradation)
-        invDeg3 = (eig3 >= 0) ? one(degradation)./degradation : one(degradation)
-        chi = (lambda./(2*mu)).*degTrace.*(invDeg1.+invDeg2.+invDeg3)
-        r = alpha .* one(chi)./(one(chi) .+ chi)
-        f3 = (one(r) .- r).*f3last .+ r.*f3new
+    tau_deviatoric = sqrt.( 0.5*( (sigma1 .+ p).^2 .+ (sigma2 .+ p).^2 .+ (sigma3 .+ p).^2 ) ) 
 
-        last_strain_error = strain_error 
-        strain_error = maximum(abs.(f3last - f3new))
-        if strain_error > last_strain_error
-          alpha = alpha .* 0.5
-          f3 = f3last
-        end
+    p_offset = p .- A./(3.0 .* B)
+
+    if tau_deviatoric >= -3.0 * B * p_offset
+       if tau_deviatoric >= mu*p_offset/(3.0*B*K)
+          positiveStrainEnergy = (3.0*B*p_offset + tau_deviatoric).^2 ./ ( (2.0 *mu .+ 18.0 * B.^2 .* K) .* degradation.^2)
+       else
+          positiveStrainEnergy = ( p_offset.^2 ./ (2.0 * K) .+ tau_deviatoric.^2 ./ (2.0 *mu) ) ./ (degradation.^2) 
+       end
+    else
+      positiveStrainEnergy = zero(T)
     end
-
-
-    eig1=undegrade(f3+(sigma1-sigma3)./(2*mu),degradation)
-    eig2=undegrade(f3+(sigma2-sigma3)./(2*mu),degradation)
-    eig3=undegrade(f3,degradation)
-    trace = eig1+eig2+eig3
-
-    positiveStrainEnergy=(lambda/2).*(positivePart(eig1+eig2+eig3)).^2+mu.*((positivePart(eig1)).^2+(positivePart(eig2)).^2+(positivePart(eig3)).^2)
-
-    if strain_error > tol
-      println(degradation," ",iterations," ",strain_error," ",positiveStrainEnergy)
-    end
-
-    return positiveStrainEnergy,strain_error
+    return positiveStrainEnergy
 end
 
 positivePart(x) = 0.5*(x.+abs.(x))

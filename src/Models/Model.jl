@@ -1,10 +1,11 @@
-struct Model{T <: Real, N <: Integer,A,W, G, M <:AbstractMeltRate, PS <: AbstractParallelSpec} <: AbstractModel{T,N,M,PS}
+struct Model{T <: Real, N <: Integer,A,W, G, M <:AbstractMeltRate, F <:AbstractFracture, PS <: AbstractParallelSpec} <: AbstractModel{T,N,M,F,PS}
     grid::Grid{T,N}
     params::Params{T,A,W,G}
     solver_params::SolverParams{T,N}
     initial_conditions::InitialConditions{T}
     fields::Fields{T,N}
     melt_rate::M
+    fracture::F
     parallel_spec::PS
 end
 
@@ -16,6 +17,7 @@ end
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
         melt_rate = UniformMeltRate(),
+        fracture = ConstantDamage(),
         parallel_spec = BasicParallelSpec())
 
 Construct a WAVI.jl model object.
@@ -28,6 +30,7 @@ Keyword arguments
 - `solver_params`: a `SolverParams` object that defines parameters relating to the numerical scheme
 - `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, and damage
 - `melt_rate`: a melt rate model, responsible for controlling/setting the basal melt rate
+- `fracture`: a fracture model, responsible for controlling/setting the damage field
 - `parallel_spec`: specification of parallel computation method.
 
 """
@@ -38,6 +41,7 @@ function Model(;
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
     melt_rate = UniformMeltRate(),
+    fracture = ConstantDamage(),
     parallel_spec = BasicParallelSpec())
 
     #check that a grid and bed has been inputted
@@ -81,13 +85,11 @@ function Model(;
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
 
-
-
     #Setup the fields 
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,parallel_spec)
+    model=Model(grid,params,solver_params,initial_conditions,fields,melt_rate,fracture,parallel_spec)
 
     return model
 end

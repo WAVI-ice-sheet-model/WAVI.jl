@@ -15,7 +15,7 @@ function update_state!(model, clock)
     update_dsdh!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
-    update_tensile_strain_history!(model)
+    update_strain_history!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
     return nothing
@@ -37,7 +37,7 @@ function update_state!(model)
     update_dsdh!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
-    update_tensile_strain_history!(model)
+    update_strain_history!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
     return nothing
@@ -122,6 +122,25 @@ function update_basal_melt!(model::AbstractModel, clock)
     update_melt_rate!(model.melt_rate, model.fields, model.grid, clock)
     return model
 end
+
+
+"""
+    update_glen_b!(model::AbstractModel)
+Update stiffness parameter B in Glen flow law.
+"""
+function update_glen_b!(model::AbstractModel)
+    @unpack g3d=model.fields
+    @unpack params=model
+    for k=1:g3d.nσs
+        for j=1:g3d.nys
+            for i=1:g3d.nxs
+                g3d.glen_b[i,j,k] = glen_b.(g3d.θ[i,j,k],g3d.Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
+            end
+        end
+    end
+    return model
+end
+
 
 """
     update_weertman_c!(model::AbstractModel)

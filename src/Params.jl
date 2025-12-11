@@ -1,15 +1,17 @@
 struct Params{T <: Real, A, W, G}
                             dt :: T
-                            g :: T
-                  density_ice :: T
-                density_ocean :: T
-                    gas_const :: T 
-                sec_per_year  :: T
-            default_thickness :: T 
-            default_viscosity :: T 
-          default_temperature :: T
+                             g :: T
+                   density_ice :: T
+                 density_ocean :: T
+                     gas_const :: T 
+                 sec_per_year  :: T
+             default_thickness :: T 
+             default_viscosity :: T 
+           default_temperature :: T
                 default_damage :: T 
-default_tensile_strain_history :: T
+        default_strain_history :: T
+          ice_tensile_strength :: T
+      ice_compressive_strength :: T
        critical_elastic_energy :: T
             phase_field_length :: T
            energy_release_rate :: T
@@ -25,8 +27,8 @@ default_tensile_strain_history :: T
             weertman_reg_speed :: T
                 elastic_lambda :: T 
                     elastic_mu :: T 
-          sea_level_wrt_geoid :: T
-            minimum_thickness :: T 
+           sea_level_wrt_geoid :: T
+             minimum_thickness :: T 
                 evolveShelves :: Bool
                       smallHAF :: T
 end
@@ -49,7 +51,9 @@ Keyword arguments
 - `default_viscosity`: viscosity value reverted to if no initial thickness passed (Pa s)
 - `default_temperature`: temperature value reverted to if no initial thickness passed (K)
 - `default_damage`: damage value reverted to if no initial damage passed (dimensionless)
-- `default_tensile_strain_history`: maximum tensile strain energy reverted to if no initial value passed (Pa)
+- `default_strain_history`: maximum previous strain energy reverted to if no initial value passed (Pa)
+- `ice_tensile_strength`: uniaxial tensile strength of ice (Pa)
+- `ice_compressive_strength`: uniaxial conpressive strength of ice (Pa)
 - `critical_elastic_energy`: critical elastic strain energy for fracture nucleation (Pa)
 - `phase_field_length`: phase field length for fracture (m)
 - `energy_release_rate`: energy release rate for fracture (N/m)
@@ -79,11 +83,13 @@ function Params(; g = 9.81,
                   default_viscosity= 1.0e7,
                   default_temperature=263.15,
                   default_damage= 0.0,
-                  default_tensile_strain_history = 0.0,
+                  default_strain_history = 0.0,
+                  ice_tensile_strength = 262.9e3,
+                  ice_compressive_strength =  496.7e3,
                   critical_elastic_energy = 1.0,
                   phase_field_length = 1.0,
                   energy_release_rate = 1.0,
-                  degradation_regularisation = 1e-5,
+                  degradation_regularisation = 1e-2,
                   accumulation_rate= 0.0,
                   glen_a_activation_energy = 5.8631e+04,
                   glen_a_ref= 4.9e-16 *sec_per_year * 1.0e-9,
@@ -114,7 +120,9 @@ function Params(; g = 9.81,
                   default_viscosity,
                   default_temperature,
                   default_damage,
-                  default_tensile_strain_history,
+                  default_strain_history,
+                  ice_tensile_strength,
+                  ice_compressive_strength,
                   critical_elastic_energy,
                   phase_field_length,
                   energy_release_rate,
