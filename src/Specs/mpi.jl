@@ -76,7 +76,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     pou: Whether to use the Partition of Unity (PoU) method for halo merging
     damping: Damping factor for halo merging
     """
-    function MPISpec(px::Int, py::Int, halo::Int, grid::AbstractGrid, pou::Bool = true, damping::Number = 0.0)
+    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid, pou::Bool = true, damping::Number = 0.0)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
 
