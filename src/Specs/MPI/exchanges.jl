@@ -56,7 +56,22 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
                 halo,
                 halo)
         else
-            pou = ones(size(local_field)[1], size(local_field)[2])
+            pou = ones(size(local_field))
+            # If PoU is disabled, switch to simple averaging on the overlaps to prevent value doubling/explosion
+            # - Applying 0.5 weight to the halo regions that will receive neighbor contributions.
+            # - Corners will receive 0.5 * 0.5 = 0.25, due to 4-way overlap.
+            if left > -1
+                pou[1:halo, :] .*= 0.5
+            end
+            if right > -1
+                pou[end-halo+1:end, :] .*= 0.5
+            end
+            if top > -1
+                pou[:, 1:halo] .*= 0.5
+            end
+            if bottom > -1
+                pou[:, end-halo+1:end] .*= 0.5
+            end
             damping = 0.0
         end
 
