@@ -22,3 +22,39 @@ function partition_of_unity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlap
         leavejn ? Inf : (n-j)./(overlapj)) for i=1:m, j=1:n]
     return pou
 end
+
+"""
+validate_dimension(name::String, global_dim::Int, procs::Int, halo::Int)
+
+Checks if the local grid size is sufficient for halo overlap.
+
+    name:         Name of the dimension (e.g., "nx", "ny")
+    global_dim:   Global grid size in the dimension
+    procs:        Number of processes in the dimension
+    halo:         Halo size in the dimension
+"""
+function validate_dimension(name::String, global_dim::Int, procs::Int, halo::Int)
+    procs == 1 && return
+
+    core::Int = div(global_dim, procs)
+
+    # If procs == 1, only have one process, req is 0
+    # If procs == 2, only have edges, there is no interior
+    # If procs > 2, have interior and edge nodes
+    has_interior::Bool = procs > 2
+    req::Int = has_interior ? 2 * halo : halo
+
+    if core <= req
+        throw(ArgumentError(
+            "MPI Configuration Error: Local grid size in $name is too small for halo overlap!\n" *
+            "Global $name=$(global_dim), Processes=$(procs), Halo=$(halo)\n" *
+            "\tLocal core size=$(core), Required local core size=$(req)\n\n" *
+            "\tPartition of Unity requires:\n" *
+            "\t\t• Local core size > Halo (edge nodes)\n" *
+            "\t\t• Local core size > 2*Halo (interior nodes)\n\n" *
+            "\tFix by increasing $name or decreasing the number of processes in this direction.\n"
+        ))
+    else
+        @info "Local grid size in $name is sufficient for halo overlap."
+    end
+end
