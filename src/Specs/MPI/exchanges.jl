@@ -53,8 +53,8 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
                 right==-1,
                 top==-1,
                 bottom==-1,
-                2*halo,
-                2*halo)
+                halo,
+                halo)
         else
             pou = ones(size(local_field)[1], size(local_field)[2])
             damping = 0.0
