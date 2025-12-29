@@ -95,7 +95,18 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
         left = MPI.Cart_shift(cart_comm, 0, -1)[2]
 
         @info "[$(rank+1)/$(size)] Neighbours $(top),$(right),$(bottom),$(left)"
-        
+
+        if size % px != 0 || size % py != 0
+            valid = [(i, div(size,i)) for i in 1:size if size % i == 0]
+            error(
+                "MPI Configuration Error: Invalid process grid.\n\n" *
+                "size = $(size), px = $(px), py = $(py)\n\n" *
+                "px * py must equal size.\n\n" *
+                "Valid (px, py) combinations for size=$(size):\n" *
+                join(["  ($(a), $(b))" for (a,b) in valid], "\n")
+            )
+        end
+
         return new{Int, Float64, MPI.Comm, AbstractGrid}(
             px, 
             py, 
