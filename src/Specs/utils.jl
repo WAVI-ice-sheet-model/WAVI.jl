@@ -45,16 +45,23 @@ function validate_dimension(name::String, global_dim::Int, procs::Int, halo::Int
     req::Int = has_interior ? 2 * halo : halo
 
     if core <= req
+        min_global_dim = procs * (req + 1)
+        max_procs = div(global_dim, req + 1)
+
         throw(ArgumentError(
-            "MPI Configuration Error: Local grid size in $name is too small for halo overlap!\n" *
-            "Global $name=$(global_dim), Processes=$(procs), Halo=$(halo)\n" *
-            "\tLocal core size=$(core), Required local core size=$(req)\n\n" *
-            "\tPartition of Unity requires:\n" *
-            "\t\t• Local core size > Halo (edge nodes)\n" *
-            "\t\t• Local core size > 2*Halo (interior nodes)\n\n" *
-            "\tFix by increasing $name or decreasing the number of processes in this direction.\n"
+            "MPI Configuration Error: Local grid size in $name is too small for halo overlap!\n\n" *
+            "Current configuration:\n" *
+            "\tGlobal $name        = $(global_dim)\n" *
+            "\tProcesses        = $(procs)\n" *
+            "\tHalo size        = $(halo)\n" *
+            "\tLocal core size  = $(core)\n\n" *
+            "Partition of Unity requires:\n" *
+            "\t• Local core size > Halo (edge nodes)\n" *
+            "\t• Local core size > 2*Halo (interior nodes)\n\n" *
+            "Fix:\n" *
+            "\t• Increase $name to at least $(min_global_dim) (keeping processes fixed), or\n" *
+            "\t• Decrease processes in this direction to ≤ $(max_procs) (keeping $name fixed).\n"
         ))
-    else
-        @info "Local grid size in $name is sufficient for halo overlap."
     end
+
 end
