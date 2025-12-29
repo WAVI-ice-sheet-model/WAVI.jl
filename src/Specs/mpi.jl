@@ -192,8 +192,11 @@ function Model(grid::G,
         σ = grid.σ,
         basin_ID = grid.basin_ID[x_start:x_end, y_start:y_end])
 
-    bed_array = get_bed_elevation(bed_elevation, local_grid)
-    # FIXME: WOAH, bed_array is the wrong size!!! [x_start:x_end, y_start:y_end]
+    if typeof(bed_elevation) <: AbstractArray
+        bed_array = bed_elevation[x_start:x_end, y_start:y_end]
+    else
+        bed_array = get_bed_elevation(bed_elevation, local_grid)
+    end
     fields = GridField(local_grid, bed_array; initial_conditions=conditions, params=local_params, solver_params)
     model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, local_params, solver_params, spec, melt_rate)
 
