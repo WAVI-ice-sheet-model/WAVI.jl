@@ -107,6 +107,33 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             )
         end
 
+        # Validation checks for grid size vs halo
+        # We need to ensure local grid size is sufficient for Partition of Unity
+        # The constraint is generally: `Core > Halo` (for edge nodes) or `Core > 2*Halo` (for interior nodes)
+        # where Core = div(global_dim, procs)
+        if size != 1
+            core_x = div(grid.nx, px)
+            core_y = div(grid.ny, py)
+
+            # Check X dimension
+            req_x = (px == 1) ? 0 : (px == 2 ? halo : 2*halo)
+            if core_x <= req_x
+                 error("MPI Configuration Error: Local grid size in X is too small for halo overlap. \n" *
+                       "Global nx=$(grid.nx), Processes px=$(px), Halo=$(halo) -> Local Core=$(core_x). \n" *
+                       "Partition of Unity requires `Core > Halo` (for edge nodes) or `Core > 2*Halo` (for interior nodes). \n" *
+                       "Required Core > $(req_x). Try increasing nx or decreasing px to meet this requirement.")
+            end
+
+            # Check Y dimension
+            req_y = (py == 1) ? 0 : (py == 2 ? halo : 2*halo)
+            if core_y <= req_y
+                 error("MPI Configuration Error: Local grid size in Y is too small for halo overlap. \n" *
+                       "Global ny=$(grid.ny), Processes py=$(py), Halo=$(halo) -> Local Core=$(core_y). \n" *
+                       "Partition of Unity requires `Core > Halo` (for edge nodes) or `Core > 2*Halo` (for interior nodes). \n" *
+                       "Required Core > $(req_y). Try increasing ny or decreasing py to meet this requirement.")
+            end
+        end
+
         return new{Int, Float64, MPI.Comm, AbstractGrid}(
             px, 
             py, 
