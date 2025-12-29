@@ -35,10 +35,10 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     bottom_send_tag = 3
     left_send_tag = 4
     
-    requests = MPI.RequestSet()
     
     # TODO: currently we hardcode the velocity fields to be exchanged, but this should be user selectable
     for field_sym in [(gu, :u, (1, 0)), (gv, :v, (0, 1))]
+        requests = MPI.RequestSet()
         field_data, attribute, add_values = field_sym
         x_incr, y_incr = add_values
         
