@@ -25,8 +25,22 @@ import WAVI.Wavelets: UWavelets, VWavelets
 """
 Struct to represent the MPI parallel specification of a model.
 
+Fields:
+    px, py: Number of processes in x and y directions
+    halo: Number of halo cells on each side of the subgrid
+    pou: Whether to use the Partition of Unity (PoU) method for halo merging
+    damping: Damping factor for halo merging
+    rank: MPI rank of the current process
+    comm: MPI communicator for the current process
+    coords: Cartesian coordinates of the current process
+    top, right, bottom, left: Neighbouring processes in the x and y directions
+    global_size: Total number of processes
+    global_comm: MPI communicator for the global grid
+    global_grid: Global grid to be used for the model
+    global_fields: Global fields to be used for the model
+    field_collector: Field collector for the model
 """
-mutable struct MPISpec{N <: Integer, T <: Number, M, G} <: AbstractDecompSpec 
+mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGrid} <: AbstractDecompSpec
     # MPI Specification information
     px::N
     py::N
@@ -53,6 +67,15 @@ mutable struct MPISpec{N <: Integer, T <: Number, M, G} <: AbstractDecompSpec
     damping::T
     pou::Bool
 
+    @doc """
+    Constructor for MPISpec.
+
+    px, py: Number of processes in x and y directions
+    halo: Number of halo cells on each side of the subgrid
+    grid: Grid to be used for the model
+    pou: Whether to use the Partition of Unity (PoU) method for halo merging
+    damping: Damping factor for halo merging
+    """
     function MPISpec(px::Int, py::Int, halo::Int, grid::AbstractGrid, pou::Bool = true, damping::Number = 0.0)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
