@@ -61,7 +61,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         @warn "$(size(pou)) - $(size(local_field))"
-        local_field .*= (one(damping)-damping) .* pou .* local_field
+        local_field .*= (one(damping)-damping) .* pou
 
         # Send the "vertical" halo's 
         if left > -1
