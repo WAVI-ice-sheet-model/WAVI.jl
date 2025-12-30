@@ -37,10 +37,30 @@ end
         A tuple of the form (x_start, x_end, y_start, y_end)
 """
 function get_bounds(spec::MPISpec)::Tuple{Int, Int, Int, Int}
-    return max(spec.coords[1] * div(spec.global_grid.nx, spec.px) + 1 - get_halos(spec)[4], 1),
-           min(spec.coords[1] * div(spec.global_grid.nx, spec.px) + div(spec.global_grid.nx, spec.px) + get_halos(spec)[2], spec.global_grid.nx),
-           max(spec.coords[2] * div(spec.global_grid.ny, spec.py) + 1 - get_halos(spec)[1], 1),
-           min(spec.coords[2] * div(spec.global_grid.ny, spec.py) + div(spec.global_grid.ny, spec.py) + get_halos(spec)[3], spec.global_grid.ny)
+    # Calculate base local grid size assuming even distribution
+    nx_base = div(spec.global_grid.nx, spec.px)
+    nx_rem  = rem(spec.global_grid.nx, spec.px)
+    ny_base = div(spec.global_grid.ny, spec.py)
+    ny_rem  = rem(spec.global_grid.ny, spec.py)
+
+    # Adding extra cell to local grid size if there is a remainder
+    local_nx = nx_base + (spec.coords[1] < nx_rem ? 1 : 0)
+    local_ny = ny_base + (spec.coords[2] < ny_rem ? 1 : 0)
+
+    # Calculate start index (accounting for previous ranks that took an extra cell)
+    # (Rank * BaseSize) + (How many previous ranks took an extra cell) + 1
+    x_start = spec.coords[1] * nx_base + min(spec.coords[1], nx_rem) + 1
+    y_start = spec.coords[2] * ny_base + min(spec.coords[2], ny_rem) + 1
+
+    # Calculate end index
+    x_end = x_start + local_nx - 1
+    y_end = y_start + local_ny - 1
+
+    halos = get_halos(spec)
+    return max(x_start - halos[4], 1),                   # Left: Protect against indices < 1
+           min(x_end   + halos[2], spec.global_grid.nx), # Right: Protect against indices > global max
+           max(y_start - halos[1], 1),                   # Bottom: Protect against indices < 1
+           min(y_end   + halos[3], spec.global_grid.ny)  # Top: Protect against indices > global max
 end
 
 
@@ -55,9 +75,25 @@ end
     Returns:
         A tuple of the form (nx, ny)
 """
+# Get size of local grid
 function get_size(spec::MPISpec)::Tuple{Int, Int}
-    return div(spec.global_grid.nx, spec.px) + get_halos(spec)[4] + get_halos(spec)[2], 
-           div(spec.global_grid.ny, spec.py) + get_halos(spec)[1] + get_halos(spec)[3]
+    nx_base = div(spec.global_grid.nx, spec.px)
+    ny_base = div(spec.global_grid.ny, spec.py)
+    nx_rem  = rem(spec.global_grid.nx, spec.px)
+    ny_rem  = rem(spec.global_grid.ny, spec.py)
+
+    # If this rank's x-coord is < remainder, it gets an extra cell
+    # This accounts for the fact that the global grid may not be evenly split
+    # (e.g. if the global grid is 10x10 and we have 3 ranks in x, then the first
+    # rank will have 4 cells in x and the other two ranks will have 3 cells in x)
+    local_nx = nx_base + (spec.coords[1] < nx_rem ? 1 : 0)
+    local_ny = ny_base + (spec.coords[2] < ny_rem ? 1 : 0)
+
+    halos = get_halos(spec)
+    local_nx += halos[4] + halos[2]
+    local_ny += halos[1] + halos[3]
+
+    return local_nx, local_ny
 end
 
 # Sourced from Oceananigans.DistributedComputations
