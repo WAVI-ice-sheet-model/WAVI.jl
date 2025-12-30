@@ -17,7 +17,7 @@ import WAVI.Wavelets: UWavelets, VWavelets
 #
 
 function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
-    @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left, damping = model.spec
+    @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left = model.spec
     @unpack gh, gu, gv = model.fields
     grid = model.grid
 
@@ -27,7 +27,6 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         rank == 0 && @warn "No halo exchange to take place, returning"
         return
     end
-    halo_offset = halo - 1          # We need to adjust for use with indexing
 
     # Tags for friendly neighbourhood messaging
     top_send_tag = 1
@@ -51,6 +50,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         requests = MPI.RequestSet()
         local recv_left_flat, recv_right_flat
         if left > -1
+            # Send my left core data to neighbor's right halo
             send_left = local_field[lh + x_incr + 1 : lh + x_incr + halo, :]
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, halo * sy)
@@ -59,6 +59,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
+            # Send my right core data to neighbor's left halo
             send_right = local_field[grid.nx - rh - halo + 1 : grid.nx - rh, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, halo * sy)
@@ -80,6 +81,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         requests = MPI.RequestSet()
         local recv_top_flat, recv_bottom_flat
         if top > -1
+            # Send my top core data to neighbor's bottom halo
             send_top = local_field[:, th + y_incr + 1 : th + y_incr + halo]
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, sx * halo)
@@ -88,6 +90,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
+            # Send my bottom core data to neighbor's top halo
             send_bottom = local_field[:, grid.ny - bh - halo + 1 : grid.ny - bh]
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, sx * halo)
