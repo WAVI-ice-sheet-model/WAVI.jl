@@ -29,7 +29,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     end
     halo_offset = halo - 1          # We need to adjust for use with indexing
 
-    # Tags for neighbourhood messaging
+    # Tags for friendly neighbourhood messaging
     top_send_tag = 1
     right_send_tag = 2
     bottom_send_tag = 3
