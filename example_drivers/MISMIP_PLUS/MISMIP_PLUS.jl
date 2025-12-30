@@ -95,6 +95,15 @@ if abspath(PROGRAM_FILE) == @__FILE__
             grid = grid,
             spec = mpi_spec,
         )
+    elseif Threads.nthreads() > 1
+        # Run with:
+        # julia --project -t 2 example_drivers/MISMIP_PLUS/MISMIP_PLUS.jl
+        grid = MISMIP_PLUS_GRID()
+        threaded_spec = ThreadedSpec(ngridsx=Threads.nthreads(), ngridsy=1, overlap=4, niterations=2)
+        MISMIP_PLUS(
+            grid = grid,
+            spec = threaded_spec,
+        )
     else
         MISMIP_PLUS()
     end
