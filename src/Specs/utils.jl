@@ -1,62 +1,25 @@
 """
-ramp(i, n, overlap, leave_lower, leave_upper)
-
-Returns a weight in [0, 1] for the partition-of-unity. The weight ramps from 0 at
-the edge to 1 in the interior over `overlap` cells.
-
-Arguments:
-    i:          Index
-    n:          Total number of cells
-    overlap:    Number of cells to ramp over
-    leave_lower(Bool): Flag. If set, do not ramp at the lower edge (i=1)
-    leave_upper(Bool): Flag. If set, do not ramp at the upper edge (i=n)
-
-Returns:
-    w:          Weight in [0, 1] for cell i
-
-Behavior:
-    - If `leave_lower=false`, the weight ramps linearly from 0 → 1 over the first `overlap` cells.
-    - If `leave_upper=false`, the weight ramps linearly from 1 → 0 over the last `overlap` cells.
-    - If `leave_lower=true` or `leave_upper=true`, the ramp is not applied at that edge, and the weight remains 1.
-"""
-function ramp(i::Integer, n::Integer, overlap::Integer, leave_lower::Bool, leave_upper::Bool) :: Float64
-    w = 1.0
-
-    if !leave_lower
-        w = clamp(i/overlap, 0.0, 1.0)
-    end
-    if !leave_upper
-        w = clamp((n-i)/overlap, 0.0, 1.0)
-    end
-
-    return w
-end
-
-
-"""
 partition_of_unity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj)
 
 Returns a partition of unity array pou(i,j) of size m x n. The partition of unity ramps from 1 in interior to zero at edges.
 
-    m:          Number of cells in the i-direction
-    n:          Number of cells in the j-direction
-    leavei1(Bool):  Flag. If set, we leave the partition of unity as one towards the edge i=1
-    leaveim(Bool):  Flag. If set, we leave the partition of unity as one towards the edge i=m
-    leavej1(Bool):  Flag. If set, we leave the partition of unity as one towards the edge j=1
-    leavejn(Bool):  Flag. If set, we leave the partition of unity as one towards the edge j=m
-    overlapi:       The ramp is applied over overlapi cells in direction i.
-    overlapj:       The ramp is applied over overlapj cells in direction j.
+leavei1(Bool):  Flag. If set, we leave the partition of unity as one towards the edge i=1
+leaveim(Bool):  Flag. If set, we leave the partition of unity as one towards the edge i=m
+leavej1(Bool):  Flag. If set, we leave the partition of unity as one towards the edge j=1
+leavejn(Bool):  Flag. If set, we leave the partition of unity as one towards the edge j=m
+overlapi:       The ramp is applied over overlapi cells in direction i.
+overlapj:       The ramp is applied over overlapj cells in direction j.
 
 """
-function partition_of_unity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj) :: Array{Float64,2}
-    @assert overlapi ≥ 1 && overlapj ≥ 1
-    @assert overlapi < m && overlapj < n
-    @info "$(m) x $(n) with $(overlapi) halo in x and $(overlapj) halo in y"
-
-    wi = [ramp(i, m, overlapi, leavei1, leaveim) for i in 1:m]
-    wj = [ramp(j, n, overlapj, leavej1, leavejn) for j in 1:n]
-    pou = wi * wj'
-
+function partition_of_unity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj)
+    @assert m > (~leavei1 && overlapi) + (~leaveim && overlapi)
+    @assert n > (~leavej1 && overlapj) + (~leavejn && overlapj)
+    pou = [min(1.0,
+        leavei1 ? Inf : (i-1)./(overlapi),
+        leaveim ? Inf : (m-i)./(overlapi)) for i=1:m, j=1:n] .*
+        [min(1.0,
+        leavej1 ? Inf : (j-1)./(overlapj),
+        leavejn ? Inf : (n-j)./(overlapj)) for i=1:m, j=1:n]
     return pou
 end
 

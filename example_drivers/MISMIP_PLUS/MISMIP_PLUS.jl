@@ -89,7 +89,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     MPI.Init()
     if MPI.Comm_size(MPI.COMM_WORLD) > 1
         grid = MISMIP_PLUS_GRID()
-        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 4, grid, false)
+        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 4, grid)
 
         MISMIP_PLUS(
             grid = grid,
