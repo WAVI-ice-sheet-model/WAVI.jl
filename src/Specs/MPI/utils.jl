@@ -38,10 +38,8 @@ end
 """
 function get_bounds(spec::MPISpec)::Tuple{Int, Int, Int, Int}
     # Calculate base local grid size assuming even distribution
-    nx_base = div(spec.global_grid.nx, spec.px)
-    nx_rem  = rem(spec.global_grid.nx, spec.px)
-    ny_base = div(spec.global_grid.ny, spec.py)
-    ny_rem  = rem(spec.global_grid.ny, spec.py)
+    nx_base, nx_rem = divrem(spec.global_grid.nx, spec.px)
+    ny_base, ny_rem = divrem(spec.global_grid.ny, spec.py)
 
     # Adding extra cell to local grid size if there is a remainder
     local_nx = nx_base + (spec.coords[1] < nx_rem ? 1 : 0)
@@ -77,10 +75,8 @@ end
 """
 # Get size of local grid
 function get_size(spec::MPISpec)::Tuple{Int, Int}
-    nx_base = div(spec.global_grid.nx, spec.px)
-    ny_base = div(spec.global_grid.ny, spec.py)
-    nx_rem  = rem(spec.global_grid.nx, spec.px)
-    ny_rem  = rem(spec.global_grid.ny, spec.py)
+    nx_base, nx_rem = divrem(spec.global_grid.nx, spec.px)
+    ny_base, ny_rem = divrem(spec.global_grid.ny, spec.py)
 
     # If this rank's x-coord is < remainder, it gets an extra cell
     # This accounts for the fact that the global grid may not be evenly split
