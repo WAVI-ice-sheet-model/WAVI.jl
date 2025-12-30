@@ -85,10 +85,15 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
         rank = MPI.Comm_rank(comm)
         size = MPI.Comm_size(comm)
         @debug "Creating dimensions of $(size) with ($(px), $(py))"
+
+        # Create Virtual Cartesian Topology based on no. of procs in each direction
         dims = MPI.Dims_create(size, (px, py))
         cart_comm = MPI.Cart_create(comm, dims)
         x_coord, y_coord = MPI.Cart_coords(cart_comm)
 
+        # Return the rank of the process in the direction specified
+        # Note: MPI_Cart_shift returns `MPI_PROC_NULL` (represented as a negative integer)
+        #       if the neighbour is not present
         top = MPI.Cart_shift(cart_comm, 1, -1)[2]
         right = MPI.Cart_shift(cart_comm, 0, 1)[2]
         bottom = MPI.Cart_shift(cart_comm, 1, 1)[2]
@@ -96,6 +101,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
 
         @info "[$(rank+1)/$(size)] Neighbours $(top),$(right),$(bottom),$(left)"
 
+        # Check if the process grid is valid
         if size % px != 0 || size % py != 0
             valid = [(i, div(size,i)) for i in 1:size if size % i == 0]
             error(
@@ -138,8 +144,8 @@ include("MPI/utils.jl")
 include("MPI/exchanges.jl")
 include("MPI/outputs.jl")
 
-function Model(grid::G, 
-               bed_elevation::Union{Integer, Function, AbstractArray}, 
+function Model(grid::G,
+               bed_elevation::Union{Integer, Function, AbstractArray},
                spec::S;
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
@@ -150,6 +156,7 @@ function Model(grid::G,
 
     # Recalculate grid dimensions and mask parameters, creating a new local Grid
     th, rh, bh, lh = get_halos(spec)
+    @info "[$(rank+1)/$(global_size)] - proc $(coords[1]),$(coords[2]) - $(th), $(rh), $(bh), $(lh)"
     nx_local, ny_local = get_size(spec)
     x_start, x_end, y_start, y_end = get_bounds(spec)
     
