@@ -4,13 +4,38 @@ using WAVI.Specs
 
 export @root
 
+"""
+    Get directional halos for a given MPISpec
+
+    This function returns the halos for a given MPISpec in the form of a tuple (top, right, bottom, left).
+    If a neighbour is not present, the halo is set to 0.
+
+    Args:
+        spec: The MPISpec to get the halos for
+
+    Returns:
+        A tuple of the form (top, right, bottom, left)
+"""
 function get_halos(spec::MPISpec)::Tuple{Int, Int, Int, Int}
+    # Note: MPI_Cart_shift returns `MPI_PROC_NULL` (represented as a negative integer)
+    #       if the neighbour is not present
     return spec.top > -1 ? spec.halo : 0, 
            spec.right > -1 ? spec.halo : 0, 
            spec.bottom > -1 ? spec.halo : 0, 
            spec.left > -1 ? spec.halo : 0
 end
 
+"""
+    Get the bounds of a given MPISpec
+
+    The bounds are calculated based on the global grid size and the number of processes in each direction.
+
+    Args:
+        spec: The MPISpec to get the bounds for
+
+    Returns:
+        A tuple of the form (x_start, x_end, y_start, y_end)
+"""
 function get_bounds(spec::MPISpec)::Tuple{Int, Int, Int, Int}
     return max(spec.coords[1] * div(spec.global_grid.nx, spec.px) + 1 - get_halos(spec)[4], 1),
            min(spec.coords[1] * div(spec.global_grid.nx, spec.px) + div(spec.global_grid.nx, spec.px) + get_halos(spec)[2], spec.global_grid.nx),
@@ -18,6 +43,18 @@ function get_bounds(spec::MPISpec)::Tuple{Int, Int, Int, Int}
            min(spec.coords[2] * div(spec.global_grid.ny, spec.py) + div(spec.global_grid.ny, spec.py) + get_halos(spec)[3], spec.global_grid.ny)
 end
 
+
+"""
+    Get the size of a given MPISpec
+
+    The size is calculated based on the global grid size and the number of processes in each direction.
+
+    Args:
+        spec: The MPISpec to get the size for
+
+    Returns:
+        A tuple of the form (nx, ny)
+"""
 function get_size(spec::MPISpec)::Tuple{Int, Int}
     return div(spec.global_grid.nx, spec.px) + get_halos(spec)[4] + get_halos(spec)[2], 
            div(spec.global_grid.ny, spec.py) + get_halos(spec)[1] + get_halos(spec)[3]
