@@ -293,13 +293,13 @@ function timestep!(model::AbstractModel{T,N,S},
                    clock::Clock) where {T,N,S<:MPISpec}
     update_state!(model, clock)
 
-    collect!(model.spec.field_collector, model)
-
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
     # Have made the interface consistent
     # Have also removed the dependence on individual call
     if (output_params.output_start) && (clock.n_iter == 0)
+        collect!(model.spec.field_collector, model)
         write_outputs(model, timestepping_params, output_params, clock)
+        clear!(model.spec.field_collector)
     end
     
     if timestepping_params.step_thickness
@@ -308,8 +308,9 @@ function timestep!(model::AbstractModel{T,N,S},
     end
     update_clock!(clock, timestepping_params)
 
+    # Collect AFTER thickness update to match BasicSpec output timing
+    collect!(model.spec.field_collector, model)
     write_outputs(model, timestepping_params, output_params, clock)
-
     clear!(model.spec.field_collector)
 end
 
@@ -326,8 +327,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
 
     # TODO: we potentially register other fields here too, but currently concentrating on outputs (update_thickness might want to exploit this mechanism)
 
-    # Initial h exchange so first update_state! has correct halo values
+    # Initial exchanges so first update_state! has correct halo values
     halo_exchange_h_fields!(model)
+    halo_exchange!(model)  # Also sync initial velocities
 
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
         @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
