@@ -69,12 +69,13 @@ function MISMIP_PLUS(;
         b = "global_fields.gh.b",
         grfrac = "global_fields.gh.grounded_fraction",
     )
-    output_freq = 20.
+    output_freq = 1.
     output_params = OutputParams(outputs,
                                  output_path = folder,
                                  output_freq = output_freq,
                                  output_format = "jld2",
-                                 zip_format = "nc")
+                                 zip_format = "nc",
+                                 output_start = true)
     
     simulation = Simulation(model = model, 
                             timestepping_params = timestepping_params,
