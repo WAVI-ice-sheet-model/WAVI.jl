@@ -60,7 +60,8 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         if right > -1
             # Send my right core data to neighbor's left halo
-            send_right = local_field[grid.nx - rh - halo + 1 : grid.nx - rh, :]
+            # Note: x_incr accounts for staggered grid (u-grid has nx+1 points)
+            send_right = local_field[grid.nx + x_incr - rh - halo + 1 : grid.nx + x_incr - rh, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, halo * sy)
             push!(requests, MPI.Isend(send_right_flat, right, right_send_tag, comm))
@@ -91,7 +92,8 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         if bottom > -1
             # Send my bottom core data to neighbor's top halo
-            send_bottom = local_field[:, grid.ny - bh - halo + 1 : grid.ny - bh]
+            # Note: y_incr accounts for staggered grid (v-grid has ny+1 points)
+            send_bottom = local_field[:, grid.ny + y_incr - bh - halo + 1 : grid.ny + y_incr - bh]
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, sx * halo)
             push!(requests, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
