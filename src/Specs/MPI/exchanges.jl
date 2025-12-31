@@ -113,6 +113,94 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 end
 
 
+"""
+    halo_exchange_h_fields!(model)
+
+Exchange the ice thickness field (h) between MPI ranks.
+
+Called after update_thickness! so that the next timestep's update_state! has
+correct h values in halo regions for computing s, haf, etc.
+"""
+function halo_exchange_h_fields!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
+    @unpack halo, comm, top, right, bottom, left = model.spec
+    @unpack gh = model.fields
+    grid = model.grid
+
+    if halo == 0
+        return
+    end
+
+    # Tags for messaging
+    top_send_tag = 5
+    right_send_tag = 6
+    bottom_send_tag = 7
+    left_send_tag = 8
+
+    th, rh, bh, lh = get_halos(model.spec)
+
+    local_field = gh.h
+    sx, sy = size(local_field)
+
+    # X-direction exchange first (for corner propagation)
+    requests = MPI.RequestSet()
+    local recv_left_flat, recv_right_flat
+
+    if left > -1
+        send_left = local_field[lh + 1 : lh + halo, :]
+        send_left_flat = reshape(send_left, prod(size(send_left)))
+        recv_left_flat = zeros(Float64, halo * sy)
+        push!(requests, MPI.Isend(send_left_flat, left, left_send_tag, comm))
+        push!(requests, MPI.Irecv!(recv_left_flat, left, right_send_tag, comm))
+    end
+
+    if right > -1
+        send_right = local_field[grid.nx - rh - halo + 1 : grid.nx - rh, :]
+        send_right_flat = reshape(send_right, prod(size(send_right)))
+        recv_right_flat = zeros(Float64, halo * sy)
+        push!(requests, MPI.Isend(send_right_flat, right, right_send_tag, comm))
+        push!(requests, MPI.Irecv!(recv_right_flat, right, left_send_tag, comm))
+    end
+
+    MPI.Waitall(requests)
+
+    if left > -1
+        local_field[1:lh, :] .= reshape(recv_left_flat, lh, sy)
+    end
+    if right > -1
+        local_field[sx - rh + 1 : sx, :] .= reshape(recv_right_flat, rh, sy)
+    end
+
+    # Y-direction exchange
+    requests = MPI.RequestSet()
+    local recv_top_flat, recv_bottom_flat
+
+    if top > -1
+        send_top = local_field[:, th + 1 : th + halo]
+        send_top_flat = reshape(send_top, prod(size(send_top)))
+        recv_top_flat = zeros(Float64, sx * halo)
+        push!(requests, MPI.Isend(send_top_flat, top, top_send_tag, comm))
+        push!(requests, MPI.Irecv!(recv_top_flat, top, bottom_send_tag, comm))
+    end
+
+    if bottom > -1
+        send_bottom = local_field[:, grid.ny - bh - halo + 1 : grid.ny - bh]
+        send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
+        recv_bottom_flat = zeros(Float64, sx * halo)
+        push!(requests, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
+        push!(requests, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
+    end
+
+    MPI.Waitall(requests)
+
+    if top > -1
+        local_field[:, 1:th] .= reshape(recv_top_flat, sx, th)
+    end
+    if bottom > -1
+        local_field[:, sy - bh + 1 : sy] .= reshape(recv_bottom_flat, sx, bh)
+    end
+end
+
+
 
 function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
     @unpack comm, coords, global_fields, global_size, rank = model.spec

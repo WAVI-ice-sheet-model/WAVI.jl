@@ -304,6 +304,7 @@ function timestep!(model::AbstractModel{T,N,S},
     
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
+        halo_exchange_h_fields!(model)  # Sync h before next timestep's update_state!
     end
     update_clock!(clock, timestepping_params)
 
