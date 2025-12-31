@@ -60,6 +60,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     right::Union{N, Nothing}
     bottom::Union{N, Nothing}
     left::Union{N, Nothing}
+    pou::Bool
+    damping::T
 
     @doc """
     Constructor for MPISpec.
@@ -68,7 +70,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     halo: Number of halo cells on each side of the subgrid
     grid: Grid to be used for the model
     """
-    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid)
+    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
 
@@ -127,6 +129,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             cart_comm,
             [x_coord, y_coord],
             top, right, bottom, left,
+            pou,
+            damping
             )
     end
 end
