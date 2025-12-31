@@ -51,7 +51,8 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         local recv_left_flat, recv_right_flat
         if left > -1
             # Send my left core data to neighbor's right halo
-            send_left = local_field[lh + x_incr + 1 : lh + x_incr + halo, :]
+            # Note: Core starts at lh+1 regardless of staggering (extra column is at END)
+            send_left = local_field[lh + 1 : lh + halo, :]
             send_left_flat = reshape(send_left, prod(size(send_left)))
             recv_left_flat = zeros(Float64, halo * sy)
             push!(requests, MPI.Isend(send_left_flat, left, left_send_tag, comm))
@@ -83,7 +84,8 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         local recv_top_flat, recv_bottom_flat
         if top > -1
             # Send my top core data to neighbor's bottom halo
-            send_top = local_field[:, th + y_incr + 1 : th + y_incr + halo]
+            # Note: Core starts at th+1 regardless of staggering (extra row is at END)
+            send_top = local_field[:, th + 1 : th + halo]
             send_top_flat = reshape(send_top, prod(size(send_top)))
             recv_top_flat = zeros(Float64, sx * halo)
             push!(requests, MPI.Isend(send_top_flat, top, top_send_tag, comm))
