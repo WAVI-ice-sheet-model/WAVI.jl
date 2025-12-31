@@ -326,6 +326,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
 
     # TODO: we potentially register other fields here too, but currently concentrating on outputs (update_thickness might want to exploit this mechanism)
 
+    # Initial h exchange so first update_state! has correct halo values
+    halo_exchange_h_fields!(model)
+
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
         @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
         timestep!(model, timestepping_params, output_params, clock)
