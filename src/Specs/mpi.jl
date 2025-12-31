@@ -15,7 +15,7 @@ import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
-import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!
 import WAVI.Simulations: run_simulation!, timestep!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
@@ -350,4 +350,18 @@ function register_mpi_field!(collector::Collector, path::Vector{Symbol})
     end
     extractor = field_extractor(join(string.(path), "."), accessor, path)
     register_item!(collector, extractor)
+end
+
+"""
+    inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
+
+Overload for the inner update of the velocity solve.
+We need to sync halos before performing the update so that the viscosity and other
+calculations have correct boundary information from neighboring procs.
+"""
+function inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
+    halo_exchange!(model)
+    # Call the standard inner update function for the velocity solve
+    invoke(inner_update!, Tuple{AbstractModel}, model)
+    return model
 end
