@@ -308,7 +308,6 @@ function timestep!(model::AbstractModel{T,N,S},
     
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
-        halo_exchange_h_fields!(model)  # Sync h before next timestep's update_state!
     end
     update_clock!(clock, timestepping_params)
 
@@ -332,8 +331,7 @@ function run_simulation!(model::AbstractModel{T,N,S},
     # TODO: we potentially register other fields here too, but currently concentrating on outputs (update_thickness might want to exploit this mechanism)
 
     # Initial exchanges so first update_state! has correct halo values
-    halo_exchange_h_fields!(model)
-    halo_exchange!(model)  # Also sync initial velocities
+    halo_exchange!(model)  # Sync initial velocities
 
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
         @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
