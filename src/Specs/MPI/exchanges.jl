@@ -75,6 +75,8 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
             damping = 0.0
         end
 
+        Nx, Ny = grid.nx, grid.ny
+
         # @warn "$(size(pou)) - $(size(local_field))"
         local_field .*= (one(damping)-damping) .* pou
 
@@ -88,7 +90,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            send_right = local_field[grid.nx+x_incr-2*halo+1:grid.nx+x_incr-halo, :]
+            send_right = local_field[Nx+x_incr-2*halo+1:Nx+x_incr-halo, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
             push!(requests, MPI.Isend(send_right_flat, right, right_send_tag, comm))
@@ -105,7 +107,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            send_bottom = local_field[:, grid.ny+y_incr-2*halo+1:grid.ny+y_incr-halo]
+            send_bottom = local_field[:, Ny+y_incr-2*halo+1:Ny+y_incr-halo]
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
             push!(requests, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
@@ -118,23 +120,23 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
 
         # Update halo regions 
         if left > -1
-            recv_left = reshape(recv_left_flat, halo, grid.ny+y_incr)
+            recv_left = reshape(recv_left_flat, halo, Ny+y_incr)
             local_field[1:1+halo_offset, :] .+= recv_left .* (1.0 .- pou[1:1+halo_offset, :])
         end
 
         if right > -1
-            recv_right = reshape(recv_right_flat, halo, grid.ny+y_incr)
-            local_field[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :] .+= recv_right .* (1.0 .- pou[grid.nx+x_incr-halo_offset:grid.nx+x_incr, :])
+            recv_right = reshape(recv_right_flat, halo, Ny+y_incr)
+            local_field[Nx+x_incr-halo_offset:Nx+x_incr, :] .+= recv_right .* (1.0 .- pou[Nx+x_incr-halo_offset:Nx+x_incr, :])
         end
 
         if top > -1
-            recv_top = reshape(recv_top_flat, grid.nx+x_incr, halo)
+            recv_top = reshape(recv_top_flat, Nx+x_incr, halo)
             local_field[:, 1:1+halo_offset] .+= recv_top .* (1.0 .- pou[:, 1:1+halo_offset])
         end
 
         if bottom > -1
-            recv_bottom = reshape(recv_bottom_flat, grid.nx+x_incr, halo)
-            local_field[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr] .+= recv_bottom .* (1.0 .- pou[:, grid.ny+y_incr-halo_offset:grid.ny+y_incr])
+            recv_bottom = reshape(recv_bottom_flat, Nx+x_incr, halo)
+            local_field[:, Ny+y_incr-halo_offset:Ny+y_incr] .+= recv_bottom .* (1.0 .- pou[:, Ny+y_incr-halo_offset:Ny+y_incr])
         end
     end
 end
