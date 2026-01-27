@@ -242,12 +242,19 @@ function Model(grid::G,
     else
         bed_array = get_bed_elevation(bed_elevation, local_grid)
     end
-    fields = GridField(local_grid, bed_array; initial_conditions=conditions, params=local_params, solver_params)
+
+    # Create local mpi_rank field filled with this rank's number
+    local_mpi_rank = fill(Float64(rank), nx_local, ny_local)
+
+    fields = GridField(local_grid, bed_array; initial_conditions=conditions, params=local_params, solver_params, mpi_rank=local_mpi_rank)
     model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, local_params, solver_params, spec, melt_rate)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
+    # Create global mpi_rank field (will be populated during collection)
+    global_mpi_rank = zeros(Float64, grid.nx, grid.ny)
+
     # We provide the full bed as in GridField as it is required for HGrid - this gives us a clean full domain on root
-    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params)
+    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params, mpi_rank=global_mpi_rank)
 
     return model
 end

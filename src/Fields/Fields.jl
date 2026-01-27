@@ -46,7 +46,9 @@ Acts as a constructor for the fields (no explicit constructor as fields `only ev
 function GridField(grid::AbstractGrid, bed_array;
                    initial_conditions::InitialConditions = InitialConditions(),
                    params::Params = Params(),
-                   solver_params::SolverParams = SolverParams())
+                   solver_params::SolverParams = SolverParams(),
+                   mpi_rank::Array{Float64, 2} = -ones(grid.nx, grid.ny),
+                   )
 
     initial_conditions = check_initial_conditions(initial_conditions, params, grid)
 
@@ -97,7 +99,8 @@ function GridField(grid::AbstractGrid, bed_array;
         b = bed_array,
         h = h,
         ηav = ηav,
-        grounded_fraction = grounded_fraction
+        grounded_fraction = grounded_fraction,
+        mpi_rank = mpi_rank,
     )
 
     #u-grid

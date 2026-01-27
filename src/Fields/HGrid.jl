@@ -35,6 +35,7 @@ struct HGrid{T <: Real, N  <: Integer}
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
+             mpi_rank :: Array{T,2}                            # MPI rank for each cell (for visualization)
 end
 
 
@@ -75,7 +76,9 @@ function HGrid(;
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh))
+                grounded_fraction = ones(nxh,nyh),
+                mpi_rank = -ones(nxh,nyh),
+                )
 
     #check the sizes of inputs
     (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
@@ -112,6 +115,8 @@ function HGrid(;
     quad_f1 = zeros(nxh,nyh)
     quad_f2 = zeros(nxh,nyh)
     quad_f2[mask] = h[mask]./(3*ηav[mask])
+
+    # mpi_rank is passed as a parameter (defaults to -1 for non-MPI runs)
 
     #check sizes of everything
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
@@ -188,5 +193,6 @@ return HGrid(
             quad_f1,
             quad_f2,
             dneghηav,
-            dimplicit)
+            dimplicit,
+            mpi_rank)
 end

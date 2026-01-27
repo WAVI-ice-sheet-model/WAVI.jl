@@ -68,6 +68,7 @@ function MISMIP_PLUS(;
         v = "global_fields.gh.v",
         b = "global_fields.gh.b",
         grfrac = "global_fields.gh.grounded_fraction",
+        mpi_rank = "global_fields.gh.mpi_rank",
     )
     output_freq = 1.
     output_params = OutputParams(outputs,
