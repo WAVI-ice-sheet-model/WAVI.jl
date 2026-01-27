@@ -23,12 +23,12 @@ echo "--------------------------------------------------"
 echo "Running Iceberg - ThreadedSpec"
 echo "--------------------------------------------------"
 for t in 2; do
-    echo "  Threads: $t"
-    mkdir -p "$BASE_DIR/threaded_t$t"
-    cd "$BASE_DIR/threaded_t$t"
-    julia --project="$ROOT_DIR" -t "$t" "$S_DIR/Iceberg.jl"
-    mv outputs/* .
-    rmdir outputs
+   echo "  Threads: $t"
+   mkdir -p "$BASE_DIR/threaded_t$t"
+   cd "$BASE_DIR/threaded_t$t"
+   julia --project="$ROOT_DIR" -t "$t" "$S_DIR/Iceberg.jl"
+   mv outputs/* .
+   rmdir outputs
 done
 
 echo "--------------------------------------------------"
