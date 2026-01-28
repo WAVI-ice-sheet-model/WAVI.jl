@@ -315,6 +315,8 @@ function timestep!(model::AbstractModel{T,N,S},
     
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
+        # Sync thickness halos so next update_state! has correct boundary values
+        halo_exchange!(model)
     end
     update_clock!(clock, timestepping_params)
 

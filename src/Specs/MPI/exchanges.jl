@@ -36,51 +36,14 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     left_send_tag = 4
     
     
-    # TODO: currently we hardcode the velocity fields to be exchanged, but this should be user selectable
-    for field_sym in [(gu, :u, (1, 0)), (gv, :v, (0, 1))]
+    # Exchange thickness field (h-grid) and velocity fields (u/v grids)
+    for (field_data, attribute) in [(gh, :h), (gu, :u), (gv, :v)]
         requests = MPI.RequestSet()
-        field_data, attribute, add_values = field_sym
-        x_incr, y_incr = add_values
         
         local_field = getproperty(field_data, attribute)
-        # @debug "[$(rank+1)/$(global_size)] $(size(local_field))"
+        field_nx, field_ny = size(local_field)
 
-        if model.spec.pou
-            pou = partition_of_unity(
-                size(local_field)[1],
-                size(local_field)[2],
-                left==-1,
-                right==-1,
-                top==-1,
-                bottom==-1,
-                halo,
-                halo)
-        else
-            pou = ones(size(local_field))
-            # If PoU is disabled, switch to simple averaging on the overlaps to prevent value doubling/explosion
-            # - Applying 0.5 weight to the halo regions that will receive neighbor contributions.
-            # - Corners will receive 0.5 * 0.5 = 0.25, due to 4-way overlap.
-            if left > -1
-                pou[1:halo, :] .*= 0.5
-            end
-            if right > -1
-                pou[end-halo+1:end, :] .*= 0.5
-            end
-            if top > -1
-                pou[:, 1:halo] .*= 0.5
-            end
-            if bottom > -1
-                pou[:, end-halo+1:end] .*= 0.5
-            end
-            damping = 0.0
-        end
-
-        Nx, Ny = grid.nx, grid.ny
-
-        # @warn "$(size(pou)) - $(size(local_field))"
-        local_field .*= (one(damping)-damping) .* pou
-
-        # Send the "vertical" halo's
+        # Send from core region [halo+1 : 2*halo] to neighbor's halo [1 : halo]
         if left > -1
             send_left = local_field[halo+1:2*halo, :]
             send_left_flat = reshape(send_left, prod(size(send_left)))
@@ -90,14 +53,13 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if right > -1
-            send_right = local_field[Nx+x_incr-2*halo+1:Nx+x_incr-halo, :]
+            send_right = local_field[field_nx-2*halo+1:field_nx-halo, :]
             send_right_flat = reshape(send_right, prod(size(send_right)))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
             push!(requests, MPI.Isend(send_right_flat, right, right_send_tag, comm))
             push!(requests, MPI.Irecv!(recv_right_flat, right, left_send_tag, comm))
         end
 
-        # Send the "horizontal" halo's
         if top > -1
             send_top = local_field[:, halo+1:2*halo]
             send_top_flat = reshape(send_top, prod(size(send_top)))
@@ -107,36 +69,31 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
         end
 
         if bottom > -1
-            send_bottom = local_field[:, Ny+y_incr-2*halo+1:Ny+y_incr-halo]
+            send_bottom = local_field[:, field_ny-2*halo+1:field_ny-halo]
             send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
             recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
             push!(requests, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
             push!(requests, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
         end
 
-        # @debug "Waiting on requests"
         MPI.Waitall(requests)
-        # @debug "Finished waiting on requests"
 
-        # Update halo regions 
+        # Apply received values to halo regions (simple overwrite)
         if left > -1
-            recv_left = reshape(recv_left_flat, halo, Ny+y_incr)
-            local_field[1:1+halo_offset, :] .+= recv_left .* (1.0 .- pou[1:1+halo_offset, :])
+            recv_left = reshape(recv_left_flat, halo, field_ny)
+            local_field[1:halo, :] .= recv_left
         end
-
         if right > -1
-            recv_right = reshape(recv_right_flat, halo, Ny+y_incr)
-            local_field[Nx+x_incr-halo_offset:Nx+x_incr, :] .+= recv_right .* (1.0 .- pou[Nx+x_incr-halo_offset:Nx+x_incr, :])
+            recv_right = reshape(recv_right_flat, halo, field_ny)
+            local_field[field_nx-halo+1:field_nx, :] .= recv_right
         end
-
         if top > -1
-            recv_top = reshape(recv_top_flat, Nx+x_incr, halo)
-            local_field[:, 1:1+halo_offset] .+= recv_top .* (1.0 .- pou[:, 1:1+halo_offset])
+            recv_top = reshape(recv_top_flat, field_nx, halo)
+            local_field[:, 1:halo] .= recv_top
         end
-
         if bottom > -1
-            recv_bottom = reshape(recv_bottom_flat, Nx+x_incr, halo)
-            local_field[:, Ny+y_incr-halo_offset:Ny+y_incr] .+= recv_bottom .* (1.0 .- pou[:, Ny+y_incr-halo_offset:Ny+y_incr])
+            recv_bottom = reshape(recv_bottom_flat, field_nx, halo)
+            local_field[:, field_ny-halo+1:field_ny] .= recv_bottom
         end
     end
 end
