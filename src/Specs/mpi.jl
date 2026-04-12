@@ -98,7 +98,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
         @info "[$(rank+1)/$(size)] Neighbours $(top),$(right),$(bottom),$(left)"
 
         # Check if the process grid is valid
-        if size % px != 0 || size % py != 0
+        if px * py != size
             valid = [(i, div(size,i)) for i in 1:size if size % i == 0]
             error(
                 "MPI Configuration Error: Invalid process grid.\n\n" *
