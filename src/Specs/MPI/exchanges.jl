@@ -17,17 +17,15 @@ import WAVI.Wavelets: UWavelets, VWavelets
 #
 
 function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
-    @unpack px, py, halo, global_size, global_comm, rank, comm, coords, top, right, bottom, left, damping = model.spec
+    @unpack halo, rank, comm, top, right, bottom, left = model.spec
     @unpack gh, gu, gv = model.fields
-    grid = model.grid
 
-    # @debug "[$(rank+1)/$(global_size)] Halo exchange in progress"
-    # Useful to dip out, we'll always be more than one
     if halo == 0
         rank == 0 && @warn "No halo exchange to take place, returning"
         return
     end
-    halo_offset = halo - 1          # We need to adjust for use with indexing
+
+    th, rh, bh, lh = get_halos(model.spec)
 
     # Tags for friendly neighbourhood messaging
     top_send_tag = 1
@@ -35,68 +33,97 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     bottom_send_tag = 3
     left_send_tag = 4
     
-    
     # Exchange thickness field (h-grid) and velocity fields (u/v grids)
     for (field_data, attribute) in [(gh, :h), (gu, :u), (gv, :v)]
-        requests = MPI.RequestSet()
-        
         local_field = getproperty(field_data, attribute)
         field_nx, field_ny = size(local_field)
 
-        # Send from core region [halo+1 : 2*halo] to neighbor's halo [1 : halo]
+        # Call get_halos at top of loop or function to ensure scope
+        # (Assuming th, rh, bh, lh are available)
+
+        # --- Phase 1: X-Direction Exchange (Left/Right) ---
+        requests_x = MPI.RequestSet()
+
+        # Adjust for U-staggering (nx is +1)
+        # We need to skip the shared interface face to avoid 1-index shift
+        off_x = (attribute == :u) ? 1 : 0
+
+        # Send/Recv Left
         if left > -1
-            send_left = local_field[halo+1:2*halo, :]
-            send_left_flat = reshape(send_left, prod(size(send_left)))
+            # Send Left Core: Start at lh+1 + offset
+            # Core Face 1 is Interface. Neighbor needs Core Face 2.
+            send_left = local_field[lh+1+off_x:lh+halo+off_x, :]
+            send_left_flat = copy(reshape(send_left, prod(size(send_left))))
             recv_left_flat = zeros(Float64, prod(size(send_left)))
-            push!(requests, MPI.Isend(send_left_flat, left, left_send_tag, comm))
-            push!(requests, MPI.Irecv!(recv_left_flat, left, right_send_tag, comm))
+            push!(requests_x, MPI.Isend(send_left_flat, left, left_send_tag, comm))
+            push!(requests_x, MPI.Irecv!(recv_left_flat, left, right_send_tag, comm))
         end
 
+        # Send/Recv Right
         if right > -1
-            send_right = local_field[field_nx-2*halo+1:field_nx-halo, :]
-            send_right_flat = reshape(send_right, prod(size(send_right)))
+            # Send Right Core: End at field_nx - rh - offset
+            # Core Face End is Interface. Neighbor needs Core Face End-1.
+            send_right = local_field[field_nx-rh-halo+1-off_x:field_nx-rh-off_x, :]
+            send_right_flat = copy(reshape(send_right, prod(size(send_right))))
             recv_right_flat = zeros(Float64, prod(size(send_right)))
-            push!(requests, MPI.Isend(send_right_flat, right, right_send_tag, comm))
-            push!(requests, MPI.Irecv!(recv_right_flat, right, left_send_tag, comm))
+            push!(requests_x, MPI.Isend(send_right_flat, right, right_send_tag, comm))
+            push!(requests_x, MPI.Irecv!(recv_right_flat, right, left_send_tag, comm))
         end
 
-        if top > -1
-            send_top = local_field[:, halo+1:2*halo]
-            send_top_flat = reshape(send_top, prod(size(send_top)))
-            recv_top_flat = zeros(Float64, prod(size(send_top)))
-            push!(requests, MPI.Isend(send_top_flat, top, top_send_tag, comm))
-            push!(requests, MPI.Irecv!(recv_top_flat, top, bottom_send_tag, comm))
-        end
+        MPI.Waitall(requests_x)
 
-        if bottom > -1
-            send_bottom = local_field[:, field_ny-2*halo+1:field_ny-halo]
-            send_bottom_flat = reshape(send_bottom, prod(size(send_bottom)))
-            recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
-            push!(requests, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
-            push!(requests, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
-        end
+        @unpack damping = model.spec
 
-        MPI.Waitall(requests)
-
-        # Apply received values to halo regions (simple overwrite)
+        # Apply X Updates
         if left > -1
             recv_left = reshape(recv_left_flat, halo, field_ny)
-            local_field[1:halo, :] .= recv_left
+            local_field[1:halo, :] .= (1.0 - damping) .* recv_left .+ damping .* local_field[1:halo, :]
         end
         if right > -1
             recv_right = reshape(recv_right_flat, halo, field_ny)
-            local_field[field_nx-halo+1:field_nx, :] .= recv_right
+            local_field[field_nx-halo+1:field_nx, :] .= (1.0 - damping) .* recv_right .+ damping .* local_field[field_nx-halo+1:field_nx, :]
         end
+
+        # --- Phase 2: Y-Direction Exchange (Top/Bottom) ---
+        requests_y = MPI.RequestSet()
+
+        off_y = (attribute == :v) ? 1 : 0
+
+        # Send/Recv Top
+        if top > -1
+            # Send Top Core: Start at th+1 + offset
+            send_top = local_field[:, th+1+off_y:th+halo+off_y]
+            send_top_flat = copy(reshape(send_top, prod(size(send_top))))
+            recv_top_flat = zeros(Float64, prod(size(send_top)))
+            push!(requests_y, MPI.Isend(send_top_flat, top, top_send_tag, comm))
+            push!(requests_y, MPI.Irecv!(recv_top_flat, top, bottom_send_tag, comm))
+        end
+
+        # Send/Recv Bottom
+        if bottom > -1
+            # Send Bottom Core: End at field_ny - bh - offset
+            send_bottom = local_field[:, field_ny-bh-halo+1-off_y:field_ny-bh-off_y]
+            send_bottom_flat = copy(reshape(send_bottom, prod(size(send_bottom))))
+            recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
+            push!(requests_y, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
+            push!(requests_y, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
+        end
+
+        MPI.Waitall(requests_y)
+
+        # Apply Y Updates
         if top > -1
             recv_top = reshape(recv_top_flat, field_nx, halo)
-            local_field[:, 1:halo] .= recv_top
+            local_field[:, 1:halo] .= (1.0 - damping) .* recv_top .+ damping .* local_field[:, 1:halo]
         end
         if bottom > -1
             recv_bottom = reshape(recv_bottom_flat, field_nx, halo)
-            local_field[:, field_ny-halo+1:field_ny] .= recv_bottom
+            local_field[:, field_ny-halo+1:field_ny] .= (1.0 - damping) .* recv_bottom .+ damping .* local_field[:, field_ny-halo+1:field_ny]
         end
     end
 end
+
+
 
 function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
     @unpack comm, coords, global_fields, global_size, rank = model.spec
