@@ -212,8 +212,9 @@ function Model(grid::G,
 
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
-    
-    # Set halos as fixed velocities
+    # RAS/Schwarz: Only fix the outermost edge cell - this provides Dirichlet BC from neighbor
+    # Interior halo cells (2:halo) are SOLVED locally, then DISCARDED during exchange
+    # The simple overwrite in halo_exchange! replaces them with neighbor's core values
     (spec.left==-1) || (u_isfixed[1,:] .= true; v_isfixed[1,:] .= true)
     (spec.right==-1) || (u_isfixed[end,:] .= true; v_isfixed[end,:] .= true)
     (spec.top==-1) || (u_isfixed[:,1] .= true; v_isfixed[:,1] .= true)
