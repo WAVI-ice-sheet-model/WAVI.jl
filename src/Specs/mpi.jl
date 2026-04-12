@@ -15,7 +15,7 @@ import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
-import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!
 import WAVI.Simulations: run_simulation!, timestep!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
@@ -62,6 +62,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     left::Union{N, Nothing}
     pou::Bool
     damping::T
+    niterations::N  # Number of Schwarz iterations per Picard iteration
 
     @doc """
     Constructor for MPISpec.
@@ -69,8 +70,9 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     px, py: Number of processes in x and y directions
     halo: Number of halo cells on each side of the subgrid
     grid: Grid to be used for the model
+    niterations: Number of Schwarz iterations per Picard iteration (default=5)
     """
-    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0)
+    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
 
@@ -130,7 +132,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             [x_coord, y_coord],
             top, right, bottom, left,
             pou,
-            damping
+            damping,
+            niterations
             )
     end
 end
@@ -376,4 +379,57 @@ function inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
     # Call the standard inner update function for the velocity solve
     invoke(inner_update!, Tuple{AbstractModel}, model)
     return model
+end
+
+"""
+    precondition!(model::Model{<:Any, <:Any, <:MPISpec})
+
+Solves the linear system using an Iterative Restricted Additive Schwarz (RAS) method.
+
+# Workflow
+1.  **Iterate** `niterations` times:
+    *   **Local Solve**: Calls the standard `precondition!` for the local domain using Dirichlet boundary conditions at the halo edges.
+    *   **Interface Update**: Calls `halo_exchange!` to update the halo regions with the "Core" values from neighboring processors.
+2.  **Check Convergence**: Computes the Global Relative Residual to verify if the linear system is solved to tolerance.
+
+This structure allows information to propagate across the distributed domain.
+"""
+function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
+    @unpack niterations, pou = model.spec
+
+    for iteration = 1:niterations
+        if (iteration > 1) && (model.spec.rank == 0)
+            @debug "Schwarz iteration $iteration"
+        end
+
+        # Solve locally
+        invoke(precondition!, Tuple{AbstractModel}, model)
+
+        halo_exchange!(model)
+    end
+
+    # Check convergence after all iterations
+    @unpack solver_params = model
+    x = get_start_guess(model)
+    op = get_op(model)
+    b = get_rhs(model)
+    resid = get_resid(x, op, b)
+
+    # Global Residual Check
+    # Calculate squared norms locally
+    local_resid_sq = norm(resid)^2
+    local_rhs_sq = norm(b)^2
+
+    # Sum squared norms across all ranks
+    global_resid_sq = MPI.Allreduce(local_resid_sq, MPI.SUM, model.spec.comm)
+    global_rhs_sq = MPI.Allreduce(local_rhs_sq, MPI.SUM, model.spec.comm)
+
+    # Compute global relative residual
+    global_rel_resid = sqrt(global_resid_sq) / sqrt(global_rhs_sq)
+
+    @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+
+    converged = global_rel_resid < solver_params.tol_picard
+
+    return converged, global_rel_resid
 end
