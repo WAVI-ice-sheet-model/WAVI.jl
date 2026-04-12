@@ -218,10 +218,10 @@ function Model(grid::G,
     # RAS/Schwarz: Only fix the outermost edge cell - this provides Dirichlet BC from neighbor
     # Interior halo cells (2:halo) are SOLVED locally, then DISCARDED during exchange
     # The simple overwrite in halo_exchange! replaces them with neighbor's core values
-    (spec.left==-1) || (u_isfixed[1,:] .= true; v_isfixed[1,:] .= true)
-    (spec.right==-1) || (u_isfixed[end,:] .= true; v_isfixed[end,:] .= true)
-    (spec.top==-1) || (u_isfixed[:,1] .= true; v_isfixed[:,1] .= true)
-    (spec.bottom==-1) || (u_isfixed[:,end] .= true; v_isfixed[:,end] .= true)
+    (spec.left < 0) || (u_isfixed[1,:] .= true; v_isfixed[1,:] .= true)
+    (spec.right < 0) || (u_isfixed[end,:] .= true; v_isfixed[end,:] .= true)
+    (spec.top < 0) || (u_isfixed[:,1] .= true; v_isfixed[:,1] .= true)
+    (spec.bottom < 0) || (u_isfixed[:,end] .= true; v_isfixed[:,end] .= true)
 
     local_grid = Grid(
         nx = nx_local,
