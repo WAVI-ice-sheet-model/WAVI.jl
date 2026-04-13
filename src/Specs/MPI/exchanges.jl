@@ -16,7 +16,7 @@ import WAVI.Wavelets: UWavelets, VWavelets
 # Additional MPI functionality
 #
 
-function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
+function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::Vector{Symbol}=[:h, :u, :v])
     @unpack halo, rank, comm, top, right, bottom, left = model.spec
     @unpack gh, gu, gv = model.fields
 
@@ -33,13 +33,14 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     bottom_send_tag = 3
     left_send_tag = 4
     
-    # Exchange thickness field (h-grid) and velocity fields (u/v grids)
-    for (field_data, attribute) in [(gh, :h), (gu, :u), (gv, :v)]
+    # Build field list based on requested fields
+    field_pairs = [(gh, :h), (gu, :u), (gv, :v)]
+    exchange_pairs = filter(p -> p[2] in fields, field_pairs)
+
+    # Exchange requested fields
+    for (field_data, attribute) in exchange_pairs
         local_field = getproperty(field_data, attribute)
         field_nx, field_ny = size(local_field)
-
-        # Call get_halos at top of loop or function to ensure scope
-        # (Assuming th, rh, bh, lh are available)
 
         # --- Phase 1: X-Direction Exchange (Left/Right) ---
         requests_x = MPI.RequestSet()
