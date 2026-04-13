@@ -82,6 +82,12 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
         size = MPI.Comm_size(comm)
         @debug "Creating dimensions of $(size) with ($(px), $(py))"
 
+        if size > 1 && halo == 0
+            throw(ArgumentError(
+                "MPI Configuration Error: halo must be >= 1 when running with multiple MPI ranks (size=$(size))."
+            ))
+        end
+
         # Create Virtual Cartesian Topology based on no. of procs in each direction
         dims = MPI.Dims_create(size, (px, py))
         cart_comm = MPI.Cart_create(comm, dims)
