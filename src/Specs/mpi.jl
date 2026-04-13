@@ -449,8 +449,8 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
     global_resid_sq = MPI.Allreduce(local_resid_sq, MPI.SUM, model.spec.comm)
     global_rhs_sq = MPI.Allreduce(local_rhs_sq, MPI.SUM, model.spec.comm)
 
-    # Compute global relative residual
-    global_rel_resid = sqrt(global_resid_sq) / sqrt(global_rhs_sq)
+    # Compute global relative residual (guard against degenerate zero-RHS case)
+    global_rel_resid = iszero(global_rhs_sq) ? sqrt(global_resid_sq) : sqrt(global_resid_sq) / sqrt(global_rhs_sq)
 
     @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
 
