@@ -284,13 +284,7 @@ end
 #
 
 function update_model_velocities!(model::Model{<:Any, <:Any, <:MPISpec})
-    @unpack px, py, halo, global_size, global_comm, rank, comm, coords = model.spec
     update_velocities!(model)
-
-    @debug "[$(rank+1)/$(global_size)] - hitting velocity solve barrier, exchanging halos"
-    MPI.Barrier(comm)
-
-    halo_exchange!(model)
     return model
 end
 
@@ -375,7 +369,8 @@ We need to sync halos before performing the update so that the viscosity and oth
 calculations have correct boundary information from neighboring procs.
 """
 function inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
-    halo_exchange!(model)
+    # Sync velocities only — thickness doesn't change during the velocity solve
+    halo_exchange!(model; fields=[:u, :v])
     # Call the standard inner update function for the velocity solve
     invoke(inner_update!, Tuple{AbstractModel}, model)
     return model
@@ -405,7 +400,7 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         # Solve locally
         invoke(precondition!, Tuple{AbstractModel}, model)
 
-        halo_exchange!(model)
+        halo_exchange!(model; fields=[:u, :v])
     end
 
     # Check convergence after all iterations
