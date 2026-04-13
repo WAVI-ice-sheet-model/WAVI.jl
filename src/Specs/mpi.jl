@@ -15,7 +15,7 @@ import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
-import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_rheological_operators!
 import WAVI.Simulations: run_simulation!, timestep!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
@@ -379,6 +379,9 @@ function inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
     halo_exchange!(model; fields=[:u, :v])
     # Call the standard inner update function for the velocity solve
     invoke(inner_update!, Tuple{AbstractModel}, model)
+    # Sync rheology fields used near rank interfaces, then rebuild operators.
+    halo_exchange!(model; fields=[:β, :βeff, :ηav])
+    update_rheological_operators!(model)
     return model
 end
 

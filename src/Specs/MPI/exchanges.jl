@@ -33,13 +33,21 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
     bottom_send_tag = 3
     left_send_tag = 4
     
-    # Build field list based on requested fields
-    field_pairs = [(gh, :h), (gu, :u), (gv, :v)]
-    exchange_pairs = filter(p -> p[2] in fields, field_pairs)
+    # Build field list based on dynamically checking which grid holds the requested fields
+    exchange_pairs = Tuple{Any, Symbol}[]
+    for f in fields
+        hasproperty(gh, f) && push!(exchange_pairs, (gh, f))
+        hasproperty(gu, f) && push!(exchange_pairs, (gu, f))
+        hasproperty(gv, f) && push!(exchange_pairs, (gv, f))
+    end
 
     # Exchange requested fields
     for (field_data, attribute) in exchange_pairs
         local_field = getproperty(field_data, attribute)
+
+        # We can only perform halo exchange on 2D arrays
+        length(size(local_field)) != 2 && continue
+
         field_nx, field_ny = size(local_field)
 
         # --- Phase 1: X-Direction Exchange (Left/Right) ---
@@ -47,7 +55,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
 
         # Adjust for U-staggering (nx is +1)
         # We need to skip the shared interface face to avoid 1-index shift
-        off_x = (attribute == :u) ? 1 : 0
+        off_x = (field_data === gu) ? 1 : 0
 
         # Send/Recv Left
         if left > -1
@@ -88,7 +96,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
         # --- Phase 2: Y-Direction Exchange (Top/Bottom) ---
         requests_y = MPI.RequestSet()
 
-        off_y = (attribute == :v) ? 1 : 0
+        off_y = (field_data === gv) ? 1 : 0
 
         # Send/Recv Top
         if top > -1
