@@ -160,10 +160,27 @@ function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) w
 
     @debug "[$(rank+1)/$(global_size)", join(string.(path), "."), "$((x_sz, y_sz, x_start, x_end, y_start, y_end))"
 
-    # Send/Gather the remote copies from the other nodes into the full field 
-    # Here we provide the size of the field as well as its positioning in the global grid
-    field_sz = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), 
-                           x_start+lh, x_end-rh, y_start+th, y_end-bh), 0, comm)
+    # Determine global placement for this field's core region (field-aware for staggered grids).
+    grid_sym = length(path) >= 2 ? path[2] : :gh
+    # Start and end indices for the global field in x
+    sx = x_start + lh
+    ex = x_end - rh
+    # Start and end indices for the global field in y
+    sy = y_start + th
+    ey = y_end - bh
+    # Adjust the end indices for staggered grids
+    if grid_sym == :gu
+        ex += 1
+    elseif grid_sym == :gv
+        ey += 1
+    elseif grid_sym == :gc
+        ex -= 1
+        ey -= 1
+    end
+
+    # Send/Gather the remote copies from the other nodes into the full field.
+    # We provide the local core size and positioning in the target global field.
+    field_sz = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), sx, ex, sy, ey), 0, comm)
     
     if rank == 0
         # We calculate the global grid coordinates for all ranks 
