@@ -382,6 +382,21 @@ function inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
     return model
 end
 
+function core_inner_masks(model::Model{<:Any, <:Any, <:MPISpec})
+    @unpack gu, gv = model.fields
+    th, rh, bh, lh = get_halos(model.spec)
+
+    u_core_mask = falses(size(gu.mask_inner))
+    u_core_mask[(1+lh):(size(u_core_mask, 1)-rh), (1+th):(size(u_core_mask, 2)-bh)] .= true
+    u_core_inner = u_core_mask[gu.mask_inner]
+
+    v_core_mask = falses(size(gv.mask_inner))
+    v_core_mask[(1+lh):(size(v_core_mask, 1)-rh), (1+th):(size(v_core_mask, 2)-bh)] .= true
+    v_core_inner = v_core_mask[gv.mask_inner]
+
+    return u_core_inner, v_core_inner
+end
+
 """
     precondition!(model::Model{<:Any, <:Any, <:MPISpec})
 
@@ -419,16 +434,7 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
     # Global Residual Check (core-only):
     # exclude overlap halos so each physical unknown is counted once globally.
     @unpack gu, gv = model.fields
-    th, rh, bh, lh = get_halos(model.spec)
-
-    # Build core-domain selectors on U/V grids, then restrict to mask_inner ordering
-    u_core_mask = falses(size(gu.mask_inner))
-    u_core_mask[(1+lh):(size(u_core_mask, 1)-rh), (1+th):(size(u_core_mask, 2)-bh)] .= true
-    u_core_inner = u_core_mask[gu.mask_inner]
-
-    v_core_mask = falses(size(gv.mask_inner))
-    v_core_mask[(1+lh):(size(v_core_mask, 1)-rh), (1+th):(size(v_core_mask, 2)-bh)] .= true
-    v_core_inner = v_core_mask[gv.mask_inner]
+    u_core_inner, v_core_inner = core_inner_masks(model)
 
     # Calculate squared norms locally on core unknowns only
     local_resid_sq = sum(abs2, @view resid[1:gu.ni][u_core_inner]) +
