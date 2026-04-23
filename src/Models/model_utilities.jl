@@ -50,12 +50,6 @@ if all(isnan.(initial_conditions.initial_basal_water_thickness))
     initial_conditions = @set initial_conditions.initial_basal_water_thickness =  default_basal_water_thickness*ones(grid.nx, grid.ny)
 end
 
-if all(isnan.(initial_conditions.initial_effective_pressure))
-    default_effective_pressure = params.effective_pressure
-    #@info "Did not find a specified initial effective pressure field, reverting to default value specified in params ($default_effective_pressure everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
-    initial_conditions = @set initial_conditions.initial_effective_pressure =  default_effective_pressure*ones(grid.nx, grid.ny)
-end
-
 if all(isnan.(initial_conditions.initial_basal_melt))
     default_basal_melt = params.basal_melt
     #@info "Did not find a specified initial basal melt field, reverting to default value specified in params ($default_basal_melt everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
@@ -77,7 +71,6 @@ end
 (size(initial_conditions.initial_viscosity) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial viscosity field is not compatible with grid size. Input viscosity field is has size $(size(initial_conditions.initial_viscosity)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
 (size(initial_conditions.initial_damage) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial damage field is not compatible with grid size. Input damage field is has size $(size(initial_conditions.initial_damage)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
 (size(initial_conditions.initial_basal_water_thickness) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial basal water thickness field is not compatible with grid size. Input basal water thickness field has size $(size(initial_conditions.initial_basal_water_thickness)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
-(size(initial_conditions.initial_effective_pressure) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial effective pressure field is not compatible with grid size. Input effective pressure field has size $(size(initial_conditions.initial_effective_pressure)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 (size(initial_conditions.initial_basal_melt) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial basal melt field is not compatible with grid size. Input basal melt field has size $(size(initial_conditions.initial_basal_melt)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 (size(initial_conditions.initial_θ_ave) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial depth-averaged temperature field is not compatible with grid size. Input depth-averaged temperature field has size $(size(initial_conditions.initial_θ_ave)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 

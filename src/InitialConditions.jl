@@ -41,7 +41,6 @@ Keyword arguments
     initial_temperature::Array{T,3} = fill!(Array{Float64}(undef,1,1,1),NaN)
     initial_damage::Array{T,3} = fill!(Array{Float64}(undef,1,1,1),NaN)
     initial_basal_water_thickness::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
-    initial_effective_pressure::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_basal_melt::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_θ_ave::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
 end

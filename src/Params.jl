@@ -1,4 +1,4 @@
-struct Params{T <: Real, A, G}
+struct Params{T <: Real, A, G, H, E}
                       dt :: T
                        g :: T
              density_ice :: T
@@ -21,7 +21,8 @@ glen_a_activation_energy :: T
            evolveShelves :: Bool
                 smallHAF :: T
    basal_water_thickness :: T
-      effective_pressure :: T
+   hydraulic_potential_b :: H
+      effective_pressure :: E
               basal_melt :: T
  default_temperature_ave :: T
 end
@@ -55,7 +56,8 @@ Keyword arguments
 - `minimum_thickness`: minimum ice thickness on model domain
 - `evolveShelves`: flag for turning on and off the evolution of the shelves in the forward run_simulation
 - `smallHAF`: small value of HAF used within update_thickness when not evolving shelves
-- `basal_water_thickness` : basal water thickness (m) 
+- `basal_water_thickness` : basal water thickness (m)
+- `hydraulic_potential_b` : hydraulic_potential at the bed (Pa)
 - `effective_pressure` : effective pressure (Pa)
 - `basal_melt` : basal melt rate (m/yr)
 - `default_temperature_ave` : depth-averaged temperature (K)
@@ -81,6 +83,7 @@ function Params(; g = 9.81,
                   evolveShelves = true,
                   smallHAF = 1.0,
                   basal_water_thickness = 0.0,
+                  hydraulic_potential_b = 0.0,
                   effective_pressure = 1.0e6,
                   basal_melt = 0.0,
                   default_temperature_ave = 253.15)
@@ -111,6 +114,7 @@ function Params(; g = 9.81,
                   evolveShelves,
                   smallHAF,
                   basal_water_thickness,
+                  hydraulic_potential_b,
                   effective_pressure,
                   basal_melt,
                   default_temperature_ave

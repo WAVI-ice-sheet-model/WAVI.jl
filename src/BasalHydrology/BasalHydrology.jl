@@ -1,5 +1,7 @@
 #add each of the individual basal hydrology models
+include("./constant_basal_water_thickness.jl")
 include("./leaky_bucket.jl")
+include("./sheet_only_GlaDS.jl")
 
 struct NoHydrology <: AbstractBasalHydrology
 end

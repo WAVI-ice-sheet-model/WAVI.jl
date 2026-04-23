@@ -178,7 +178,7 @@ model_g:      Subdomain model
 
 """
 function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,overlap=1)
-    @unpack nx,ny,dx,dy,nσ,x0,y0,h_mask,h_isfixed,u_iszero,v_iszero,u_isfixed,v_isfixed,quadrature_weights,σ = model.grid
+    @unpack nx,ny,dx,dy,nσ,x0,y0,h_mask,h_isfixed,hyd_potential_isfixed,u_iszero,v_iszero,u_isfixed,v_isfixed,quadrature_weights,σ = model.grid
     @unpack gh,gu,gv,g3d = model.fields
     
     @assert rem(nx,ngridsx)==0 "Model domain is not an integer number of subdomains in x-direction"
@@ -207,6 +207,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     y0_g = y0 + (j_start_g-1)*dy
     h_mask_g = h_mask[i_start_g:i_stop_g,j_start_g:j_stop_g]
     h_isfixed_g = h_isfixed[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    hyd_potential_isfixed_g = hyd_potential_isfixed[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
     u_iszero_g = u_iszero[i_start_g:i_stop_g+1,j_start_g:j_stop_g]
     v_iszero_g = v_iszero[i_start_g:i_stop_g,j_start_g:j_stop_g+1]
@@ -237,6 +238,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     y0=y0_g,
     h_mask = h_mask_g,
     h_isfixed = h_isfixed_g,
+    hyd_potential_isfixed = hyd_potential_isfixed_g,
     u_iszero = u_iszero_g,
     v_iszero = v_iszero_g,
     u_isfixed = u_isfixed_g,

@@ -47,6 +47,29 @@ function update_state!(model)
     return nothing
 end
 
+"""
+update_state_novelocity!(model::AbstractModel, clock)
+
+Update the model to the current time dependent situation, without updating the ice velocities
+"""
+function update_state_novelocity!(model, clock)
+    update_surface_elevation!(model)
+    update_geometry_on_uv_grids!(model)
+    update_height_above_floatation!(model)
+    update_grounded_fraction_on_huv_grids!(model)
+    update_accumulation_rate!(model)
+    update_thermodynamics!(model)
+    update_shelf_basal_melt!(model, clock)
+    update_basal_melt!(model)
+    update_glen_b!(model)
+    update_dsdh!(model)
+    update_basal_hydrology!(model)
+    update_velocities_on_h_grid!(model)
+    update_dhdt!(model)
+    update_model_wavelets!(model)
+    return nothing
+end
+
 
 
 """
@@ -145,7 +168,7 @@ Update the basal melt rate (combining grounded_basal_melt and shelf_basal_melt)
 """
 function update_basal_melt!(model::AbstractModel)
     @unpack gh=model.fields
-    gh.basal_melt .= gh.shelf_basal_melt .+ gh.grounded_basal_melt 
+    gh.basal_melt .= gh.shelf_basal_melt .+ gh.grounded_basal_melt
     return model
 end
 

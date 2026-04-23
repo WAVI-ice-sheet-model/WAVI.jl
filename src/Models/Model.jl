@@ -9,6 +9,7 @@ struct Model{T <: Real, N <: Integer,A, G, M <:AbstractMeltRate, PS <: AbstractP
     sliding_law::SL
     basal_hydrology::BH
     thermo_dynamics::TD
+    verbose::Bool
 end
 
 """
@@ -22,7 +23,8 @@ end
         parallel_spec = BasicParallelSpec(),
         sliding_law = SlidingLaw(),
         basal_hydrology = BasalHydrology(),
-        thermo_dynamics = ThermoDynamics())
+        thermo_dynamics = ThermoDynamics(),
+        verbose = true)
 
 Construct a WAVI.jl model object.
 
@@ -39,6 +41,7 @@ Keyword arguments
 - `sliding_law`: a sliding law model, responsible for controlling/setting the basal friction.
 - `basal_hydrology`: a basal hydrology model, responsible for calculating the basal water thickness and effective pressure.
 - `thermo_dynamics`: a thermodynamics model, responsible for calculating the ice temperature and grounded basal melt rate.
+- `verbose`: specifies whether to output information about the solve and residuals
 
 """
 function Model(;
@@ -51,7 +54,8 @@ function Model(;
     parallel_spec = BasicParallelSpec(),
     sliding_law = WeertmanSlidingLaw(),
     basal_hydrology = NoHydrology(),
-    thermo_dynamics = NoThermoDynamics())
+    thermo_dynamics = NoThermoDynamics(),
+    verbose = true)
 
     #check that a grid and bed has been inputted
     ~(grid === nothing) || throw(ArgumentError("You must specify an input grid"))
@@ -111,7 +115,7 @@ function Model(;
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,shelf_melt_rate,parallel_spec,sliding_law,basal_hydrology,thermo_dynamics)
+    model=Model(grid,params,solver_params,initial_conditions,fields,shelf_melt_rate,parallel_spec,sliding_law,basal_hydrology,thermo_dynamics,verbose)
 
     return model
 end

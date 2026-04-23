@@ -3,6 +3,7 @@ struct HGrid{T <: Real, N  <: Integer}
                   nyh :: N                                     # Number of grid cells in y-direction in HGrid
                  mask :: Array{Bool,2}                         # Mask specifying the model domain
             h_isfixed :: Array{Bool,2}                         # Mask specifying locations of fixed thickness
+hyd_potential_isfixed :: Array{Bool,2}                         # Mask specifying locations of fixed hydraulic potential at the bed
                     n :: N                                     # Total number of cells in the model domain
                  crop :: Diagonal{T,Array{T,1}}                # Crop matrix: diagonal matrix with mask entries on diag
                  samp :: SparseMatrixCSC{T,N}                  # Sampling matrix: take full domain to model domain 
@@ -36,6 +37,7 @@ struct HGrid{T <: Real, N  <: Integer}
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
 basal_water_thickness :: Array{T,2}                            # basal water thickness
+hydraulic_potential_b :: Array{T,2}                            # hydraulic potential at the bed
    effective_pressure :: Array{T,2}                            # effective pressure
   grounded_basal_melt :: Array{T,2}                            # grounded basal melt rate
      shelf_basal_melt :: Array{T,2}                            # basal melt rate under ice shelves (ie floating ice)
@@ -49,14 +51,16 @@ end
             nyh,
             mask = trues(nxh,nyh),
             h_isfixed = falses(nxh,nxy),
+            hyd_potential_isfixed = falses(nxh,nxy),
             b,
             h,
             ηav = zeros(nxh,nyh),
             grounded_fraction = ones(nxh,nyh),
-            basal_water_thickness = ones(nxh,nyh),
-	        effective_pressure = ones(nxh,nyh),
-            basal_melt = ones(nxh,nyh),
-            θ_ave = ones(nxh,nyh))
+            basal_water_thickness = zeros(nxh,nyh),
+            hydraulic_potential_b = zeros(nxh,nyh)
+	        effective_pressure = zeros(nxh,nyh),
+            basal_melt = zeros(nxh,nyh),
+            θ_ave = zeros(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -69,11 +73,13 @@ Keyword arguments
     - 'nyh': (required) Number of grid cells in y-direction in HGrid (should be same as grid.ny)
     - 'mask': Mask specifying the model domain
     - 'h_isfixed': Mask specifying points where ice thickness is fixed
+    - 'hyd_potential_isfixed': Mask specifying points where the hydraulic potential at the bed is fixed
     - 'b': (requried) Bed elevation (bottom bathymetry)
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
     - 'basal_water_thickness' : initial basal water thickness
+    - 'hydraulic_potential_b' : initial hydraulic potential at the bed
     - 'effective_pressure': initial effective pressure
     - 'basal_melt': initial basal melt rate
     - 'θ_ave': initial depth-averaged temperature
@@ -85,17 +91,19 @@ function HGrid(;
                 nyh,
                 mask = trues(nxh,nyh),
                 h_isfixed = falses(nxh,nxy),
+                hyd_potential_isfixed = falses(nxh,nxy),
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
                 grounded_fraction = ones(nxh,nyh),
                 basal_water_thickness = zeros(nxh,nyh),
+                hydraulic_potential_b = zeros(nxh,nyh),
 		        effective_pressure = zeros(nxh,nyh),
                 basal_melt = zeros(nxh,nyh),
                 θ_ave = zeros(nxh,nyh))
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -133,7 +141,8 @@ function HGrid(;
 
     #check sizes of everything
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
-    @assert size(h_isfixed)==(nxh,nyh); 
+    @assert size(h_isfixed)==(nxh,nyh);
+    @assert size(hyd_potential_isfixed)==(nxh,nyh);
     @assert n == count(mask)
     @assert crop == Diagonal(float(mask[:]))
     @assert samp == sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
@@ -165,6 +174,7 @@ function HGrid(;
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
     @assert size(basal_water_thickness)==(nxh,nyh)
+    @assert size(hydraulic_potential_b)==(nxh,nyh)
     @assert size(effective_pressure)==(nxh,nyh)
     @assert size(grounded_basal_melt)==(nxh,nyh)
     @assert size(shelf_basal_melt)==(nxh,nyh)
@@ -173,6 +183,7 @@ function HGrid(;
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
     h_isfixed = convert(Array{Bool,2}, h_isfixed)
+    hyd_potential_isfixed = convert(Array{Bool,2}, hyd_potential_isfixed)
 
 
 return HGrid(
@@ -180,6 +191,7 @@ return HGrid(
             nyh,
             mask,
             h_isfixed,
+            hyd_potential_isfixed,
             n,
             crop,
             samp, 
@@ -213,6 +225,7 @@ return HGrid(
             dneghηav,
             dimplicit,
             basal_water_thickness,
+            hydraulic_potential_b,
 	        effective_pressure,
             grounded_basal_melt,
             shelf_basal_melt,

@@ -1,6 +1,5 @@
 #add each of the individual ice thermodynamics models
 include("./quadratic_temperature_approximation.jl")
-include("./quadratic_temperature_approximation_iceberg_test.jl")
 
 struct NoThermoDynamics <: AbstractThermoDynamics
 end

@@ -72,9 +72,9 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
 
     for j=1:g3d.nys
         for i=1:g3d.nxs
-            if gh.mask[i,j]
+            if gh.mask[i,j] && gh.h[i,j]>params.minimum_thickness
                 # calculate temperature balance terms
-                θ_pressure_melting_base = thermo_dynamics.kelvin_conversion - params.density_ice * params.g * thermo_dynamics.melting_point_coeff * gh.h[i,j]
+                θ_pressure_melting = thermo_dynamics.kelvin_conversion .- params.density_ice .* params.g .* thermo_dynamics.melting_point_coeff .* (1 .- g3d.σ) .* gh.h[i,j]
                 θ_1_trial = -gh.h[i,j] / thermo_dynamics.thermal_conductivity * (thermo_dynamics.geothermal_heat_flux + gh.τbed[i,j] * (gh.bed_speed[i,j]/params.sec_per_year))
                 θ_2 = g3d.θ[i,j,end] - g3d.θ[i,j,1] - θ_1_trial
 
@@ -93,7 +93,7 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
                 
                 # limit basal temperature to the pressure melting point
                 θ_base_trial = (3/2 * gh.θ_ave[i,j]) - (1/4 * θ_1_trial) - (1/2 * g3d.θ[i,j,end])
-                g3d.θ[i,j,1] = min(θ_pressure_melting_base,θ_base_trial)
+                g3d.θ[i,j,1] = min(θ_pressure_melting[1],θ_base_trial)
 
                 # adjust θ_1 and θ_2 to be in line with the basal temperature limited to the pressure melting point
                 θ_1 = (6 * gh.θ_ave[i,j]) - (2 * g3d.θ[i,j,end]) - (4 * g3d.θ[i,j,1])
@@ -105,7 +105,7 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
                 gh.grounded_basal_melt[i,j] = gh.grounded_basal_melt[i,j] * gh.grounded_fraction[i,j]
                 
                 # calculate ice temperature profile
-                g3d.θ[i,j,:] = g3d.θ[i,j,1] .+ (θ_1 .* g3d.σ) .+ (θ_2 .* g3d.σ.^2)
+                g3d.θ[i,j,:] = min.(θ_pressure_melting,g3d.θ[i,j,1] .+ (θ_1 .* g3d.σ) .+ (θ_2 .* g3d.σ.^2))
             else
                 # set temperatures and grounded melt rate for cells without ice
                 g3d.θ[i,j,:] .= params.default_temperature
@@ -116,11 +116,11 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
     end
 
     if minimum(gh.grounded_basal_melt[gh.mask]) < -1.0e-10
-        println("WARNING: minimum grounded melt rate is negative")
+        println("WARNING: minimum grounded melt rate is negative, min=",minimum(gh.grounded_basal_melt[gh.mask]))
     end
 
     if maximum(gh.θ_ave[gh.mask] .- (thermo_dynamics.kelvin_conversion .- params.density_ice .* params.g .* thermo_dynamics.melting_point_coeff .* gh.h[gh.mask]./2.)) > 0.001
-        println("WARNING: maximum depth-averaged temperature is above pressure melting point")
+        println("WARNING: maximum depth-averaged temperature is above pressure melting point, max=",maximum(gh.θ_ave[gh.mask]))
     end
 
     return model

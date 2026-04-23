@@ -26,8 +26,11 @@ while !converged && (i_picard < solver_params.maxiter_picard)
    converged, rel_resid = precondition!(model)
 
 end
-println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
-      round(rel_resid,sigdigits=3)," at iteration ",i_picard)
+
+if model.verbose
+    println("Solved momentum equation on thread ",Threads.threadid()," with residual ", 
+        round(rel_resid,sigdigits=3)," at iteration ",i_picard)
+end
 
 return model
 end

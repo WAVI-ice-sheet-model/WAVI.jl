@@ -4,7 +4,9 @@ module WAVI
 using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
       IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
       NetCDF, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
-      NonlinearSolve,SciMLNLSolve
+      NonlinearSolve, SciMLNLSolve, Enzyme
+
+Enzyme.API.runtimeActivity!(true)
 
 #Import functions so they can be modified in this module.
 import Base: *, size, eltype
@@ -27,7 +29,7 @@ export
     WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw,
 
     #Basal hydrology
-    NoHydrology, LeakyBucket,
+    NoHydrology, ConstantBasalWaterThickness, LeakyBucket, SheetOnlyGlaDS,
 
     #Thermodynamics
     NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperatureApproximationIcebergTest,
