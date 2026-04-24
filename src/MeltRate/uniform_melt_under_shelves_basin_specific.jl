@@ -26,23 +26,23 @@ Keyword arguments
 UniformMeltUnderShelvesBasins(; melt_constant_basin_1 = 0.0, melt_constant_basin_2 = 0.0,  basinID_1=1.0, basinID_2=2.0, melt_partial_cell= false, ρi = 918.0, ρw = 1028.0) = UniformMeltUnderShelvesBasins(melt_constant_basin_1,melt_constant_basin_2, basinID_1, basinID_2, melt_partial_cell,ρi, ρw)
 
 """
-    update_melt_rate(melt_rate::UniformMeltUnderShelvesBasins, fields, grid) 
+    update_shelf_melt_rate(shelf_melt_rate::UniformMeltUnderShelvesBasins, fields, grid) 
 
-Update the melt rate when for the UniformMeltUnderShelvesBasins type
+Update the melt rate  under ice shelves for the UniformMeltUnderShelvesBasins type
 """
-function update_melt_rate!(melt_rate::UniformMeltUnderShelvesBasins, fields, grid, clock) 
+function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltUnderShelvesBasins, fields, grid, clock) 
 
   m = zeros(grid.nx,grid.ny);
 
-    if (melt_rate.melt_partial_cell)  #partial cell melting 
-        m[(grid.basin_ID .==melt_rate.basinID_1)] .=   melt_rate.melt_constant_basin_1.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==melt_rate.basinID_1)])
-        m[(grid.basin_ID .==melt_rate.basinID_2)] .=   melt_rate.melt_constant_basin_2.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==melt_rate.basinID_2)])
-    elseif ~melt_rate.melt_partial_cell #no partial cell melting
-        m[(grid.basin_ID .==melt_rate.basinID_1)] .=  melt_rate.melt_constant_basin_1.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==melt_rate.basinID_1)])
-        m[(grid.basin_ID .==melt_rate.basinID_2)] .=  melt_rate.melt_constant_basin_2.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==melt_rate.basinID_2)])
+    if (shelf_melt_rate.melt_partial_cell)  #partial cell melting 
+        m[(grid.basin_ID .==shelf_melt_rate.basinID_1)] .=   shelf_melt_rate.melt_constant_basin_1.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==shelf_melt_rate.basinID_1)])
+        m[(grid.basin_ID .==shelf_melt_rate.basinID_2)] .=   shelf_melt_rate.melt_constant_basin_2.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==shelf_melt_rate.basinID_2)])
+    elseif ~shelf_melt_rate.melt_partial_cell #no partial cell melting
+        m[(grid.basin_ID .==shelf_melt_rate.basinID_1)] .=  shelf_melt_rate.melt_constant_basin_1.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==shelf_melt_rate.basinID_1)])
+        m[(grid.basin_ID .==shelf_melt_rate.basinID_2)] .=  shelf_melt_rate.melt_constant_basin_2.* (1 .- fields.gh.grounded_fraction[(grid.basin_ID .==shelf_melt_rate.basinID_2)])
         m[.~(fields.gh.grounded_fraction .== 0)] .= 0 
     end
 
-    fields.gh.basal_melt[:] .= m[:]
+    fields.gh.shelf_basal_melt[:] .= m[:]
 end
 

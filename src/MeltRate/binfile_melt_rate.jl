@@ -13,21 +13,21 @@ function BinfileMeltRate(;
 end
 
 
-function update_melt_rate!(melt_model::BinfileMeltRate, fields, grid, clock)
+function update_shelf_melt_rate!(shelf_melt_model::BinfileMeltRate, fields, grid, clock)
     @unpack input_filename = melt_model
-    @unpack basal_melt = fields.gh
+    @unpack shelf_basal_melt,grounded_fraction = fields.gh
     
     file_size = stat(input_filename).size #bytes in input file must match matrix returned
-    melt_rate = zeros(grid.nx,grid.ny)
-    (file_size == sizeof(melt_rate)) || throw(DimensionMismatch("Size of input file incompatible with specified nx, ny"))
+    shelf_melt_rate = zeros(grid.nx,grid.ny)
+    (file_size == sizeof(shelf_melt_rate)) || throw(DimensionMismatch("Size of input file incompatible with specified nx, ny"))
     try 
-        read!(input_filename, melt_rate)
+        read!(input_filename, shelf_melt_rate)
     catch
         Error("Input file read error")
     end
 
-   # melt_rate .= ntoh.(melt_rate)
-    basal_melt[:] = melt_rate[:]
+   # shelf_melt_rate .= ntoh.(shelf_melt_rate)
+    shelf_basal_melt[:] = shelf_melt_rate[:] .* ((1 .- grounded_fraction))
     return nothing
 end
 

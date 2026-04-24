@@ -13,6 +13,19 @@ struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
                  n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
                 step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
                        verbose :: Bool   #toggle whether or not to output when the timestepping have been performed
+                        niter0 :: N      #starting iteration number
+                            dt :: T      #timestep
+    ntimesteps_velocity_update :: N      #number of substeps at which to update the velocity (i.e. the velocity is updated every dt*ntimesteps_velocity_update)
+                      end_time :: T      #end time of this simulation
+                            t0 :: T      #start time of this simulation 
+                    chkpt_freq :: T      #temporary checkpoint frequency
+                   pchkpt_freq :: T      #permanent checkpoint frequency  
+                   chkpt_path  :: String #path to location of permanent and tempoary checkpoint output
+                  n_iter_total :: TO     #total number of timesteps counting from zero
+                  n_iter_chkpt :: C      #number of iterations per temporary checkpoint
+                 n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
+                step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
+                       verbose :: Bool   #toggle whether or not to output when the timestepping have been performed
 end
 
 
@@ -44,6 +57,7 @@ Keyword arguments
 - 'pchkpt_freq': Frequecy with which permanent checkpoints are pass
 - 'chkpt_path' : Path to location checkpoint output
 - 'step_thickness': Toggle whether to update the ice thickness (true) or not (false) at each timestep
+- 'verbose': Toggle whether to output when the timestepping have been performed (true) or not (false)
 """
 function TimesteppingParams(;
                         niter0 = 0,
@@ -94,7 +108,7 @@ function compute_iterations_and_end_time(end_time, n_iter_total, dt)
     (isa(dt, Real) && (dt > 0))  || throw(ArgumentError("timestep dt must be a positive number"))
 
     if (~(n_iter_total === nothing) && ~(end_time === nothing)) #if both passed, throw error if incompatible
-        (end_time ≈ (n_iter_total * dt)) ||  throw(ArgumentError("You have specified both end time (end_time) and total iterations (n_iter_total), but their values are incompatible: end time mustequal n_iter_total * dt"))
+        (end_time ≈ (n_iter_total * dt)) ||  throw(ArgumentError("You have specified both end time (end_time) and total iterations (n_iter_total), but their values are incompatible: end time must equal n_iter_total * dt"))
     elseif ((n_iter_total === nothing) && ~(end_time === nothing)) #if only end time passed, n_iter_total is the nearest integer
         end_time == Inf ? n_iter_total = Inf : n_iter_total  = round(Int, end_time/dt)
     elseif (~(n_iter_total === nothing) && (end_time === nothing)) #if only number of iterations

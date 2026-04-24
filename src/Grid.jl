@@ -8,6 +8,7 @@ struct Grid{T <: Real, N <: Integer} <: AbstractGrid{T,N}
                     y0 :: T             # Y co-ordinate of grid origin
                 h_mask :: Array{Bool,2} # Mask defining domain points within grid
              h_isfixed :: Array{Bool,2} # Mask defining locations of fixed thickness within grid
+ hyd_potential_isfixed :: Array{Bool,2} # Mask defining locations of fixed hydraulic potential at the bed within grid
               u_iszero :: Array{Bool,2} # Locations of zero u velocity points 
               v_iszero :: Array{Bool,2} # Locations of zero v velocity points
              u_isfixed :: Array{Bool,2} # Locations of fixed u velocity points 
@@ -37,6 +38,7 @@ end
     y0 = -40000.0,
     h_mask = nothing,
     h_isfixed = nothing,
+    hyd_potential_isfixed = nothing,
     u_iszero = nothing,
     v_iszero = nothing,
     basin_ID = nothing,
@@ -56,6 +58,7 @@ Keyword arguments
 - `y0`: grid origin y co-ordinate
 - `h_mask`: Mask defining domain points within grid
 - `h_isfixed': Mask defining locations of fixed thickness within grid
+- `hyd_potential_isfixed': Mask defining locations of fixed hydraulic potential at the bed within grid
 - `u_iszero`: Locations of zero u velocity points
 - `v_iszero`: Locations of zero v velocity points
 - `u_isfixed`: Locations of fixed u velocity points
@@ -73,6 +76,7 @@ function Grid(;
     y0 = -40000.0,
     h_mask = nothing,
     h_isfixed = nothing,
+    hyd_potential_isfixed = nothing,
     u_iszero = nothing,
     v_iszero = nothing,
     u_isfixed = nothing,
@@ -90,6 +94,7 @@ function Grid(;
 ~(typeof(u_iszero) == Vector{String}) || (u_iszero = orientations2bc(deepcopy(u_iszero),nx+1,ny))
 ~(typeof(v_iszero) == Vector{String}) || (v_iszero = orientations2bc(deepcopy(v_iszero),nx,ny+1))
 ~(typeof(h_isfixed) == Vector{String}) || (h_isfixed = orientations2bc(deepcopy(h_isfixed),nx,ny))
+~(typeof(hyd_potential_isfixed) == Vector{String}) || (hyd_potential_isfixed = orientations2bc(deepcopy(hyd_potential_isfixed),nx,ny))
 ~(typeof(u_isfixed) == Vector{String}) || (u_isfixed = orientations2bc(deepcopy(u_isfixed),nx+1,ny))
 ~(typeof(v_isfixed) == Vector{String}) || (v_isfixed = orientations2bc(deepcopy(v_isfixed),nx,ny+1))
 
@@ -97,6 +102,7 @@ function Grid(;
 #assemble h_mask, u_iszero, v_iszero (if not passed as string)
 (~(h_mask === nothing)) || (h_mask = trues(nx,ny))
 (~(h_isfixed === nothing)) || (h_isfixed = falses(nx,ny))
+(~(hyd_potential_isfixed === nothing)) || (hyd_potential_isfixed = falses(nx,ny))
 (~(u_iszero === nothing))|| (u_iszero = falses(nx+1,ny))
 (~(v_iszero === nothing)) || (v_iszero = falses(nx, ny+1))
 (~(u_isfixed === nothing))|| (u_isfixed = falses(nx+1,ny))
@@ -106,6 +112,7 @@ function Grid(;
 #check the sizes of inputs
 size(h_mask)==(nx,ny) || throw(DimensionMismatch("h_mask size must be (nx x ny) (i.e. $nx x $ny)"))
 size(h_isfixed)==(nx,ny) || throw(DimensionMismatch("h_isfixed size must be (nx x ny) (i.e. $nx x $ny)"))
+size(hyd_potential_isfixed)==(nx,ny) || throw(DimensionMismatch("hyd_potential_isfixed size must be (nx x ny) (i.e. $nx x $ny)"))
 size(u_iszero)==(nx+1,ny) || throw(DimensionMismatch("u_iszero size must be size of U grid (nx+1 x ny) (i.e. $(nx+1) x $ny)"))
 size(v_iszero)==(nx,ny+1) || throw(DimensionMismatch("v_iszero size must be size of V grid (nx x ny+1) (i.e. $nx x $(ny+1)"))
 size(basin_ID)==(nx,ny) || throw(DimensionMismatch("Basin_ID size must be (nx x ny) (i.e. $nx x $ny)"))
@@ -125,6 +132,12 @@ try
     h_isfixed = convert(Array{Bool,2}, h_isfixed)
 catch 
     throw(ArgumentError("h_isfixed must be Boolean (or equivalent)"))
+end
+
+try
+    hyd_potential_isfixed = convert(Array{Bool,2}, hyd_potential_isfixed)
+catch 
+    throw(ArgumentError("hyd_potential_isfixed must be Boolean (or equivalent)"))
 end
 
 try 
@@ -183,6 +196,7 @@ return Grid(nx,
             y0,
             h_mask,
             h_isfixed,
+            hyd_potential_isfixed,
             u_iszero,
             v_iszero,
             u_isfixed,

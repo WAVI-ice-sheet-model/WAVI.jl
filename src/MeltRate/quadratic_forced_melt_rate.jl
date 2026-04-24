@@ -83,17 +83,17 @@ end
 
 
 """
-    update_melt_rate!(quad_melt_rate::QuadraticForcedMeltRate, fields, grid, clock)
+    update_shelf_melt_rate!(quad_melt_rate::QuadraticForcedMeltRate, fields, grid, clock)
 
-Wrapper script to update the melt rate for a QuadraticForcedMeltRate.
+Wrapper script to update the melt rate under ice shelves for a QuadraticForcedMeltRate.
 """
-function update_melt_rate!(quad_melt_rate::QuadraticForcedMeltRate, fields, grid, clock)
-    @unpack basal_melt, h, b, grounded_fraction = fields.gh #get the ice thickness and grounded fraction
+function update_shelf_melt_rate!(quad_melt_rate::QuadraticForcedMeltRate, fields, grid, clock)
+    @unpack shelf_basal_melt, h, b, grounded_fraction = fields.gh #get the ice thickness and grounded fraction
  
     #compute the ice draft
     zb = fields.gh.b .* (grounded_fraction .== 1) + - quad_melt_rate.ρi / quad_melt_rate.ρw .* fields.gh.h .* (grounded_fraction .< 1)
 
-    set_quadratic_forced_melt_rate!(basal_melt,
+    set_quadratic_forced_melt_rate!(shelf_basal_melt,
                             quad_melt_rate,
                             zb, 
                             grounded_fraction,
@@ -104,7 +104,7 @@ function update_melt_rate!(quad_melt_rate::QuadraticForcedMeltRate, fields, grid
 end
 
 
-function set_quadratic_forced_melt_rate!(basal_melt,
+function set_quadratic_forced_melt_rate!(shelf_basal_melt,
                                             qmr,
                                             zb, 
                                             grounded_fraction,
@@ -131,20 +131,20 @@ function set_quadratic_forced_melt_rate!(basal_melt,
 
     #set melt rate
     if (qmr.melt_partial_cell) && (qmr.flocal) #partial cell melting and local 
-        basal_melt[:] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[:].^2 .* (1 .- grounded_fraction[:])
+        shelf_basal_melt[:] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[:].^2 .* (1 .- grounded_fraction[:])
         
     elseif ~(qmr.melt_partial_cell) && (qmr.flocal) #no partial cell melting and local
-        basal_melt[grounded_fraction .== 0] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[grounded_fraction .== 0].^2
-        basal_melt[.~(grounded_fraction .== 0)] .= 0 
+        shelf_basal_melt[grounded_fraction .== 0] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[grounded_fraction .== 0].^2
+        shelf_basal_melt[.~(grounded_fraction .== 0)] .= 0 
 
     elseif (qmr.melt_partial_cell) && ~(qmr.flocal) #partial cell melting and non-local 
-        basal_melt[:] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[:].^2 .* (1 .- grounded_fraction[:])
+        shelf_basal_melt[:] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[:].^2 .* (1 .- grounded_fraction[:])
 
     elseif ~(qmr.melt_partial_cell) && ~(qmr.flocal) #no partial cell and non-local
-        basal_melt[grounded_fraction .== 0] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[grounded_fraction .== 0] .* Tstar_shelf_mean
-        basal_melt[.~(grounded_fraction .== 0)] .= 0 
+        shelf_basal_melt[grounded_fraction .== 0] .=  qmr.γT .* (qmr.ρw * qmr.c / qmr.ρi /qmr.L)^2 .* Tstar[grounded_fraction .== 0] .* Tstar_shelf_mean
+        shelf_basal_melt[.~(grounded_fraction .== 0)] .= 0 
     end
-    basal_melt[:] .= basal_melt[:].* 365.25*24*60*60
+    shelf_basal_melt[:] .= shelf_basal_melt[:].* 365.25*24*60*60
 
     return nothing
 end

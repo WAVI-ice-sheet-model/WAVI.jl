@@ -3,6 +3,7 @@ struct HGrid{T <: Real, N  <: Integer}
                   nyh :: N                                     # Number of grid cells in y-direction in HGrid
                  mask :: Array{Bool,2}                         # Mask specifying the model domain
             h_isfixed :: Array{Bool,2}                         # Mask specifying locations of fixed thickness
+hyd_potential_isfixed :: Array{Bool,2}                         # Mask specifying locations of fixed hydraulic potential at the bed
                     n :: N                                     # Total number of cells in the model domain
                  crop :: Diagonal{T,Array{T,1}}                # Crop matrix: diagonal matrix with mask entries on diag
                  samp :: SparseMatrixCSC{T,N}                  # Sampling matrix: take full domain to model domain 
@@ -26,7 +27,7 @@ struct HGrid{T <: Real, N  <: Integer}
                    ub :: Array{T,2}                            # x-velocity at the bed 
                    vb :: Array{T,2}                            # y-velocity at the bed
             bed_speed :: Array{T,2}                            # Ice speed at the bed
-           weertman_c :: Array{T,2}                            # Weertman drag coefficients 
+     drag_coefficient :: Array{T,2}                            # Sliding law drag coefficients
                     β :: Array{T,2}                            # Raw β value (eqn 8 in Arthern 2015 JGeophysRes)
                  βeff :: Array{T,2}                            # Effective β value (eqn 12 in Arthern 2015 JGeophysRes)
                  τbed :: Array{T,2}                            # Stress at the bed
@@ -36,6 +37,12 @@ struct HGrid{T <: Real, N  <: Integer}
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
+basal_water_thickness :: Array{T,2}                            # basal water thickness
+hydraulic_potential_b :: Array{T,2}                            # hydraulic potential at the bed
+   effective_pressure :: Array{T,2}                            # effective pressure
+  grounded_basal_melt :: Array{T,2}                            # grounded basal melt rate
+     shelf_basal_melt :: Array{T,2}                            # basal melt rate under ice shelves (ie floating ice)
+                θ_ave :: Array{T,2}                            # depth-averaged temperature
               σzzsurf :: Array{T,2}                            # Sigmazzsurf calculated in inversion (see in Arthern 2015 JGeophysRes)
               τx_surf :: Array{T,2}                            # Stress at surface u component
               τy_surf :: Array{T,2}                            # Stress at surface u component
@@ -56,9 +63,16 @@ end
             nyh,
             mask = trues(nxh,nyh),
             h_isfixed = falses(nxh,nxy),
+            hyd_potential_isfixed = falses(nxh,nxy),
             b,
             h,
             ηav = zeros(nxh,nyh),
+            grounded_fraction = ones(nxh,nyh),
+            basal_water_thickness = zeros(nxh,nyh),
+            hydraulic_potential_b = zeros(nxh,nyh)
+	        effective_pressure = zeros(nxh,nyh),
+            basal_melt = zeros(nxh,nyh),
+            θ_ave = zeros(nxh,nyh))
             grounded_fraction = ones(nxh,nyh),
             preBfactor = ones(nxh,nyh))
 
@@ -73,10 +87,16 @@ Keyword arguments
     - 'nyh': (required) Number of grid cells in y-direction in HGrid (should be same as grid.ny)
     - 'mask': Mask specifying the model domain
     - 'h_isfixed': Mask specifying points where ice thickness is fixed
+    - 'hyd_potential_isfixed': Mask specifying points where the hydraulic potential at the bed is fixed
     - 'b': (requried) Bed elevation (bottom bathymetry)
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
+    - 'basal_water_thickness' : initial basal water thickness
+    - 'hydraulic_potential_b' : initial hydraulic potential at the bed
+    - 'effective_pressure': initial effective pressure
+    - 'basal_melt': initial basal melt rate
+    - 'θ_ave': initial depth-averaged temperature
     - 'preBfactor : preBfactor (1=no damage)
 """
 
@@ -86,15 +106,22 @@ function HGrid(;
                 nyh,
                 mask = trues(nxh,nyh),
                 h_isfixed = falses(nxh,nxy),
+                hyd_potential_isfixed = falses(nxh,nxy),
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
+                grounded_fraction = ones(nxh,nyh),
+                basal_water_thickness = zeros(nxh,nyh),
+                hydraulic_potential_b = zeros(nxh,nyh),
+		        effective_pressure = zeros(nxh,nyh),
+                basal_melt = zeros(nxh,nyh),
+                θ_ave = zeros(nxh,nyh),
                 grounded_fraction = ones(nxh,nyh),
                 preBfactor = ones(nxh,nyh)
 )
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(preBfactor) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == (nxh,nyh)) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -109,7 +136,8 @@ function HGrid(;
     s = zeros(nxh,nyh)
     dhdt = zeros(nxh,nyh) 
     accumulation = zeros(nxh,nyh)
-    basal_melt = zeros(nxh,nyh)
+    grounded_basal_melt = zeros(nxh,nyh)
+    shelf_basal_melt = zeros(nxh,nyh)
     haf = zeros(nxh,nyh)
     dsdh = ones(nxh,nyh)
     shelf_strain_rate = zeros(nxh,nyh)
@@ -121,7 +149,7 @@ function HGrid(;
     ub = zeros(nxh,nyh) 
     vb= zeros(nxh,nyh)
     bed_speed = zeros(nxh,nyh)
-    weertman_c = zeros(nxh,nyh)
+    drag_coefficient = zeros(nxh,nyh)
     β = zeros(nxh,nyh)
     βeff = zeros(nxh,nyh)
     τbed = zeros(nxh,nyh)
@@ -145,7 +173,8 @@ function HGrid(;
 
     #check sizes of everything
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
-    @assert size(h_isfixed)==(nxh,nyh); 
+    @assert size(h_isfixed)==(nxh,nyh);
+    @assert size(hyd_potential_isfixed)==(nxh,nyh);
     @assert n == count(mask)
     @assert crop == Diagonal(float(mask[:]))
     @assert samp == sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
@@ -169,7 +198,7 @@ function HGrid(;
     @assert size(us)==(nxh,nyh)
     @assert size(vs)==(nxh,nyh)
     @assert size(bed_speed)==(nxh,nyh)
-    @assert size(weertman_c)==(nxh,nyh)
+    @assert size(drag_coefficient)==(nxh,nyh)
     @assert size(β)==(nxh,nyh)
     @assert size(βeff)==(nxh,nyh)
     @assert size(τbed)==(nxh,nyh)
@@ -177,6 +206,12 @@ function HGrid(;
     @assert size(quad_f1)==(nxh,nyh)
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
+    @assert size(basal_water_thickness)==(nxh,nyh)
+    @assert size(hydraulic_potential_b)==(nxh,nyh)
+    @assert size(effective_pressure)==(nxh,nyh)
+    @assert size(grounded_basal_melt)==(nxh,nyh)
+    @assert size(shelf_basal_melt)==(nxh,nyh)
+    @assert size(θ_ave)==(nxh,nyh)
     @assert size(σzzsurf)==(nxh,nyh)
     @assert size(τx_surf)==(nxh,nyh)
     @assert size(τy_surf)==(nxh,nyh)
@@ -192,6 +227,7 @@ function HGrid(;
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
     h_isfixed = convert(Array{Bool,2}, h_isfixed)
+    hyd_potential_isfixed = convert(Array{Bool,2}, hyd_potential_isfixed)
 
 
 return HGrid(
@@ -199,6 +235,7 @@ return HGrid(
             nyh,
             mask,
             h_isfixed,
+            hyd_potential_isfixed,
             n,
             crop,
             samp, 
@@ -222,7 +259,7 @@ return HGrid(
             ub,
             vb,
             bed_speed,
-            weertman_c,
+            drag_coefficient,
             β,
             βeff,
             τbed,
@@ -231,6 +268,13 @@ return HGrid(
             quad_f1,
             quad_f2,
             dneghηav,
+            dimplicit,
+            basal_water_thickness,
+            hydraulic_potential_b,
+	        effective_pressure,
+            grounded_basal_melt,
+            shelf_basal_melt,
+            θ_ave,
             dimplicit,
             σzzsurf, 
             τx_surf,

@@ -30,6 +30,15 @@ export
 
     #Melt ratesS
     PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins, 
+
+    #Sliding law
+    WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw,
+
+    #Basal hydrology
+    NoHydrology, ConstantBasalWaterThickness, LeakyBucket, SheetOnlyGlaDS,
+
+    #Thermodynamics
+    NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperatureApproximationIcebergTest,
    
     #Post-processing controls
     volume_above_floatation, height_above_floatation,
@@ -40,6 +49,18 @@ export
 #Reexport Modules useful for users of the WAVI module
 @reexport using JLD2
 @reexport using Setfield
+
+#Abstract types
+abstract type AbstractGrid{T <: Real, N <: Integer} end
+abstract type AbstractMeltRate end
+abstract type AbstractSlidingLaw end
+abstract type AbstractParallelSpec end
+abstract type AbstractBasalHydrology end
+abstract type AbstractThermoDynamics end
+abstract type AbstractModel{T <: Real, N <: Integer, M <: AbstractMeltRate, PS <: AbstractParallelSpec, SL <: AbstractSlidingLaw, BH <: AbstractBasalHydrology, TD <: AbstractThermoDynamics} end
+abstract type AbstractPreconditioner{T <: Real, N <: Integer} end
+
+#abstract type AbstractSimulation{T,N,R,A,W} end
 
 #Type alias, just for abreviation
 const MapOrMatrix{T} = Union{LinearMap{T}, AbstractMatrix{T}}
@@ -61,6 +82,9 @@ include("InitialConditions.jl")
 include("KroneckerProduct.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
+include("SlidingLaw/SlidingLaw.jl")
+include("BasalHydrology/BasalHydrology.jl")
+include("ThermoDynamics/ThermoDynamics.jl")
 include("Models/Model.jl")
 include("SharedMemorySpec.jl")
 include("MeltRate/MeltRate.jl")
