@@ -78,7 +78,7 @@ function get_op_fun(model::AbstractModel{T,N}) where {T,N}
             vspread .= @view inputVector[(gu.nxu*gu.nyu+1):(gu.nxu*gu.nyu+gv.nxv*gv.nyv)]
 
         end
-
+        
             #Extensional resistive stresses
         @!  dudx = gu.∂x*uspread
         @!  dvdy = gv.∂y*vspread
@@ -547,7 +547,8 @@ In-place function to return residual b - op x
 
 """
 function get_resid!(resid,x,op,b)
-    mul!(resid,op,x)
+    mem_resid= @allocated   mul!(resid,op,x)
+   # println("Memory allocated in get_resid is: ", mem_resid, " bytes")
     resid .= b .- resid
 end
 

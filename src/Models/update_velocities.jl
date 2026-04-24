@@ -41,6 +41,7 @@ function inner_update!(model::AbstractModel)
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
     update_rheological_operators!(model)
+  #  update_surface_velocities_on_uv_grid!(model)
     return model
 end
 
@@ -312,12 +313,14 @@ Use quadrature to compute falpha functions, used to relate average velocities, b
 """
 function update_quadrature_falpha!(model::AbstractModel)
     @unpack gh,g3d=model.fields
+    gh.quad_f0 .= zero(gh.quad_f0)
     gh.quad_f1 .= zero(gh.quad_f1)
     gh.quad_f2 .= zero(gh.quad_f2)
     for k=1:g3d.nσs
        for j = 1:g3d.nys
           for i = 1:g3d.nxs
             if gh.mask[i,j]
+                gh.quad_f0[i,j] += g3d.quadrature_weights[k]*gh.h[i,j]/g3d.η[i,j,k]
                 gh.quad_f1[i,j] += g3d.quadrature_weights[k]*gh.h[i,j]*g3d.ζ[k]/g3d.η[i,j,k]
                 gh.quad_f2[i,j] += g3d.quadrature_weights[k]*gh.h[i,j]*(g3d.ζ[k])^2/g3d.η[i,j,k]
             end
@@ -334,6 +337,7 @@ Compute the effective drag coefficient.
 """
 function update_βeff!(model::AbstractModel)
     @unpack gh=model.fields
+  #  gh.βeff[gh.mask] .= gh.β[gh.mask] ./ (1.0 .+ gh.quad_f2[gh.mask] .* gh.β[gh.mask])
     gh.βeff .= gh.β ./ (1.0 .+ gh.quad_f2 .* gh.β)
     return model
 end
@@ -381,6 +385,8 @@ function update_rheological_operators!(model::AbstractModel)
     gh.dimplicit[] .= gh.crop*Diagonal(-params.density_ice * params.g * solver_params.super_implicitness .* params.dt * gh.dsdh[:])*gh.crop
     return model
 end
+
+
 
 
 """
@@ -431,3 +437,4 @@ function set_residual!(model::AbstractModel,residual)
     @views gv.residual[gv.mask_inner] .= residual[(gu.ni+1):(gu.ni+gv.ni)]
     return model
 end
+

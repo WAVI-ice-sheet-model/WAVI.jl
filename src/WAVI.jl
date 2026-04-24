@@ -23,10 +23,10 @@ abstract type AbstractPreconditioner{T <: Real, N <: Integer} end
 export
     #Structures
     Model, Params, TimesteppingParams, Grid, SolverParams, InitialConditions, OutputParams, 
-    Simulation, BasicParallelSpec, SharedMemorySpec,
+    Simulation, BasicParallelSpec, SharedMemorySpec, Inversion, InversionParams, InversionOutput, InversionSimulation, JKVsteppingParams, DataFields,
 
     #Simulation controls
-    update_state!, timestep!, run_simulation!,
+    update_state!, timestep!, run_simulation!, run_inversion_simulation!,
 
     #Melt ratesS
     PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins, 
@@ -66,7 +66,13 @@ include("SharedMemorySpec.jl")
 include("MeltRate/MeltRate.jl")
 include("Simulations/Simulation.jl")
 include("utilities.jl")
-
+include("Inversion/JKVsteppingParams.jl")
+include("Inversion/InversionSimulation.jl")
+include("Inversion/InversionOutput.jl")
+include("Inversion/InversionParams.jl")
+include("Inversion/DataFields.jl")
+#include("Inversion/inversion_utilities.jl")
+include("Inversion/Inversion.jl")
 
 end
 

@@ -93,7 +93,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
             end
         end
     end
-        
+
     g3d=SigmaGrid(
         nxs=grid.nx,
         nys=grid.ny,

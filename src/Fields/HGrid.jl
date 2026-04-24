@@ -31,10 +31,22 @@ struct HGrid{T <: Real, N  <: Integer}
                  βeff :: Array{T,2}                            # Effective β value (eqn 12 in Arthern 2015 JGeophysRes)
                  τbed :: Array{T,2}                            # Stress at the bed
                   ηav :: Array{T,2}                            # Depth averaged viscosity
+              quad_f0 :: Array{T,2}                            # F0 quadratrue field (eqn 7 in Arthern 2015 JGeophysRes)
               quad_f1 :: Array{T,2}                            # F1 quadratrue field (eqn 7 in Arthern 2015 JGeophysRes)
               quad_f2 :: Array{T,2}                            # F2 quadrature field (eqn 7 in Arthern 2015 JGeophysRes)
              dneghηav :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-h × ηav)
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
+              σzzsurf :: Array{T,2}                            # Sigmazzsurf calculated in inversion (see in Arthern 2015 JGeophysRes)
+              τx_surf :: Array{T,2}                            # Stress at surface u component
+              τy_surf :: Array{T,2}                            # Stress at surface u component
+              τsurf :: Array{T,2}                              # Stress at surface
+              τx_bed :: Array{T,2}                             # Stress at bed u component
+              τy_bed :: Array{T,2}                             # Stress at bed v component
+           surf_speed :: Array{T,2}                            # Ice speed at the surface u magnitude
+        shelf_heating :: Array{T,2}                            # Shelf heating rate calculated in inversion  (see in Arthern 2015 JGeophysRes)
+   vert_shear_heating :: Array{T,2}                            # Vertical shear heating rate calculated in inversion (see in Arthern 2015 JGeophysRes)
+         drag_heating :: Array{T,2}                            # SDrag heating rate calculated in inversion (see in Arthern 2015 JGeophysRes)
+         preBfactor   :: Array{T,2}                            # preBfactor calculated in inversion (see in Arthern 2015 JGeophysRes)
 end
 
 
@@ -47,7 +59,8 @@ end
             b,
             h,
             ηav = zeros(nxh,nyh),
-            grounded_fraction = ones(nxh,nyh))
+            grounded_fraction = ones(nxh,nyh),
+            preBfactor = ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -64,6 +77,7 @@ Keyword arguments
     - 'h': (required) initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
+    - 'preBfactor : preBfactor (1=no damage)
 """
 
 
@@ -75,10 +89,12 @@ function HGrid(;
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh))
+                grounded_fraction = ones(nxh,nyh),
+                preBfactor = ones(nxh,nyh)
+)
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(preBfactor) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -109,9 +125,23 @@ function HGrid(;
     β = zeros(nxh,nyh)
     βeff = zeros(nxh,nyh)
     τbed = zeros(nxh,nyh)
+    quad_f0 = zeros(nxh,nyh)
     quad_f1 = zeros(nxh,nyh)
     quad_f2 = zeros(nxh,nyh)
     quad_f2[mask] = h[mask]./(3*ηav[mask])
+    σzzsurf=zeros(nxh,nyh) 
+    τx_surf=zeros(nxh,nyh) 
+    τy_surf=zeros(nxh,nyh) 
+    τsurf=zeros(nxh,nyh) 
+    τx_bed=zeros(nxh,nyh) 
+    τy_bed =zeros(nxh,nyh) 
+    surf_speed=zeros(nxh,nyh) 
+    shelf_heating=zeros(nxh,nyh) 
+    vert_shear_heating=zeros(nxh,nyh) 
+    drag_heating=zeros(nxh,nyh) 
+    #
+    #preBfactor=ones(nxh,nyh) 
+
 
     #check sizes of everything
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
@@ -143,9 +173,21 @@ function HGrid(;
     @assert size(β)==(nxh,nyh)
     @assert size(βeff)==(nxh,nyh)
     @assert size(τbed)==(nxh,nyh)
+    @assert size(quad_f0)==(nxh,nyh)
     @assert size(quad_f1)==(nxh,nyh)
     @assert size(quad_f2)==(nxh,nyh)
     @assert size(ηav)==(nxh,nyh)
+    @assert size(σzzsurf)==(nxh,nyh)
+    @assert size(τx_surf)==(nxh,nyh)
+    @assert size(τy_surf)==(nxh,nyh)
+    @assert size(τsurf)==(nxh,nyh)
+    @assert size(τx_bed)==(nxh,nyh)
+    @assert size(τy_bed)==(nxh,nyh)
+    @assert size(surf_speed)==(nxh,nyh)
+    @assert size(shelf_heating)==(nxh,nyh)
+    @assert size(vert_shear_heating)==(nxh,nyh)
+    @assert size(drag_heating)==(nxh,nyh)
+    @assert size(preBfactor)==(nxh,nyh)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -185,8 +227,21 @@ return HGrid(
             βeff,
             τbed,
             ηav,
+            quad_f0,
             quad_f1,
             quad_f2,
             dneghηav,
-            dimplicit)
+            dimplicit,
+            σzzsurf, 
+            τx_surf,
+            τy_surf,
+            τsurf,
+            τx_bed,
+            τy_bed, 
+            surf_speed,
+            shelf_heating,
+            vert_shear_heating,
+            drag_heating,
+            preBfactor
+        )
 end
