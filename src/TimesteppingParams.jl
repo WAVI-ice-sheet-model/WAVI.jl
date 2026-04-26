@@ -13,19 +13,6 @@ struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
                  n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
                 step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
                        verbose :: Bool   #toggle whether or not to output when the timestepping have been performed
-                        niter0 :: N      #starting iteration number
-                            dt :: T      #timestep
-    ntimesteps_velocity_update :: N      #number of substeps at which to update the velocity (i.e. the velocity is updated every dt*ntimesteps_velocity_update)
-                      end_time :: T      #end time of this simulation
-                            t0 :: T      #start time of this simulation 
-                    chkpt_freq :: T      #temporary checkpoint frequency
-                   pchkpt_freq :: T      #permanent checkpoint frequency  
-                   chkpt_path  :: String #path to location of permanent and tempoary checkpoint output
-                  n_iter_total :: TO     #total number of timesteps counting from zero
-                  n_iter_chkpt :: C      #number of iterations per temporary checkpoint
-                 n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
-                step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
-                       verbose :: Bool   #toggle whether or not to output when the timestepping have been performed
 end
 
 

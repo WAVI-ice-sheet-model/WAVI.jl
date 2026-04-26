@@ -130,7 +130,6 @@ test_output_errors = true
                     @test dict["h"] == sim.model.initial_conditions.initial_thickness
                     @test dict["t"] == 0.0
 
-
                 else
                     #check that no file output
                     @test isempty(readdir(foldersim))

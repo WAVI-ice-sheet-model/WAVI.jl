@@ -62,8 +62,8 @@ end
             nxh, 
             nyh,
             mask = trues(nxh,nyh),
-            h_isfixed = falses(nxh,nxy),
-            hyd_potential_isfixed = falses(nxh,nxy),
+            h_isfixed = falses(nxh,nyh),
+            hyd_potential_isfixed = falses(nxh,nyh),
             b,
             h,
             ηav = zeros(nxh,nyh),
@@ -105,8 +105,8 @@ function HGrid(;
                 nxh, 
                 nyh,
                 mask = trues(nxh,nyh),
-                h_isfixed = falses(nxh,nxy),
-                hyd_potential_isfixed = falses(nxh,nxy),
+                h_isfixed = falses(nxh,nyh),
+                hyd_potential_isfixed = falses(nxh,nyh),
                 b,
                 h = zeros(nxh,nyh),
                 ηav = zeros(nxh,nyh),
@@ -116,12 +116,11 @@ function HGrid(;
 		        effective_pressure = zeros(nxh,nyh),
                 basal_melt = zeros(nxh,nyh),
                 θ_ave = zeros(nxh,nyh),
-                grounded_fraction = ones(nxh,nyh),
                 preBfactor = ones(nxh,nyh)
 )
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == (nxh,nyh)) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -275,7 +274,6 @@ return HGrid(
             grounded_basal_melt,
             shelf_basal_melt,
             θ_ave,
-            dimplicit,
             σzzsurf, 
             τx_surf,
             τy_surf,

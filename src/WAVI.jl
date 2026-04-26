@@ -4,20 +4,12 @@ module WAVI
 using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
       IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
       NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
-      NonlinearSolve,SciMLNLSolve
+      NonlinearSolve, SciMLNLSolve, Enzyme
 
 #Import functions so they can be modified in this module.
 import Base: *, size, eltype
 import LinearAlgebra: ldiv!,mul!
 import Setfield: @set
-
-#Abstract types
-abstract type AbstractGrid{T <: Real, N <: Integer} end
-abstract type AbstractMeltRate end
-abstract type AbstractParallelSpec end
-abstract type AbstractModel{T <: Real, N <: Integer, M <: AbstractMeltRate, PS <: AbstractParallelSpec} end
-abstract type AbstractPreconditioner{T <: Real, N <: Integer} end
-#abstract type AbstractSimulation{T,N,R,A,W} end
 
 #This module will export these functions and types, allowing basic use of the model.
 export

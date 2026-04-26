@@ -14,7 +14,7 @@ end
 
 
 function update_shelf_melt_rate!(shelf_melt_model::BinfileMeltRate, fields, grid, clock)
-    @unpack input_filename = melt_model
+    @unpack input_filename = shelf_melt_model
     @unpack shelf_basal_melt,grounded_fraction = fields.gh
     
     file_size = stat(input_filename).size #bytes in input file must match matrix returned
@@ -27,7 +27,7 @@ function update_shelf_melt_rate!(shelf_melt_model::BinfileMeltRate, fields, grid
     end
 
    # shelf_melt_rate .= ntoh.(shelf_melt_rate)
-    shelf_basal_melt[:] = shelf_melt_rate[:] .* ((1 .- grounded_fraction))
+    shelf_basal_melt[:] .= shelf_melt_rate[:] .* ((1 .- grounded_fraction[:]))
     return nothing
 end
 
