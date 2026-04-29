@@ -1,21 +1,30 @@
-struct Params{T <: Real, A, G, H, E}
+struct Params{T <: Real, A, W, G}
                       dt :: T
                        g :: T
              density_ice :: T
       density_freshwater :: T
            density_ocean :: T
                gas_const :: T 
-            sec_per_year :: T
+           sec_per_year  :: T
        default_thickness :: T 
        default_viscosity :: T 
      default_temperature :: T
           default_damage :: T 
+  default_strain_history :: T
+    ice_tensile_strength :: T
+ice_compressive_strength :: T
+ critical_elastic_energy :: T
+      phase_field_length :: T
+     energy_release_rate :: T
+degradation_regularisation :: T
        accumulation_rate :: A
 glen_a_activation_energy :: T 
               glen_a_ref :: G
     glen_temperature_ref :: T 
                   glen_n :: T 
     glen_reg_strain_rate :: T 
+          elastic_lambda :: T 
+              elastic_mu :: T 
      sea_level_wrt_geoid :: T
        minimum_thickness :: T 
            evolveShelves :: Bool
@@ -45,13 +54,22 @@ Keyword arguments
 - `default_thickness`: thickness value reverted to if no initial thickness passed (m)
 - `default_viscosity`: viscosity value reverted to if no initial thickness passed (Pa s)
 - `default_temperature`: temperature value reverted to if no initial thickness passed (K)
-- `default_damage`: damage value reverted to if no initial thickness passed (dimensionless)
+- `default_damage`: damage value reverted to if no initial damage passed (dimensionless)
+- `default_strain_history`: maximum previous strain energy reverted to if no initial value passed (Pa)
+- `ice_tensile_strength`: uniaxial tensile strength of ice (Pa)
+- `ice_compressive_strength`: uniaxial conpressive strength of ice (Pa)
+- `critical_elastic_energy`: critical elastic strain energy for fracture nucleation (Pa)
+- `phase_field_length`: phase field length for fracture (m)
+- `energy_release_rate`: energy release rate for fracture (N/m)
+- `degradation_regularisation`: smallest degradation allowed
 - `accumulation_rate`: uniform accumulation_rate (m/yr)
 - `glen_a_activation_energy`: activation energy in glen b calculation
 - `glen_a_ref`: array of glen a reference values used in glen b calculation
 - `glen_temperature_ref`: reference temperature using in glen b calculation
 - `glen_n`: exponent in glen b calculation
 - `glen_reg_strain_rate`: strain rate regularization value
+- `elastic_lambda`: First elastic Lame parameter (Pa)
+- `elastic_mu`: Second elastic Lame parameter (Pa) 
 - `sea_level_wrt_geoid`: reference sea level
 - `minimum_thickness`: minimum ice thickness on model domain
 - `evolveShelves`: flag for turning on and off the evolution of the shelves in the forward run_simulation
@@ -72,12 +90,21 @@ function Params(; g = 9.81,
                   default_viscosity= 1.0e7,
                   default_temperature=263.15,
                   default_damage= 0.0,
+                  default_strain_history = 0.0,
+                  ice_tensile_strength = 262.9e3,
+                  ice_compressive_strength =  496.7e3,
+                  critical_elastic_energy = 1.0,
+                  phase_field_length = 1.0,
+                  energy_release_rate = 1.0,
+                  degradation_regularisation = 1e-2,
                   accumulation_rate= 0.0,
                   glen_a_activation_energy = 5.8631e+04,
                   glen_a_ref= 4.9e-16 *sec_per_year * 1.0e-9,
                   glen_temperature_ref= 263.15,
                   glen_n = 3.0,
                   glen_reg_strain_rate = 1.0e-5,
+                  elastic_lambda = 6.54e9,
+                  elastic_mu = 3.52e9,
                   sea_level_wrt_geoid  = 0.0,
                   minimum_thickness = 50.0,
                   evolveShelves = true,
@@ -103,12 +130,21 @@ function Params(; g = 9.81,
                   default_viscosity,
                   default_temperature,
                   default_damage,
+                  default_strain_history,
+                  ice_tensile_strength,
+                  ice_compressive_strength,
+                  critical_elastic_energy,
+                  phase_field_length,
+                  energy_release_rate,
+                  degradation_regularisation,
                   accumulation_rate,
                   glen_a_activation_energy,
                   glen_a_ref,
                   glen_temperature_ref,
                   glen_n,
                   glen_reg_strain_rate,
+                  elastic_lambda,
+                  elastic_mu,
                   sea_level_wrt_geoid,
                   minimum_thickness,
                   evolveShelves,

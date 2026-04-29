@@ -1,13 +1,13 @@
 using WAVI 
 function MISMIP_PLUS()
     #Grid and boundary conditions
-    nx = 160
-    ny = 20
+    nx = 320
+    ny = 40
     nσ = 4
     x0 = 0.0
     y0 = -40000.0
-    dx = 4000.0
-    dy = 4000.0
+    dx = 2000.0
+    dy = 2000.0
     h_mask=trues(nx,ny)
     u_iszero = falses(nx+1,ny); u_iszero[1,:].=true
     v_iszero=falses(nx,ny+1); v_iszero[:,1].=true; v_iszero[:,end].=true
@@ -30,20 +30,27 @@ function MISMIP_PLUS()
     super_implicitness = 1.0
     solver_params = SolverParams(maxiter_picard = maxiter_picard, super_implicitness=super_implicitness)
 
-    #parallel_spec = BasicParallelSpec()
-    parallel_spec = SharedMemorySpec(ngridsx = 16,ngridsy=2,overlap=1,niterations=1)
+    parallel_spec = BasicParallelSpec()
+    #parallel_spec = SharedMemorySpec(ngridsx = 16,ngridsy=2,overlap=1,niterations=1)
 
     #Physical parameters
     default_thickness = 100.0 #set the initial condition this way
     accumulation_rate = 0.3
+    ice_tensile_strength = 220.0e3
+    phase_field_length = sqrt(dx^2 + dy^2)
     params = Params(default_thickness = default_thickness, 
-                    accumulation_rate = accumulation_rate)
+                    accumulation_rate = accumulation_rate,
+                    ice_tensile_strength = ice_tensile_strength,
+                    phase_field_length = phase_field_length)
+
+    fracture = DruckerPragerPhaseField()
 
     #make the model
     model = Model(grid = grid,
                      bed_elevation = bed, 
                      params = params, 
                      solver_params = solver_params,
+                     fracture = fracture,
                      parallel_spec = parallel_spec)
 
     #timestepping parameters
@@ -63,4 +70,6 @@ function MISMIP_PLUS()
 end
 
 
-@time simulation = MISMIP_PLUS();
+#@profview @time simulation = MISMIP_PLUS()
+
+simulation = MISMIP_PLUS();

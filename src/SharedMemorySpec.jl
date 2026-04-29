@@ -269,6 +269,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     initial_viscosity_g = g3d.η[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_temperature_g = g3d.θ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_damage_g = g3d.Φ[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
+    initial_strain_history_g = g3d.strain_history[i_start_g:i_stop_g,j_start_g:j_stop_g,:]
     initial_basal_water_thickness_g = gh.basal_water_thickness[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_effective_pressure_g = gh.effective_pressure[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_basal_melt_g = gh.basal_melt[i_start_g:i_stop_g,j_start_g:j_stop_g]
@@ -281,6 +282,8 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         initial_v_veloc = initial_v_veloc_g,
         initial_viscosity = initial_viscosity_g,
         initial_temperature = initial_temperature_g,
+        initial_damage = initial_damage_g,
+        initial_strain_history = initial_strain_history_g,
         initial_damage = initial_damage_g,
         initial_basal_water_thickness = initial_basal_water_thickness_g,
         initial_effective_pressure = initial_effective_pressure_g,

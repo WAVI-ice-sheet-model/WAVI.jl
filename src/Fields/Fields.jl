@@ -92,6 +92,8 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
     η = deepcopy(initial_conditions.initial_viscosity)
     θ = deepcopy(initial_conditions.initial_temperature)
     Φ = deepcopy(initial_conditions.initial_damage)
+    strain_history = deepcopy(initial_conditions.initial_strain_history)
+
     g3_glen_b = zeros(size(η))
     for i = 1:grid.nx
         for j = 1:grid.ny
@@ -109,6 +111,7 @@ function setup_fields(grid, initial_conditions, solver_params, params, bed_array
         η = η,
         θ = θ,
         Φ = Φ,
+        strain_history = strain_history,
         glen_b = g3_glen_b,
         quadrature_weights = grid.quadrature_weights
     )

@@ -45,6 +45,12 @@ if all(isnan.(initial_conditions.initial_damage))
     
 end
 
+if all(isnan.(initial_conditions.initial_strain_history))
+    default_strain_history = params.default_strain_history
+    #@info "Did not find a specified initial tensile strain history  field, reverting to default value specified in params ($default_strain_history everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
+    initial_conditions = @set initial_conditions.initial_strain_history =  default_strain_history*ones(grid.nx, grid.ny, grid.nσ)
+end
+
 if all(isnan.(initial_conditions.initial_basal_water_thickness))
     default_basal_water_thickness = params.basal_water_thickness
     #@info "Did not find a specified initial basal water thickness field, reverting to default value specified in params ($default_basal_water_thickness everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
@@ -70,7 +76,8 @@ end
 (size(initial_conditions.initial_v_veloc) == (grid.nx, grid.ny+1)) || throw(DimensionMismatch("Initial v_velocity field is not compatible with grid size. Input v_velocity field has size $(size(initial_conditions.initial_v_veloc)), which must match horizontal grid size ($(grid.nx) x $(grid.ny+1))"))
 (size(initial_conditions.initial_temperature) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial temperature field is not compatible with grid size. Input temperature field is has size $(size(initial_conditions.initial_temperature)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
 (size(initial_conditions.initial_viscosity) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial viscosity field is not compatible with grid size. Input viscosity field is has size $(size(initial_conditions.initial_viscosity)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
-(size(initial_conditions.initial_damage) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial damage field is not compatible with grid size. Input damage field is has size $(size(initial_conditions.initial_damage)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
+(size(initial_conditions.initial_damage) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial damage field is not compatible with grid size.Input damage field is has size $(size(initial_conditions.initial_damage)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
+(size(initial_conditions.initial_strain_history) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial tensile strain history field is not compatible with grid size.Input tensile strain history field has size $(size(initial_conditions.initial_strain_history)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
 (size(initial_conditions.initial_basal_water_thickness) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial basal water thickness field is not compatible with grid size. Input basal water thickness field has size $(size(initial_conditions.initial_basal_water_thickness)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 (size(initial_conditions.initial_basal_melt) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial basal melt field is not compatible with grid size. Input basal melt field has size $(size(initial_conditions.initial_basal_melt)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 (size(initial_conditions.initial_θ_ave) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial depth-averaged temperature field is not compatible with grid size. Input depth-averaged temperature field has size $(size(initial_conditions.initial_θ_ave)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))

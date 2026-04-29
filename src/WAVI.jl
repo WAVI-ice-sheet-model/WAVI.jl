@@ -20,9 +20,9 @@ export
     #Simulation controls
     update_state!, timestep!, run_simulation!, run_inversion_simulation!,
 
-    #Melt ratesS
+    #Melt rates
     PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, UniformMeltUnderShelvesBasins, 
-
+    
     #Sliding law
     WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw,
 
@@ -32,6 +32,9 @@ export
     #Thermodynamics
     NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperatureApproximationIcebergTest,
    
+    #Damage models
+    ConstantDamage,DruckerPragerPhaseField,
+
     #Post-processing controls
     volume_above_floatation, height_above_floatation,
 
@@ -45,11 +48,12 @@ export
 #Abstract types
 abstract type AbstractGrid{T <: Real, N <: Integer} end
 abstract type AbstractMeltRate end
+abstract type AbstractFracture end
 abstract type AbstractSlidingLaw end
 abstract type AbstractParallelSpec end
 abstract type AbstractBasalHydrology end
 abstract type AbstractThermoDynamics end
-abstract type AbstractModel{T <: Real, N <: Integer, M <: AbstractMeltRate, PS <: AbstractParallelSpec, SL <: AbstractSlidingLaw, BH <: AbstractBasalHydrology, TD <: AbstractThermoDynamics} end
+abstract type AbstractModel{T <: Real, N <: Integer, M <: AbstractMeltRate, F <: AbstractFracture, PS <: AbstractParallelSpec, SL <: AbstractSlidingLaw, BH <: AbstractBasalHydrology, TD <: AbstractThermoDynamics} end
 abstract type AbstractPreconditioner{T <: Real, N <: Integer} end
 
 #abstract type AbstractSimulation{T,N,R,A,W} end
@@ -78,6 +82,8 @@ include("SlidingLaw/SlidingLaw.jl")
 include("BasalHydrology/BasalHydrology.jl")
 include("ThermoDynamics/ThermoDynamics.jl")
 include("Models/Model.jl")
+include("Advection/Advection.jl")
+include("Fracture/Fracture.jl")
 include("SharedMemorySpec.jl")
 include("MeltRate/MeltRate.jl")
 include("Simulations/Simulation.jl")

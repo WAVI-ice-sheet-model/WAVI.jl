@@ -1,10 +1,11 @@
-struct Model{T <: Real, N <: Integer,A, G, M <:AbstractMeltRate, PS <: AbstractParallelSpec, SL <:AbstractSlidingLaw, BH <:AbstractBasalHydrology, TD <: AbstractThermoDynamics} <: AbstractModel{T,N,M,PS,SL,BH,TD}
+struct Model{T <: Real, N <: Integer,A, G, M <:AbstractMeltRate, F <:AbstractFracture, PS <: AbstractParallelSpec, SL <:AbstractSlidingLaw, BH <:AbstractBasalHydrology, TD <: AbstractThermoDynamics} <: AbstractModel{T,N,M,F,PS,SL,BH,TD}
     grid::Grid{T,N}
     params::Params{T,A,G}
     solver_params::SolverParams{T,N}
     initial_conditions::InitialConditions{T}
     fields::Fields{T,N}
     shelf_melt_rate::M
+    fracture::F
     parallel_spec::PS
     sliding_law::SL
     basal_hydrology::BH
@@ -20,6 +21,7 @@ end
         solver_params = SolverParams(),
         initial_conditions = InitialConditions(),
         shelf_melt_rate = UniformMeltRate(),
+        fracture = ConstantDamage(),
         parallel_spec = BasicParallelSpec(),
         sliding_law = SlidingLaw(),
         basal_hydrology = BasalHydrology(),
@@ -37,6 +39,7 @@ Keyword arguments
 - `initial_conditions`: an `InitialConditions` object that (optionally) defines the initial ice thickness, temperature, viscosity, damage, 
                         basal water thickness, effective pressure, grounded basal melt rate, and depth-averaged temperature
 - `shelf_melt_rate`: a shelf melt rate model, responsible for controlling/setting the basal melt rate under ice shelves
+- `fracture`: a fracture model, responsible for controlling/setting the damage field
 - `parallel_spec`: specification of parallel computation method
 - `sliding_law`: a sliding law model, responsible for controlling/setting the basal friction.
 - `basal_hydrology`: a basal hydrology model, responsible for calculating the basal water thickness and effective pressure.
@@ -51,6 +54,7 @@ function Model(;
     solver_params = SolverParams(),
     initial_conditions = InitialConditions(),
     shelf_melt_rate = UniformMeltRate(),
+    fracture = ConstantDamage(),
     parallel_spec = BasicParallelSpec(),
     sliding_law = WeertmanSlidingLaw(),
     basal_hydrology = NoHydrology(),
@@ -109,13 +113,11 @@ function Model(;
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
 
-
-
     #Setup the fields 
     fields = setup_fields(grid, initial_conditions, solver_params, params, bed_array)
 
     #Use type constructor to build initial state with no extra physics
-    model=Model(grid,params,solver_params,initial_conditions,fields,shelf_melt_rate,parallel_spec,sliding_law,basal_hydrology,thermo_dynamics,verbose)
+    model=Model(grid,params,solver_params,initial_conditions,fields,shelf_melt_rate,fracture,parallel_spec,sliding_law,basal_hydrology,thermo_dynamics,verbose)
 
     return model
 end
