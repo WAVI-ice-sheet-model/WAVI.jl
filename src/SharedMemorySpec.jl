@@ -284,7 +284,6 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         initial_temperature = initial_temperature_g,
         initial_damage = initial_damage_g,
         initial_strain_history = initial_strain_history_g,
-        initial_damage = initial_damage_g,
         initial_basal_water_thickness = initial_basal_water_thickness_g,
         initial_effective_pressure = initial_effective_pressure_g,
         initial_basal_melt = initial_basal_melt_g,

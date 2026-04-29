@@ -66,11 +66,11 @@ using Test, WAVI, LinearAlgebra
         @info "Testing SigmaGrid construction..."
         params = Params()
         grid = Grid()
-        sigmagrid = WAVI.SigmaGrid(nxs = 10, nys = 10, nσs = 10, σ = collect(range(0., 1., length = 10)), η = ones(10,10,10), θ = ones(10,10,10), Φ = ones(10,10,10), glen_b = fill(WAVI.glen_b(params.default_temperature,params.default_damage,params.glen_a_ref,params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const),10,10,10))
+        sigmagrid = WAVI.SigmaGrid(nxs = 10, nys = 10, nσs = 10, σ = collect(range(0., 1., length = 10)), η = ones(10,10,10), θ = ones(10,10,10), Φ = ones(10,10,10), strain_history = zeros(10,10,10), glen_b = fill(WAVI.glen_b(params.default_temperature,params.default_damage,params.glen_a_ref,params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const),10,10,10))
         @test sigmagrid isa WAVI.SigmaGrid
         @test dot(sigmagrid.quadrature_weights,ones(eltype(sigmagrid.quadrature_weights),size(sigmagrid.quadrature_weights))) ≈ 1.0
         @test dot(sigmagrid.quadrature_weights,sigmagrid.σ) ≈ 0.5
-        sigmagridirregular = WAVI.SigmaGrid(nxs = 10, nys = 10, nσs = 10, σ = collect(range(0., 1., length = 10)).^2, η = ones(10,10,10), θ = ones(10,10,10), Φ = ones(10,10,10), glen_b = fill(WAVI.glen_b(params.default_temperature,params.default_damage,params.glen_a_ref,params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const),10,10,10))
+        sigmagridirregular = WAVI.SigmaGrid(nxs = 10, nys = 10, nσs = 10, σ = collect(range(0., 1., length = 10)).^2, η = ones(10,10,10), θ = ones(10,10,10), Φ = ones(10,10,10), strain_history = zeros(10,10,10), glen_b = fill(WAVI.glen_b(params.default_temperature,params.default_damage,params.glen_a_ref,params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const),10,10,10))
         @test sigmagridirregular isa WAVI.SigmaGrid
         @test dot(sigmagridirregular.quadrature_weights,ones(eltype(sigmagridirregular.quadrature_weights),size(sigmagridirregular.quadrature_weights))) ≈ 1.0
         @test dot(sigmagridirregular.quadrature_weights,sigmagridirregular.σ) ≈ 0.5

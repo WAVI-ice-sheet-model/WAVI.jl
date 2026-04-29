@@ -1,4 +1,4 @@
-struct Params{T <: Real, A, W, G}
+struct Params{T <: Real, A, G, H, E}
                       dt :: T
                        g :: T
              density_ice :: T
