@@ -5,6 +5,7 @@ export Simulation
 using JLD2
 using Parameters
 using Setfield
+using ImageFiltering: centered, imfilter, reflect, Fill
 
 using WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: OutputParams
