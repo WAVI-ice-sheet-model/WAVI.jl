@@ -94,6 +94,13 @@ using WAVI, Test
         @test_broken simulation.model.fields.gh.ηav ≈ example_output["viscosity"]
         @test_broken simulation.model.fields.gh.grounded_fraction ≈ example_output["grounded_fraction"]
         @test_broken simulation.model.fields.gh.bed_speed ≈ example_output["bed_speed"]
+        rtoltest = 1e-5
+        @test rtoltest > maximum(abs.(simulation.model.fields.gh.h .- example_output["h"]))./maximum(abs.(simulation.model.fields.gh.h))
+        @test rtoltest > maximum(abs.(simulation.model.fields.gu.u .- example_output["u"]))./maximum(abs.(simulation.model.fields.gu.u))
+        @test rtoltest > maximum(abs.(simulation.model.fields.gv.v .- example_output["v"]))./maximum(abs.(simulation.model.fields.gv.v))
+        @test rtoltest > maximum(abs.(simulation.model.fields.gh.ηav .- example_output["viscosity"]))./maximum(abs.(simulation.model.fields.gh.ηav))
+        @test rtoltest > maximum(abs.(simulation.model.fields.gh.grounded_fraction .- example_output["grounded_fraction"]))./maximum(abs.(simulation.model.fields.gh.grounded_fraction))
+        @test rtoltest > maximum(abs.(simulation.model.fields.gh.bed_speed .- example_output["bed_speed"]))./maximum(abs.(simulation.model.fields.gh.bed_speed))
     end
 
     @testset "Exact comparison" begin 
