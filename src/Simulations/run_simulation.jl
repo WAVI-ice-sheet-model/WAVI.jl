@@ -6,13 +6,15 @@ Perform one timestep of the simulation.
 function timestep!(simulation)
     @unpack model,timestepping_params, output_params, clock = simulation
 
-    #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
-    if (output_params.output_start) && (simulation.clock.n_iter == 0)
-        write_output(simulation)
-    end
 
     if mod(clock.n_iter, timestepping_params.ntimesteps_velocity_update) == 0 #if we're on a velocity + thickness update output step
         update_state!(model, clock)
+
+        #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
+        if (output_params.output_start) && (simulation.clock.n_iter == 0)
+            write_output(simulation)
+        end
+
         if timestepping_params.verbose
             println("Completed main timestep (velocity and thickness updated), t = ", clock.time)
         end
@@ -23,6 +25,11 @@ function timestep!(simulation)
 
     else #just a thickness update step
         update_state_novelocity!(model, clock)
+
+        #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
+        if (output_params.output_start) && (simulation.clock.n_iter == 0)
+            write_output(simulation)
+        end
 
         if timestepping_params.step_thickness
             update_thickness!(simulation)
