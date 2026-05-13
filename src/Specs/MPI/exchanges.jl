@@ -186,7 +186,8 @@ function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) w
         # We calculate the global grid coordinates for all ranks 
         # based on the received sizes of their core domain (ie. no halo)
         count_sizes = map(x -> prod(x[1]), field_sz)
-        recv_data = Vector{Float64}(undef, sum(count_sizes))
+        field_type = eltype(local_field)
+        recv_data = Vector{field_type}(undef, sum(count_sizes))
         recv_buffer = MPI.VBuffer(recv_data, count_sizes)
         @debug "[$(rank+1)/$(global_size) ", join(string.(path), "."), "] Gathering field $((1+lh, size(local_field)[1]-rh, 1+th, size(local_field)[2]-bh)) to buffer $(size(recv_data))"
         MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
