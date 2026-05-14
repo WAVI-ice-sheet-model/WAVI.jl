@@ -35,7 +35,8 @@ Fields:
     global_size: Total number of processes
     global_comm: MPI communicator for the global grid
     global_grid: Global grid to be used for the model
-    global_fields: Global fields to be used for the model
+    damping: Damping factor for halo exchange (default=0.0)
+    niterations: Number of Schwarz iterations per Picard iteration (default=5)
     field_collector: Field collector for the model
 """
 mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGrid} <: AbstractDecompSpec
@@ -71,6 +72,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     halo: Number of halo cells on each side of the subgrid
     grid: Grid to be used for the model
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
+    pou: Whether to use partition of unity for halo exchange (default=true, currently unused in iterative solver but planned for re-introduction)
+    damping: Damping factor for halo exchange (default=0.0)
     """
     function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5)
         (px < 1 || py < 1 || halo < 0) && 
@@ -409,7 +412,10 @@ Solves the linear system using an Iterative Restricted Additive Schwarz (RAS) me
 1.  **Iterate** `niterations` times:
     *   **Local Solve**: Calls the standard `precondition!` for the local domain using Dirichlet boundary conditions at the halo edges.
     *   **Interface Update**: Calls `halo_exchange!` to update the halo regions with the "Core" values from neighboring processors.
-2.  **Check Convergence**: Computes the Global Relative Residual to verify if the linear system is solved to tolerance.
+2.  **Check Convergence**: Computes the **Global Relative Residual**. To ensure correctness in a distributed setting:
+    *   Each rank computes the squared norm of its local residual contribution using **core unknowns only** (excluding overlap/halo regions) to prevent double-counting.
+    *   Values are aggregated across all processes using `MPI.Allreduce` with `MPI.SUM`.
+    *   The linear system is considered solved if the global relative residual meets the Picard tolerance.
 
 This structure allows information to propagate across the distributed domain.
 """
