@@ -1,11 +1,10 @@
 module WAVI
 
 # # TODO Refactor to move many of these into the submodules where they are used
-# Some of these might still be needed here
-# using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
-#       IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
-#       NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
-#       NonlinearSolve, SciMLNLSolve, Enzyme
+using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
+       IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
+       NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
+       NonlinearSolve, SciMLNLSolve, Enzyme
 
 # #Import functions so they can be modified in this module.
 # import Base: *, size, eltype
