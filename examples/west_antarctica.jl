@@ -95,7 +95,7 @@ solver_params=SolverParams(maxiter_picard=20)
 
 initial_conditions = InitialConditions(initial_thickness = h,initial_viscosity = viscosity,initial_temperature = temp,initial_damage = damage);
 
-parallel_spec = BasicParallelSpec()
+parallel_spec = BasicSpec()
 
 # ## Ice Velocity
 # Now we're ready to make our model, which we can then use to determine the ice velocity. All physical and solver parameters take their default values

@@ -17,7 +17,7 @@ hyd_potential_isfixed :: Array{Bool,2}                         # Mask specifying
            basal_melt :: Array{T,2}                            # Basal melt rate    
                   haf :: Array{T,2}                            # Grid cell height above floatation
     grounded_fraction :: Array{T,2}                            # Grid cell grounded fraction 
-                 dsdh :: Array{T,2}                            # Cange of surface elevation per unit thickness change
+                 dsdh :: Array{T,2}                            # Change of surface elevation per unit thickness change
     shelf_strain_rate :: Array{T,2}                            # Strain rate appropriate for shelf (no basal drag) 
              av_speed :: Array{T,2}                            # Depth averaged speed 
                     u :: Array{T,2}                            # Depth averaged x-velocity 
@@ -54,6 +54,7 @@ hydraulic_potential_b :: Array{T,2}                            # hydraulic poten
    vert_shear_heating :: Array{T,2}                            # Vertical shear heating rate calculated in inversion (see in Arthern 2015 JGeophysRes)
          drag_heating :: Array{T,2}                            # SDrag heating rate calculated in inversion (see in Arthern 2015 JGeophysRes)
          preBfactor   :: Array{T,2}                            # preBfactor calculated in inversion (see in Arthern 2015 JGeophysRes)
+             mpi_rank :: Array{T,2}                            # MPI rank for each cell (for visualization)
 end
 
 
@@ -74,7 +75,8 @@ end
             basal_melt = zeros(nxh,nyh),
             θ_ave = zeros(nxh,nyh))
             grounded_fraction = ones(nxh,nyh),
-            preBfactor = ones(nxh,nyh))
+            preBfactor = ones(nxh,nyh)
+            mpi_rank = -ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
 HGrid stores fields that are defined on the problem's H grid. 
@@ -88,8 +90,8 @@ Keyword arguments
     - 'mask': Mask specifying the model domain
     - 'h_isfixed': Mask specifying points where ice thickness is fixed
     - 'hyd_potential_isfixed': Mask specifying points where the hydraulic potential at the bed is fixed
-    - 'b': (requried) Bed elevation (bottom bathymetry)
-    - 'h': (required) initial thickness of the ice
+    - 'b': (required) Bed elevation (bottom bathymetry)
+    - 'h': initial thickness of the ice
     - 'ηav': depth averaged visosity initially
     - 'grounded_fraction': initial grounded fraction
     - 'basal_water_thickness' : initial basal water thickness
@@ -98,6 +100,7 @@ Keyword arguments
     - 'basal_melt': initial basal melt rate
     - 'θ_ave': initial depth-averaged temperature
     - 'preBfactor : preBfactor (1=no damage)
+    - 'mpi_rank: field to store MPI rank identifier  
 """
 
 
@@ -116,11 +119,12 @@ function HGrid(;
 		        effective_pressure = zeros(nxh,nyh),
                 basal_melt = zeros(nxh,nyh),
                 θ_ave = zeros(nxh,nyh),
-                preBfactor = ones(nxh,nyh)
+                preBfactor = ones(nxh,nyh),
+                mpi_rank = -ones(nxh,nyh)
 )
 
     #check the sizes of inputs
-    (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
+    (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == size(mpi_rank) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
     n = count(mask)
@@ -169,6 +173,8 @@ function HGrid(;
     #
     #preBfactor=ones(nxh,nyh) 
 
+
+    # mpi_rank is passed as a parameter (defaults to -1 for non-MPI runs)
 
     #check sizes of everything
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
@@ -222,6 +228,7 @@ function HGrid(;
     @assert size(vert_shear_heating)==(nxh,nyh)
     @assert size(drag_heating)==(nxh,nyh)
     @assert size(preBfactor)==(nxh,nyh)
+    @assert size(mpi_rank)==(nxh,nyh)
 
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
@@ -284,6 +291,7 @@ return HGrid(
             shelf_heating,
             vert_shear_heating,
             drag_heating,
-            preBfactor
+            preBfactor,
+            mpi_rank
         )
 end

@@ -1,3 +1,5 @@
+export VWavelets
+
 #Struct to hold information on wavelet-grid (v-component).
 struct VWavelets{T <: Real, N <: Integer}
         nxvw :: N                                       # Number of grid points in x in UWavelets (equal to UGrid)

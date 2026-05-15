@@ -15,9 +15,9 @@ using WAVI, Plots
 
 ## Basal Topography
 Following ISMIP-HOM, we'll consider a bed with a series of sinusoidal oscillations with an amplitude of 500m:
-$$
-z_b(x,y) = -x \tan \alpha + 500 \sin (\omega x) \sin(\omega y)
-$$
+
+$z_b(x,y) = -x \tan \alpha + 500 \sin (\omega x) \sin(\omega y)$
+
 Here $L$ is the lengthscale of the domain, $\alpha$ is the net slope of the plane, and $\omega = 2\pi / L$ is the frequency of the bumps. We can express this bed analytically, so we write it as a function and pass it to WAVI that way
 ```julia
 z_b(x,y; α, ω) = -x * tand(α) + 500sin(ω*x)*sin(ω*y)
