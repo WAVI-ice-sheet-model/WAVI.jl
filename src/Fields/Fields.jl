@@ -31,8 +31,7 @@ struct GridField{T <: Real, N <: Integer} <: AbstractField{T, N}
     gu  :: UGrid{T,N}
     gv  :: VGrid{T,N}
     gc  :: CGrid{T,N}
-    g3d :: SigmaGrid{T}
-
+    g3d :: SigmaGrid{T,N}
     wu  :: UWavelets{T,N}
     wv  :: VWavelets{T,N}    
 end
