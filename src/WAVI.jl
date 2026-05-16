@@ -1,32 +1,41 @@
 module WAVI
 
-# # TODO Refactor to move many of these into the submodules where they are used
+# # TODO Needs tidy up. Refactoring has moved (or will move) many of these into the submodules where they are used
 using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
        IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
        NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
        NonlinearSolve, SciMLNLSolve, Enzyme
 
 # #Import functions so they can be modified in this module.
+# Left commented for now because I don't think we use this here anymore.
 # import Base: *, size, eltype
 # import LinearAlgebra: ldiv!,mul!
 # import Setfield: @set
 
 # Abstract types
-abstract type AbstractField{T <: Real, N <: Integer} end
-abstract type AbstractGrid{T <: Real, N <: Integer} end
-abstract type AbstractMeltRate end
-abstract type AbstractFracture end
-abstract type AbstractSlidingLaw end
-abstract type AbstractBasalHydrology end
-abstract type AbstractThermoDynamics end
+
+#Numerical strategy
 abstract type AbstractSpec end
+
+#Core functionality
+abstract type AbstractGrid{T <: Real, N <: Integer} end
+abstract type AbstractField{T <: Real, N <: Integer} end
 abstract type AbstractModel{T <: Real,
                             N <: Integer,
                             S <: AbstractSpec,
                             F <: AbstractField,
                             G <: AbstractGrid} end
+
+#Momentum and thickness solves and simulation control                    
 abstract type AbstractPreconditioner{T <: Real,N <: Integer} end
 abstract type AbstractSimulation end
+
+#Modular physics
+abstract type AbstractMeltRate end
+abstract type AbstractFracture end
+abstract type AbstractSlidingLaw end
+abstract type AbstractBasalHydrology end
+abstract type AbstractThermoDynamics end
 
 using LinearMaps
 #Type alias, just for abreviation
