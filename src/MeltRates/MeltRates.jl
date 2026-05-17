@@ -1,6 +1,6 @@
 module MeltRates
 
-export update_melt_rate!, UniformMeltRate
+export update_shelf_melt_rate!, UniformMeltRate
 
 using Parameters
 

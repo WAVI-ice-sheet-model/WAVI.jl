@@ -15,6 +15,10 @@ using WAVI: AbstractField,
 using WAVI.Fields
 using WAVI.Grids
 using WAVI.MeltRates
+using WAVI.Fracture
+using WAVI.SlidingLaw
+using WAVI.BasalHydrology
+using WAVI.ThermoDynamics
 using WAVI.Parameters
 
 export Model, update_state!
@@ -49,7 +53,7 @@ struct Model{T,N,S,F,G,
     thermo_dynamics :: TD
     verbose :: Bool
 
-    Model{T,N,S,F,G,M,FR,SL,BH,TD}(g, f, p, sp, s, m, fr, sl, bh, td) where {T,N,S,F,G,M,FR,SL,BH,TD} = new{T,N,S,F,G,M,FR,SL,BH,TD}(g, f, p, sp, s, m, fr, sl, bh, td)
+    Model{T,N,S,F,G,M,FR,SL,BH,TD}(g, f, p, sp, s, m, fr, sl, bh, td, vb) where {T,N,S,F,G,M,FR,SL,BH,TD} = new{T,N,S,F,G,M,FR,SL,BH,TD}(g, f, p, sp, s, m, fr, sl, bh, td, vb)
 end
 
 """

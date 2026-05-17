@@ -1,3 +1,5 @@
+export LeakyBucket
+
 struct LeakyBucket{T <: Real} <: AbstractBasalHydrology
     drainage_rate :: T
     max_water_thickness :: T

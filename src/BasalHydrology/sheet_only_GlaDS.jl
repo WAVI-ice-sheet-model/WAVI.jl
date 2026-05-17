@@ -1,3 +1,5 @@
+export SheetOnlyGlaDS
+
 struct SheetOnlyGlaDS{T <: Real, N  <: Integer} <: AbstractBasalHydrology
     # accelerated pseudo-transient (APT) iterative loop - GlaDS numerics
     ncheck      :: N

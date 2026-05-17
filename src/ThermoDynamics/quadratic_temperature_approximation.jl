@@ -1,3 +1,5 @@
+export QuadraticTemperatureApproximation
+
 struct QuadraticTemperatureApproximation{T <: Real} <: AbstractThermoDynamics
     specific_heat_capacity :: T
     thermal_conductivity :: T

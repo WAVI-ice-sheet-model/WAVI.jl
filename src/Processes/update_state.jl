@@ -5,6 +5,10 @@ using Parameters
 using WAVI: AbstractModel
 using WAVI.KroneckerProducts
 using WAVI.MeltRates
+using WAVI.Fracture
+using WAVI.SlidingLaw
+using WAVI.BasalHydrology
+using WAVI.ThermoDynamics
 using WAVI.Time
 using WAVI.Utilities
 using WAVI.Wavelets

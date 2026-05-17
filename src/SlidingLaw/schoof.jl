@@ -1,3 +1,5 @@
+export SchoofSlidingLaw
+
 struct SchoofSlidingLaw{T <: Real, C, W} <: AbstractSlidingLaw
     coulomb_coefficient :: C
     drag_coefficient :: W

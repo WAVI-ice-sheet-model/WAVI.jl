@@ -21,8 +21,9 @@ using Test, WAVI
         @test binfile_melt_rate isa BinfileMeltRate
 
         #create model 
-        model = Model(grid = grid, 
-                      bed_elevation = bed_elevation, 
+        model = Model(grid, 
+                      bed_elevation,
+                      BasicSpec(); 
                       initial_conditions = initial_conditions,
                       shelf_melt_rate = binfile_melt_rate,
                       solver_params = SolverParams(maxiter_picard = 1))

@@ -52,13 +52,7 @@ function GridField(grid::AbstractGrid, bed_array;
     initial_conditions = check_initial_conditions(initial_conditions, params, grid)
 
     ## Parameter fields checks 
-    #if weertman c passed as a scalar, replace weertman_c parameters with matrix of this value
-    if isa(params.weertman_c, Number) 
-        params = @set params.weertman_c = params.weertman_c*ones(grid.nx,grid.ny)
-    end
-    #check size compatibility of resulting weertman C
-    (size(params.weertman_c)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input weertman c ($(size(params.weertman_c))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
-    
+
     #if accumulation is passed as a scalar, replace accumulation parameters with matrix of this value
     if isa(params.accumulation_rate, Number) 
         params = @set params.accumulation_rate = params.accumulation_rate*ones(grid.nx,grid.ny)
@@ -93,6 +87,7 @@ function GridField(grid::AbstractGrid, bed_array;
     basal_melt = deepcopy(initial_conditions.initial_basal_melt)
     θ_ave = deepcopy(initial_conditions.initial_θ_ave)
     ηav = deepcopy(initial_conditions.initial_viscosity[:,:,1]) #set to the viscosity on the first level for now
+    
     gh=HGrid(
     nxh=grid.nx,
     nyh=grid.ny,

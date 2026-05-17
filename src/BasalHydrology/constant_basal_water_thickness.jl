@@ -1,3 +1,5 @@
+export ConstantBasalWaterThickness
+
 struct ConstantBasalWaterThickness{T <: Real} <: AbstractBasalHydrology
     min_effective_pressure :: T
 end

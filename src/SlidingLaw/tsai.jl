@@ -1,3 +1,5 @@
+export TsaiSlidingLaw
+
 struct TsaiSlidingLaw{T <: Real, C, W} <: AbstractSlidingLaw
     coulomb_coefficient :: C
     drag_coefficient :: W

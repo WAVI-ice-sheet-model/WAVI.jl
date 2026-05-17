@@ -1,3 +1,5 @@
+export CoulombSlidingLaw
+
 struct CoulombSlidingLaw{T <: Real, C} <: AbstractSlidingLaw 
     coulomb_coefficient :: C
     reg_speed :: T

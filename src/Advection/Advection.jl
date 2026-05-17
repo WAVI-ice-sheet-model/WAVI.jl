@@ -1,3 +1,11 @@
+module Advection
+
+using Parameters
+
+using WAVI: AbstractModel
+
+export advect3D!
+
 """
 advect3D!(field::AbstractArray{T,3},model::AbstractModel{T,N}) where {T,N}
 
@@ -31,5 +39,7 @@ for k=1:nσ
 end
 
 return model
+
+end
 
 end

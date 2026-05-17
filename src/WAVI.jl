@@ -10,7 +10,11 @@ using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
 # Left commented for now because I don't think we use this here anymore.
 # import Base: *, size, eltype
 # import LinearAlgebra: ldiv!,mul!
-# import Setfield: @set
+import Setfield: @set
+
+#Reexport Modules useful for users of the WAVI module
+@reexport using JLD2
+@reexport using Setfield
 
 # Abstract types
 
@@ -51,14 +55,14 @@ include("Grids.jl")
 include("Utilities.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
+include("MeltRates/MeltRates.jl")
+include("Advection/Advection.jl")
+include("Fracture/Fracture.jl")
 include("SlidingLaw/SlidingLaw.jl")
 include("BasalHydrology/BasalHydrology.jl")
 include("ThermoDynamics/ThermoDynamics.jl")
-include("MeltRates/MeltRates.jl")
 include("Processes/Processes.jl")
 include("Models/Models.jl")
-include("Advection/Advection.jl")
-include("Fracture/Fracture.jl")
 include("Outputs/Outputs.jl")
 include("Simulations/Simulation.jl")
 include("Specs/Specs.jl")
@@ -124,21 +128,18 @@ export Simulation, run_simulation!, timestep!,
 using .Specs
 export BasicSpec, ThreadedSpec, MPISpec
 
-# TODO These can be in their own modules as for melt rates 
-
-#Sliding law
-export WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw
-
-#Basal hydrology
-export NoHydrology, ConstantBasalWaterThickness, LeakyBucket, SheetOnlyGlaDS
-
-#Thermodynamics
-export NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperatureApproximationIcebergTest
-   
-#Damage models
+using .Fracture
 export ConstantDamage, DruckerPragerPhaseField
 
+using .SlidingLaw
+export WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw
 
+using .BasalHydrology
+export NoHydrology, ConstantBasalWaterThickness, LeakyBucket, SheetOnlyGlaDS
+
+using .ThermoDynamics
+export NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperatureApproximationIcebergTest
+   
 end
 
 
