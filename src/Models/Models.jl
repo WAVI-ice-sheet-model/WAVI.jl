@@ -87,6 +87,7 @@ function Model(grid::G,
     
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
+    
     model = Model{Float64, Int64, S, GridField, G, M, FR, SL, BH, TD}(
                grid, 
                fields, 
@@ -109,7 +110,7 @@ Model(; grid, bed_elevation, spec, kw...) = Model(grid, bed_elevation, spec; kw.
 # FIXME: this wasn't required in the original WAVI codebase. 
 #   Model needs to be in a position to have type analysis on it's properties to recreate the instance of it by ConstructionBase, which requires some refactoring
 #   Ref: https://juliaobjects.github.io/ConstructionBase.jl/dev/#type-tips
-Model(g::G, f::F, p::P, sp::SP, s::S, m::M, fr::FR, sl::SL, bh::BH, td::TD
+Model(g::G, f::F, p::P, sp::SP, s::S, m::M, fr::FR, sl::SL, bh::BH, td::TD, vb::Bool
     ) where {
     G<:AbstractGrid,
     F<:AbstractField,
@@ -123,7 +124,7 @@ Model(g::G, f::F, p::P, sp::SP, s::S, m::M, fr::FR, sl::SL, bh::BH, td::TD
     TD<:AbstractThermoDynamics
     } = 
     Model{Float64,Int64,S,F,G,M,FR,SL,BH,TD}(
-                            g, f, p, sp, s, m, fr, sl, bh, td)
+                            g, f, p, sp, s, m, fr, sl, bh, td, vb)
 
 ##
 # Global domain alterations

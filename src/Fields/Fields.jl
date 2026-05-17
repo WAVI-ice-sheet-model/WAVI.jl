@@ -68,7 +68,7 @@ function GridField(grid::AbstractGrid, bed_array;
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref ($(size(params.glen_a_ref))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
     # TODO: grids are heavily reliant on the use of keyword arguments which do not allow specializations / multiple dispatch to work effectively
-
+    
     #Define masks for points on h-, u-, v- and c-grids that lie in model domain.
     h_mask = grid.h_mask 
     u_mask = get_u_mask(h_mask)
