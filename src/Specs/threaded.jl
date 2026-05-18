@@ -46,8 +46,14 @@ end
 """
 precondition!(model::AbstractModel,::ThreadedSpec)
 
-Apply restricted additive Schwarz preconditioner (RAS) using shared memory parallelism.
+Apply an Additive Schwarz preconditioner with Partition-of-Unity (AS-PoU) weights
+using shared memory parallelism.
 
+# Method
+For each Schwarz iteration:
+1. **Restrict**: copy the current global velocities into each subdomain (overlapping regions).
+2. **Local solve**: call `update_state!` on each subdomain independently (in parallel threads).
+3. **Prolong (AS-PoU)**: accumulate weighted subdomain solutions back to the global domain.
 """
 function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
     @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.spec
