@@ -215,20 +215,7 @@ function update_glen_b!(model::AbstractModel)
     return model
 end
 
-"""
-    update_drag_coefficient!(model::AbstractModel)
 
-Update drag coefficient used in the sliding law to account for migration of grounding line.
-This is currently only used for the Weertman sliding law and Weertman part of the Tsai sliding law, 
-as they are the only sliding laws that do not directly depend on effective pressure, which already
-acounts for migration of grounding line.
-"""
-function update_drag_coefficient!(model::AbstractModel)
-    @unpack gh=model.fields
-    @unpack sliding_law=model
-    gh.drag_coefficient .= sliding_law.drag_coefficient .* gh.grounded_fraction
-    return model
-end
 
 """
     update_dsdh!(model::AbstractModel)
@@ -284,6 +271,18 @@ function update_velocities_on_h_grid!(model::AbstractModel{T,N,S}) where {T,N,S<
     gh.vs .= gh.vb .* (1 .+ (gh.β .* gh.quad_f1))
     return model
 end
+
+"""
+    update_surf_speed!(model::AbstractModel)
+
+Find the sliding speed on the h-grid using the speed components.
+"""
+function update_surf_speed!(model::AbstractModel)
+    @unpack gh=model.fields
+    gh.surf_speed  .= sqrt.(gh.us.^2 .+gh.vs.^2);
+    return model
+end
+
 """
     update_dhdt!(model::AbstractModel)
 
@@ -305,3 +304,12 @@ function update_model_wavelets!(model::AbstractModel)
     update_wavelets!(model)
     return model
 end
+
+function update_surface_velocities_on_uv_grid!(model)
+    @unpack gh,gu,gv = model.fields
+    #surface  velocities
+    gu.us[:].=gu.crop*(gu.centᵀ*gh.crop*(gh.us[:]))
+    gv.vs[:].=gv.crop*(gv.centᵀ*gh.crop*(gh.vs[:]))
+    return model
+end
+
