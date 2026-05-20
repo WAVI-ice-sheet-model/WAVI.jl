@@ -1,4 +1,24 @@
 """
+    subdomain_core_range(index::Integer, n_parts::Integer, global_n::Integer) -> (start, stop)
+
+Calculate the start and end indices of a specific subdomain block along one direction.
+
+This function splits a total of `global_n` cells into `n_parts` separate blocks. If the cells cannot
+be divided perfectly, the extra leftover cells (the remainder) are distributed one-by-one among
+the first subdomains.
+
+This creates the exact same cell division layout as used in the parallel MPI setup, ensuring
+mathematical consistency between the shared-memory (threaded) and distributed-memory solvers.
+"""
+function subdomain_core_range(index::Integer, n_parts::Integer, global_n::Integer)
+    (1 <= index <= n_parts) || throw(ArgumentError("subdomain index $index not in 1:$n_parts"))
+    base, rem = divrem(global_n, n_parts)
+    local_size = base + (index - 1 < rem ? 1 : 0)
+    start = (index - 1) * base + min(index - 1, rem) + 1
+    return start, start + local_size - 1
+end
+
+"""
 partition_of_unity(m,n,leavei1,leaveim,leavej1,leavejn,overlapi,overlapj)
 
 Returns a partition of unity array pou(i,j) of size m x n. The partition of unity ramps from 1 in interior to zero at edges.
