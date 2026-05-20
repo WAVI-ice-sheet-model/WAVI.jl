@@ -11,7 +11,34 @@ export  schwarzModel,
         schwarzProlongVelocities!,
         schwarzPartitionOfUnity
 
+"""
+    _slice_gridded_param(field, i_range::UnitRange{Int}, j_range::UnitRange{Int})
 
+Safely extract a physical parameter field for a subdomain.
+
+If the parameter is a single number (scalar), it is returned directly as-is. If the parameter is
+an array of gridded values, it is sliced to match the specific 2D index ranges of the subdomain.
+"""
+function _slice_gridded_param(field, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+    field isa Number && return field
+    return field[i_range, j_range]
+end
+
+"""
+    _slice_params_for_subdomain(params::Params, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+
+Slice all gridded physical parameters to fit the coordinates of a subdomain.
+
+Loops through all gridded parameters (like `accumulation_rate`, `weertman_c`, and `glen_a_ref`)
+and slices them down to the subdomain size, while keeping scalar numbers unchanged. Needed to
+ensure the physical parameters on each subdomain are consistent with the global domain.
+"""
+function _slice_params_for_subdomain(params::Params, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+    params = @set params.accumulation_rate = _slice_gridded_param(params.accumulation_rate, i_range, j_range)
+    params = @set params.weertman_c = _slice_gridded_param(params.weertman_c, i_range, j_range)
+    params = @set params.glen_a_ref = _slice_gridded_param(params.glen_a_ref, i_range, j_range)
+    return params
+end
 
 """
     _schwarz_patch_indices(nx, ny, igrid, jgrid, ngridsx, ngridsy, overlap)
@@ -126,11 +153,11 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     bed_elevation_g = model.fields.gh.b[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
-    params_g = model.params
-    # FIXME: params might NOT be gridded at this point
-    #params_g = @set params_g.weertman_c = params_g.weertman_c[i_start_g:i_stop_g,j_start_g:j_stop_g]
-    #params_g = @set params_g.accumulation_rate = params_g.accumulation_rate[i_start_g:i_stop_g,j_start_g:j_stop_g]
-    #params_g = @set params_g.glen_a_ref = params_g.glen_a_ref[i_start_g:i_stop_g,j_start_g:j_stop_g]
+    params_g = _slice_params_for_subdomain(
+        model.params,
+        i_start_g:i_stop_g,
+        j_start_g:j_stop_g,
+    )
 
     solver_params_g=model.solver_params
 
