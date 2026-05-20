@@ -121,7 +121,7 @@ saved_serial_model=deepcopy(serial_model);
 
 parallel_model = deepcopy(serial_model)
 parallel_model = @set parallel_model.solver_params = SolverParams(maxiter_picard=5)
-parallel_model = @set parallel_model.parallel_spec = SharedMemorySpec(ngridsx=2,ngridsy=3,overlap=1,damping=0.0,niterations=1)
+parallel_model = @set parallel_model.spec = ThreadedSpec(ngridsx=2,ngridsy=3,overlap=1,damping=0.0,niterations=1)
 
 cols=cgrad(:roma,rev=true);
 nSchwarzIterations=1
