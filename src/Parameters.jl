@@ -193,8 +193,8 @@ function TimesteppingParams(;
     @info "Calculated end time $(end_time) and n_iter_total $(n_iter_total)"
 
     #compute number of timesteps checkpoint number of timesteps
-    chkpt_freq == Inf ? n_iter_chkpt = Inf : n_iter_chkpt = round(Int, chkpt_freq/dt)
-    
+    chkpt_freq == Inf ? n_iter_chkpt = typemax(Int) : n_iter_chkpt = round(Int, chkpt_freq/dt)
+
     #check the output path ends in '/' and exists
     endswith(chkpt_path, "/") || (chkpt_path = string(chkpt_path, "/"))
     if ~isdir(chkpt_path)
