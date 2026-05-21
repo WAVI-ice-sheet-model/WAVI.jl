@@ -1,4 +1,4 @@
-mutable struct InversionSimulation{M1,M2,TS,O,C} 
+mutable struct InversionSimulation{M1,M2,TS,O,C} <: AbstractInversionSimulation
     model::M1
     inversion:: M2
     JKVstepping_params::TS
@@ -83,3 +83,4 @@ include("run_inversion_simulation.jl")
     return inversion_simulation
 end
     
+zip_output(sim::AbstractInversionSimulation) = zip_output(sim.model, sim.output_params)

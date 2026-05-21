@@ -9,9 +9,9 @@ using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
        NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
        NonlinearSolve, SciMLNLSolve
 
-using WAVI: AbstractModel, AbstractSimulation
+using WAVI: AbstractModel, AbstractInversionSimulation
 using WAVI.Outputs
-using WAVI.Outputs:     zip_output
+import WAVI.Outputs:    zip_output
 using WAVI.Time
 using WAVI.Utilities
 using WAVI.Processes:   update_βeff!,

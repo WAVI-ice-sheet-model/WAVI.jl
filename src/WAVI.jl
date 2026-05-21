@@ -30,6 +30,8 @@ abstract type AbstractModel{T <: Real,
 #Momentum and thickness solves and simulation control                    
 abstract type AbstractPreconditioner{T <: Real,N <: Integer} end
 abstract type AbstractSimulation end
+abstract type AbstractInversionSimulation end
+
 
 #Modular physics
 abstract type AbstractMeltRate end
