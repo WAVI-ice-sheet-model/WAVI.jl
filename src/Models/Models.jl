@@ -52,8 +52,6 @@ struct Model{T,N,S,F,G,
     basal_hydrology :: BH
     thermo_dynamics :: TD
     verbose :: Bool
-
-    Model{T,N,S,F,G,M,FR,SL,BH,TD}(g, f, p, sp, s, m, fr, sl, bh, td, vb) where {T,N,S,F,G,M,FR,SL,BH,TD} = new{T,N,S,F,G,M,FR,SL,BH,TD}(g, f, p, sp, s, m, fr, sl, bh, td, vb)
 end
 
 """
@@ -90,27 +88,35 @@ function Model(grid::G,
 
     #Expand spatial parameters onto correct grid
     ## Parameter fields checks 
-    #if accumulation is passed as a scalar, replace accumulation parameters with matrix of this value
+    #if accumulation is passed as a scalar, replace with a matrix of this value
     if isa(params.accumulation_rate, Number) 
         params = @set params.accumulation_rate = params.accumulation_rate*ones(grid.nx,grid.ny)
     end
     #check size compatibility of resulting accumulation rate
     (size(params.accumulation_rate)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input accumulation ($(size(params.accumulation_rate))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
-    #if accumulation is passed as a scalar, replace accumulation parameters with matrix of this value
+    #if glen_a_ref is passed as a scalar, replace with a matrix of this value
     if isa(params.glen_a_ref, Number) 
         params = @set params.glen_a_ref = params.glen_a_ref*ones(grid.nx,grid.ny)
     end
     #check size compatibility of resulting glen a ref
     (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref ($(size(params.glen_a_ref))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
+    #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
+    if isa(sliding_law.drag_coefficient, Number) 
+        sliding_law = @set sliding_law.drag_coefficient = sliding_law.drag_coefficient*ones(grid.nx,grid.ny)
+    end
+    #check size compatibility of resulting sliding_law drag_coefficient
+    (size(sliding_law.drag_coefficient)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient ($(size(sliding_law.drag_coefficient))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+    
     # TODO: grids are heavily reliant on the use of keyword arguments which do not allow specializations / multiple dispatch to work effectively
     
 
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
     
-    model = Model{Float64, Int64, S, GridField, G, M, FR, SL, BH, TD}(
+
+    model = Model(
                grid, 
                fields, 
                params, 
