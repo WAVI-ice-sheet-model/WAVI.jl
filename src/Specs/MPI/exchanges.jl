@@ -9,12 +9,37 @@ import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, Si
 import WAVI.Grids: Grid
 import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
-import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!
 import WAVI.Wavelets: UWavelets, VWavelets
 
 ##
 # Additional MPI functionality
 #
+
+"""
+    mpi_sync_halos_after_thickness!(model)
+
+Synchronises halo regions after a thickness update.
+If Partition-of-Unity (`pou=true`) is enabled, only thickness `h` is exchanged to preserve the assembled velocity field. Otherwise, `h`, `u`, and `v` are all synchronised.
+"""
+function mpi_sync_halos_after_thickness!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
+    if model.spec.pou
+        halo_exchange!(model; fields=[:h])
+    else
+        halo_exchange!(model)
+    end
+    return nothing
+end
+
+"""
+    mpi_sync_halos_initial!(model)
+
+Performs a one-time synchronization of `h`, `u`, and `v` halo regions before the first time step.
+"""
+function mpi_sync_halos_initial!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
+    halo_exchange!(model)
+    return nothing
+end
 
 """
     apply_halo_exchange_blends!(...)
@@ -114,6 +139,67 @@ function apply_halo_exchange_blends!(
             local_field[i, j] = (1 - wr) * (1 - wb) * RR + (1 - wr) * wb * RB + wr * L0[i, j]
         end
     end
+    return nothing
+end
+
+"""
+    mpi_velocity_pou_weights(model::AbstractModel{<:Any,<:Any,<:MPISpec})
+
+Generates 2D partition-of-unity (PoU) weights for the local U and V grids.
+"""
+function mpi_velocity_pou_weights(model::AbstractModel{<:Any, <:Any, <:MPISpec})
+    @unpack gu, gv = model.fields
+    spec = model.spec
+    @unpack halo, top, right, bottom, left = spec
+    mu, nu = size(gu.u)
+    mv, nv = size(gv.v)
+
+    # Keep weights at 1.0 on true domain boundaries
+    leavei1 = left < 0
+    leaveim = right < 0
+    leavej1 = top < 0
+    leavejn = bottom < 0
+
+    # Use ramp width of 2*halo to ensure weights sum to exactly 1.0 across overlapping ranks
+    o = 2 * halo
+    ωu = partition_of_unity(mu, nu, leavei1, leaveim, leavej1, leavejn, o, o - 1)
+    ωv = partition_of_unity(mv, nv, leavei1, leaveim, leavej1, leavejn, o - 1, o)
+    return ωu, ωv
+end
+
+"""
+    mpi_pou_weighted_prolong_velocities!(model, u0, v0)
+
+Applies Additive Schwarz with Partition-of-Unity (AS-PoU) prolongation to update the global velocity field.
+"""
+function mpi_pou_weighted_prolong_velocities!(
+    model::AbstractModel{<:Any, <:Any, <:MPISpec},
+    u0::AbstractMatrix,
+    v0::AbstractMatrix,
+)
+    @unpack gu, gv = model.fields
+    d = oftype(gu.u[1], model.spec.damping)
+    od = one(d) - d
+
+    ωu, ωv = mpi_velocity_pou_weights(model)
+
+    # Calculate local damped contributions (matches damping logic in ThreadedSpec's schwarzProlongVelocities!)
+    contrib_u0 = d .* ωu .* u0
+    contrib_v0 = d .* ωv .* v0
+    contrib_u = od .* ωu .* gu.u
+    contrib_v = od .* ωv .* gv.v
+
+    # Assemble global velocity field on rank 0, then distribute back to all ranks
+    mpi_zero_global_field!(model, [:global_fields, :gu, :u])
+    mpi_zero_global_field!(model, [:global_fields, :gv, :v])
+    mpi_add_local_patch_to_global!(model, [:global_fields, :gu, :u], contrib_u0)
+    mpi_add_local_patch_to_global!(model, [:global_fields, :gv, :v], contrib_v0)
+    mpi_add_local_patch_to_global!(model, [:global_fields, :gu, :u], contrib_u)
+    mpi_add_local_patch_to_global!(model, [:global_fields, :gv, :v], contrib_v)
+    mpi_fill_local_from_global!(model, [:global_fields, :gu, :u], gu.u)
+    mpi_fill_local_from_global!(model, [:global_fields, :gv, :v], gv.v)
+
+    update_velocities_on_h_grid!(model)
     return nothing
 end
 
@@ -242,6 +328,141 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
 end
 
 
+
+"""Global origin (1-based) for a local 2D field on an extended patch (includes halos)."""
+function mpi_global_field_origin(spec::MPISpec)::Tuple{Int, Int}
+    x_start, x_end, y_start, y_end = get_bounds(spec)
+    return x_start, y_start
+end
+
+"""
+    mpi_add_local_patch_to_global!(model, path, local_field)
+
+Additive gather: each rank adds its full local patch into `global_fields` at the
+global indices given by `mpi_global_field_origin`. Overlapping regions sum contributions
+(ThreadedSpec-style AS-PoU on the global grid).
+"""
+function mpi_add_local_patch_to_global!(
+    model::AbstractModel{T,N,S},
+    path::Vector{Symbol},
+    local_field::AbstractMatrix,
+) where {T,N,S<:MPISpec}
+    @unpack comm, global_size, rank = model.spec
+    path[1] == :global_fields || error("path must start with :global_fields")
+    global_field = model.spec.global_fields
+    for p in path[2:end]
+        global_field = getproperty(global_field, p)
+    end
+    gx0, gy0 = mpi_global_field_origin(model.spec)
+    nx, ny = size(local_field)
+    flat = vec(copy(local_field))
+    meta = MPI.Gather((nx, ny, gx0, gy0, length(flat)), 0, comm)
+    if rank == 0
+        counts = [m[5] for m in meta]
+        recv_buf = Vector{eltype(local_field)}(undef, sum(counts))
+        MPI.Gatherv!(flat, MPI.VBuffer(recv_buf, counts), comm)
+        offset = 0
+        for (i, (pnx, pny, pgx0, pgy0, _)) in enumerate(meta)
+            n = counts[i]
+            block = recv_buf[offset+1:offset+n]
+            offset += n
+            global_field[pgx0:(pgx0+pnx-1), pgy0:(pgy0+pny-1)] .+= reshape(block, pnx, pny)
+        end
+    else
+        MPI.Gatherv!(flat, nothing, comm)
+    end
+    MPI.Barrier(comm)
+    return global_field
+end
+
+"""
+    mpi_fill_local_from_global!(model, path, local_field)
+
+Copy each rank's patch from the assembled field on `global_fields` (rank 0).
+
+The full global array is broadcast from rank 0; each rank then indexes its own
+`mpi_global_field_origin` slice.
+"""
+function mpi_fill_local_from_global!(
+    model::AbstractModel{T,N,S},
+    path::Vector{Symbol},
+    local_field::AbstractMatrix,
+) where {T,N,S<:MPISpec}
+    @unpack comm, global_fields = model.spec
+    path[1] == :global_fields || error("path must start with :global_fields")
+    global_field = global_fields
+    for p in path[2:end]
+        global_field = getproperty(global_field, p)
+    end
+    MPI.Bcast!(global_field, comm)
+    gx0, gy0 = mpi_global_field_origin(model.spec)
+    nx, ny = size(local_field)
+    local_field .= global_field[gx0:(gx0+nx-1), gy0:(gy0+ny-1)]
+    return local_field
+end
+
+"""
+    mpi_zero_global_field!(model, path)
+
+Zero a global field on rank 0.
+"""
+function mpi_zero_global_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
+    if model.spec.rank == 0
+        gf = model.spec.global_fields
+        for p in path[2:end]
+            gf = getproperty(gf, p)
+        end
+        gf .= zero(eltype(gf))
+    end
+    MPI.Barrier(model.spec.comm)
+    return nothing
+end
+
+"""Gather disjoint core cells into `global_fields` (replace), optionally scaled."""
+function mpi_init_global_core_field!(
+    model::AbstractModel{T,N,S},
+    path::Vector{Symbol},
+    local_field::AbstractMatrix;
+    scale::Real = 1,
+) where {T,N,S<:MPISpec}
+    @unpack comm, global_fields, global_size, rank = model.spec
+    path[1] == :global_fields || error("path must start with :global_fields")
+    global_field = global_fields
+    for p in path[2:end]
+        global_field = getproperty(global_field, p)
+    end
+    th, rh, bh, lh = get_halos(model.spec)
+    x_sz, y_sz = size(local_field)
+    x_start, x_end, y_start, y_end = get_bounds(model.spec)
+    grid_sym = length(path) >= 2 ? path[2] : :gh
+    sx = x_start + lh
+    ex = x_end - rh
+    sy = y_start + th
+    ey = y_end - bh
+    if grid_sym == :gu
+        ex += 1
+    elseif grid_sym == :gv
+        ey += 1
+    end
+    field_sz = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), sx, ex, sy, ey), 0, comm)
+    if rank == 0
+        count_sizes = map(x -> prod(x[1]), field_sz)
+        recv_data = Vector{eltype(local_field)}(undef, sum(count_sizes))
+        recv_buffer = MPI.VBuffer(recv_data, count_sizes)
+        MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
+        idxer = collect(cumsum(count_sizes))
+        for proc_rank in 0:(global_size-1)
+            offset = proc_rank == 0 ? 0 : idxer[proc_rank]
+            proc_data = recv_data[offset+1:offset + count_sizes[proc_rank+1]]
+            sx_p, ex_p, sy_p, ey_p = field_sz[proc_rank+1][2:end]
+            global_field[sx_p:ex_p, sy_p:ey_p] .= scale .* reshape(proc_data, field_sz[proc_rank + 1][1])
+        end
+    else
+        MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], nothing, comm)
+    end
+    MPI.Barrier(comm)
+    return nothing
+end
 
 function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
     @unpack comm, coords, global_fields, global_size, rank = model.spec
