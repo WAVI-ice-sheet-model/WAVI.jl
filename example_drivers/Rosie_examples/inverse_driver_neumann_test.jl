@@ -297,7 +297,7 @@ inversion = Inversion(grid = grid,
                     params = params,
                     inversion_output=inversion_output)
  #                   melt_rate=nothing,
- #                   parallel_spec=nothing)
+ #                   spec=nothing)
 
  @printf "About to make inversion_simulation"
 

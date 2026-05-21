@@ -95,11 +95,11 @@ solver_params=SolverParams(maxiter_picard=20)
 
 initial_conditions = InitialConditions(initial_thickness = h,initial_viscosity = viscosity,initial_temperature = temp,initial_damage = damage);
 
-parallel_spec = BasicSpec()
+spec = BasicSpec()
 
 # ## Ice Velocity
 # Now we're ready to make our model, which we can then use to determine the ice velocity. All physical and solver parameters take their default values
-serial_model = Model(grid = grid, bed_elevation = bed,initial_conditions= initial_conditions, parallel_spec = parallel_spec, solver_params=solver_params);
+serial_model = Model(grid = grid, bed_elevation = bed,initial_conditions= initial_conditions, spec = spec, solver_params=solver_params);
 
 # We use the `update_state!` method to bring fields (including velocity) in line with the ice thickness:
 update_state!(serial_model)
@@ -121,7 +121,7 @@ saved_serial_model=deepcopy(serial_model);
 
 parallel_model = deepcopy(serial_model)
 parallel_model = @set parallel_model.solver_params = SolverParams(maxiter_picard=5)
-parallel_model = @set parallel_model.parallel_spec = SharedMemorySpec(ngridsx=2,ngridsy=3,overlap=1,damping=0.0,niterations=1)
+parallel_model = @set parallel_model.spec = ThreadedSpec(ngridsx=2,ngridsy=3,overlap=1,damping=0.0,niterations=1)
 
 cols=cgrad(:roma,rev=true);
 nSchwarzIterations=1

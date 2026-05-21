@@ -145,7 +145,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     shelf_melt_rate_g=model.shelf_melt_rate
 
-    parallel_spec_g = BasicParallelSpec()
+    spec_g = BasicSpec()
 
     model_g=Model(
         grid = grid_g, 
@@ -154,7 +154,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         solver_params = solver_params_g,
         initial_conditions = initial_conditions_g,
         shelf_melt_rate = shelf_melt_rate_g,
-        parallel_spec = parallel_spec_g,
+        spec = spec_g,
         basal_hydrology = basal_hydrology_g,
         sliding_law = sliding_law_g,
         thermo_dynamics = thermo_dynamics_g)

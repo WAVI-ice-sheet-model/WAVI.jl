@@ -45,14 +45,14 @@ using WAVI, Test, LinearAlgebra
                         accumulation_rate = accumulation_rate,
                         default_temperature = default_temperature)
 
-        parallel_spec = SharedMemorySpec(ngridsx = 16,ngridsy=2,overlap=2,niterations=1)
+        spec = ThreadedSpec(ngridsx = 16,ngridsy=2,overlap=2,niterations=1)
 
         #make the model
         model = Model(grid = grid,
                         bed_elevation = bed, 
                         params = params, 
                         solver_params = solver_params,
-                        parallel_spec = parallel_spec)
+                        spec = spec)
 
         #timestepping parameters
         niter0 = 0

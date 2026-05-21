@@ -48,8 +48,8 @@ solver_params = SolverParams(maxiter_picard = maxiter_picard,
                             tol_picard = tol_picard)
 
 
-#parallel_spec = BasicParallelSpec()
-#parallel_spec = SharedMemorySpec(ngridsx = {{run.ngridsx}}, ngridsy={{run.ngridsy}}, overlap={{run.overlap}}, niterations={{run.niterations}}) 
+#spec = BasicParallelSpec()
+#spec = ThreadedSpec(ngridsx = {{run.ngridsx}}, ngridsy={{run.ngridsy}}, overlap={{run.overlap}}, niterations={{run.niterations}}) 
 
 
 #Physical parameters
@@ -72,7 +72,7 @@ model = Model(grid = grid,
               bed_elevation = sim_load.model.fields.gh.b, 
               params = params, 
               solver_params = solver_params,
-          #    parallel_spec = parallel_spec,
+          #    spec = spec,
               initial_conditions= initial_conditions,
 #	          melt_rate = MeltRateExponentVariation(Î³T = {{ run.gammaT }}, melt_exp= {{ run.melt_exp }}, melt_partial_cell = {{ run.melt_partial_cell }}))
               melt_rate = MeltRateExponentVariation(γT = 0.0, melt_exp=2.0, melt_partial_cell = false))
