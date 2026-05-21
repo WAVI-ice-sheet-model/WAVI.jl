@@ -1074,17 +1074,6 @@ function update_surf_stress_dirichlet!(model::AbstractModel)
 end
 
 """
-    update_surf_speed!(model::AbstractModel)
-
-Find the sliding speed on the h-grid using the speed components.
-"""
-function update_surf_speed!(model::AbstractModel)
-    @unpack gh=model.fields
-    gh.surf_speed  .= sqrt.(gh.us.^2 .+gh.vs.^2);
-    return model
-end
-
-"""
     update_basal_drag_components!(model::AbstractModel)
 
 Find the shear stress at the bed.
@@ -1375,15 +1364,6 @@ function update_JRMS!(model::AbstractModel,inversion,clock)
      end
     return model
 end
-
-function update_surface_velocities_on_uv_grid!(model)
-    @unpack gh,gu,gv = model.fields
-    #surface  velocities
-    gu.us[:].=gu.crop*(gu.centᵀ*gh.crop*(gh.us[:]))
-    gv.vs[:].=gv.crop*(gv.centᵀ*gh.crop*(gh.vs[:]))
-    return model
-end
-
 
 function smooth_veloc_data(g, gh, data, datamask_raw, veloc_fixed)
 

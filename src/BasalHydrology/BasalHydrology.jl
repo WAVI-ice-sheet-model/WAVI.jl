@@ -2,7 +2,7 @@ module BasalHydrology
 
 export update_basal_water_thickness_effective_pressure!
 
-using Parameters
+using Parameters, Enzyme
 
 using WAVI: AbstractBasalHydrology, AbstractModel
 

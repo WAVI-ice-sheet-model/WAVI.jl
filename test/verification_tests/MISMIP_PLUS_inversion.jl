@@ -1,8 +1,5 @@
 #This is a test of the inversion process with MISMIP_PLUS
 using WAVI 
-using ImageFiltering
-using SparseArrays
-using IterativeSolvers
 
 function MISMIP_PLUS_inversion(simulation)
 

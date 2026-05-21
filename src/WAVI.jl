@@ -1,10 +1,7 @@
 module WAVI
 
 # # TODO Needs tidy up. Refactoring has moved (or will move) many of these into the submodules where they are used
-using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
-       IterativeSolvers, Interpolations, BenchmarkTools, Reexport,
-       NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
-       NonlinearSolve, SciMLNLSolve, Enzyme
+using Reexport
 
 # #Import functions so they can be modified in this module.
 # Left commented for now because I don't think we use this here anymore.
@@ -66,11 +63,6 @@ include("Models/Models.jl")
 include("Outputs/Outputs.jl")
 include("Simulations/Simulation.jl")
 include("Specs/Specs.jl")
-include("Inversion/JKVsteppingParams.jl")
-include("Inversion/InversionSimulation.jl")
-include("Inversion/InversionOutput.jl")
-include("Inversion/InversionParams.jl")
-include("Inversion/DataFields.jl")
 include("Inversion/Inversion.jl")
 
 export AbstractField, AbstractGrid, AbstractMeltRate, 
@@ -139,7 +131,12 @@ export NoHydrology, ConstantBasalWaterThickness, LeakyBucket, SheetOnlyGlaDS
 
 using .ThermoDynamics
 export NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperatureApproximationIcebergTest
-   
+
+using .Inversions
+export run_inversion_simulation!
+export Inversion, InversionParams, JKVsteppingParams, DataFields, 
+       InversionSimulation, InversionOutput
+
 end
 
 
