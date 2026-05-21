@@ -16,6 +16,107 @@ import WAVI.Wavelets: UWavelets, VWavelets
 # Additional MPI functionality
 #
 
+"""
+    apply_halo_exchange_blends!(...)
+
+Blends newly received values from neighbours into the local halo cells.
+At the subgrid corners, it computes a smooth weighted mix from both adjacent neighbours.
+"""
+function apply_halo_exchange_blends!(
+    local_field::AbstractMatrix,
+    L0::AbstractMatrix,
+    recv_left::Union{Nothing, AbstractMatrix},
+    recv_right::Union{Nothing, AbstractMatrix},
+    recv_top::Union{Nothing, AbstractMatrix},
+    recv_bottom::Union{Nothing, AbstractMatrix},
+    W_left::AbstractVector,
+    W_right::AbstractVector,
+    W_top::AbstractMatrix,
+    W_bottom::AbstractMatrix,
+    lh::Int,
+    rh::Int,
+    th::Int,
+    bh::Int,
+    nx::Int,
+    ny::Int,
+    left::Int,
+    right::Int,
+    top::Int,
+    bottom::Int,
+)
+    j_mid = (th + 1):(ny - bh)
+    i_mid = (lh + 1):(nx - rh)
+
+    if left > -1 && lh > 0
+        if isempty(j_mid)
+            local_field[1:lh, :] .= (1.0 .- W_left) .* recv_left .+ W_left .* L0[1:lh, :]
+        else
+            local_field[1:lh, j_mid] .=
+                (1.0 .- W_left) .* recv_left[:, j_mid] .+ W_left .* L0[1:lh, j_mid]
+        end
+    end
+    if right > -1 && lh > 0
+        ir = (nx - lh + 1):nx
+        if isempty(j_mid)
+            local_field[ir, :] .= (1.0 .- W_right) .* recv_right .+ W_right .* L0[ir, :]
+        else
+            local_field[ir, j_mid] .=
+                (1.0 .- W_right) .* recv_right[:, j_mid] .+ W_right .* L0[ir, j_mid]
+        end
+    end
+    if top > -1 && th > 0
+        if isempty(i_mid)
+            local_field[:, 1:th] .= (1.0 .- W_top) .* recv_top .+ W_top .* L0[:, 1:th]
+        else
+            local_field[i_mid, 1:th] .=
+                (1.0 .- W_top) .* recv_top[i_mid, :] .+ W_top .* L0[i_mid, 1:th]
+        end
+    end
+    if bottom > -1 && th > 0
+        jb = (ny - th + 1):ny
+        if isempty(i_mid)
+            local_field[:, jb] .= (1.0 .- W_bottom) .* recv_bottom .+ W_bottom .* L0[:, jb]
+        else
+            local_field[i_mid, jb] .=
+                (1.0 .- W_bottom) .* recv_bottom[i_mid, :] .+ W_bottom .* L0[i_mid, jb]
+        end
+    end
+
+    if left > -1 && top > -1 && lh > 0 && th > 0
+        for j in 1:th, i in 1:lh
+            wl, wt = W_left[i], W_top[1, j]
+            RL, RT = recv_left[i, j], recv_top[i, j]
+            local_field[i, j] = (1 - wl) * (1 - wt) * RL + (1 - wl) * wt * RT + wl * L0[i, j]
+        end
+    end
+    if right > -1 && top > -1 && lh > 0 && th > 0
+        for j in 1:th, i_loc in 1:lh
+            i = nx - lh + i_loc
+            wr, wt = W_right[i_loc], W_top[1, j]
+            RR, RT = recv_right[i_loc, j], recv_top[i, j]
+            local_field[i, j] = (1 - wr) * (1 - wt) * RR + (1 - wr) * wt * RT + wr * L0[i, j]
+        end
+    end
+    if left > -1 && bottom > -1 && lh > 0 && th > 0
+        for j_loc in 1:th, i in 1:lh
+            j = ny - th + j_loc
+            wl, wb = W_left[i], W_bottom[1, j_loc]
+            RL, RB = recv_left[i, j], recv_bottom[i, j_loc]
+            local_field[i, j] = (1 - wl) * (1 - wb) * RL + (1 - wl) * wb * RB + wl * L0[i, j]
+        end
+    end
+    if right > -1 && bottom > -1 && lh > 0 && th > 0
+        for j_loc in 1:th, i_loc in 1:lh
+            i = nx - lh + i_loc
+            j = ny - th + j_loc
+            wr, wb = W_right[i_loc], W_bottom[1, j_loc]
+            RR, RB = recv_right[i_loc, j], recv_bottom[i, j_loc]
+            local_field[i, j] = (1 - wr) * (1 - wb) * RR + (1 - wr) * wb * RB + wr * L0[i, j]
+        end
+    end
+    return nothing
+end
+
 function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::Vector{Symbol}=[:h, :u, :v])
     @unpack halo, rank, comm, top, right, bottom, left = model.spec
     @unpack gh, gu, gv = model.fields
@@ -41,6 +142,15 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
         hasproperty(gv, f) && push!(exchange_pairs, (gv, f))
     end
 
+    # Synchronise halo regions. 
+    # If damping > 0, this blends the newly received neighbour values with the old local halo values.
+    # If damping = 0, it simply overwrites the local halo with the neighbour's values (standard RAS).
+    @unpack damping = model.spec
+    W_left = fill(damping, halo)
+    W_right = fill(damping, halo)
+    W_top = fill(damping, 1, halo)
+    W_bottom = fill(damping, 1, halo)
+
     # Exchange requested fields
     for (field_data, attribute) in exchange_pairs
         local_field = getproperty(field_data, attribute)
@@ -49,6 +159,7 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
         length(size(local_field)) != 2 && continue
 
         field_nx, field_ny = size(local_field)
+        L0 = copy(local_field)
 
         # --- Phase 1: X-Direction Exchange (Left/Right) ---
         requests_x = MPI.RequestSet()
@@ -57,78 +168,76 @@ function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::V
         # We need to skip the shared interface face to avoid 1-index shift
         off_x = (field_data === gu) ? 1 : 0
 
-        # Send/Recv Left
+        T = eltype(local_field)
+        recv_left_flat = recv_right_flat = nothing
         if left > -1
-            # Send Left Core: Start at lh+1 + offset
-            # Core Face 1 is Interface. Neighbor needs Core Face 2.
             send_left = local_field[lh+1+off_x:lh+halo+off_x, :]
             send_left_flat = copy(reshape(send_left, prod(size(send_left))))
-            recv_left_flat = zeros(Float64, prod(size(send_left)))
+            recv_left_flat = zeros(T, prod(size(send_left)))
             push!(requests_x, MPI.Isend(send_left_flat, left, left_send_tag, comm))
             push!(requests_x, MPI.Irecv!(recv_left_flat, left, right_send_tag, comm))
         end
-
-        # Send/Recv Right
         if right > -1
-            # Send Right Core: End at field_nx - rh - offset
-            # Core Face End is Interface. Neighbor needs Core Face End-1.
             send_right = local_field[field_nx-rh-halo+1-off_x:field_nx-rh-off_x, :]
             send_right_flat = copy(reshape(send_right, prod(size(send_right))))
-            recv_right_flat = zeros(Float64, prod(size(send_right)))
+            recv_right_flat = zeros(T, prod(size(send_right)))
             push!(requests_x, MPI.Isend(send_right_flat, right, right_send_tag, comm))
             push!(requests_x, MPI.Irecv!(recv_right_flat, right, left_send_tag, comm))
         end
 
         MPI.Waitall(requests_x)
 
-        @unpack damping = model.spec
-
-        # Apply X Updates
-        if left > -1
-            recv_left = reshape(recv_left_flat, halo, field_ny)
-            local_field[1:halo, :] .= (1.0 - damping) .* recv_left .+ damping .* local_field[1:halo, :]
-        end
-        if right > -1
-            recv_right = reshape(recv_right_flat, halo, field_ny)
-            local_field[field_nx-halo+1:field_nx, :] .= (1.0 - damping) .* recv_right .+ damping .* local_field[field_nx-halo+1:field_nx, :]
-        end
+        recv_left = recv_left_flat === nothing ? nothing : reshape(recv_left_flat, halo, field_ny)
+        recv_right = recv_right_flat === nothing ? nothing : reshape(recv_right_flat, halo, field_ny)
 
         # --- Phase 2: Y-Direction Exchange (Top/Bottom) ---
         requests_y = MPI.RequestSet()
 
         off_y = (field_data === gv) ? 1 : 0
 
-        # Send/Recv Top
+        recv_top_flat = recv_bottom_flat = nothing
         if top > -1
-            # Send Top Core: Start at th+1 + offset
             send_top = local_field[:, th+1+off_y:th+halo+off_y]
             send_top_flat = copy(reshape(send_top, prod(size(send_top))))
-            recv_top_flat = zeros(Float64, prod(size(send_top)))
+            recv_top_flat = zeros(T, prod(size(send_top)))
             push!(requests_y, MPI.Isend(send_top_flat, top, top_send_tag, comm))
             push!(requests_y, MPI.Irecv!(recv_top_flat, top, bottom_send_tag, comm))
         end
-
-        # Send/Recv Bottom
         if bottom > -1
-            # Send Bottom Core: End at field_ny - bh - offset
             send_bottom = local_field[:, field_ny-bh-halo+1-off_y:field_ny-bh-off_y]
             send_bottom_flat = copy(reshape(send_bottom, prod(size(send_bottom))))
-            recv_bottom_flat = zeros(Float64, prod(size(send_bottom)))
+            recv_bottom_flat = zeros(T, prod(size(send_bottom)))
             push!(requests_y, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
             push!(requests_y, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
         end
 
         MPI.Waitall(requests_y)
 
-        # Apply Y Updates
-        if top > -1
-            recv_top = reshape(recv_top_flat, field_nx, halo)
-            local_field[:, 1:halo] .= (1.0 - damping) .* recv_top .+ damping .* local_field[:, 1:halo]
-        end
-        if bottom > -1
-            recv_bottom = reshape(recv_bottom_flat, field_nx, halo)
-            local_field[:, field_ny-halo+1:field_ny] .= (1.0 - damping) .* recv_bottom .+ damping .* local_field[:, field_ny-halo+1:field_ny]
-        end
+        recv_top = recv_top_flat === nothing ? nothing : reshape(recv_top_flat, field_nx, halo)
+        recv_bottom = recv_bottom_flat === nothing ? nothing : reshape(recv_bottom_flat, field_nx, halo)
+
+        apply_halo_exchange_blends!(
+            local_field,
+            L0,
+            recv_left,
+            recv_right,
+            recv_top,
+            recv_bottom,
+            W_left,
+            W_right,
+            W_top,
+            W_bottom,
+            lh,
+            rh,
+            th,
+            bh,
+            field_nx,
+            field_ny,
+            left,
+            right,
+            top,
+            bottom,
+        )
     end
 end
 
