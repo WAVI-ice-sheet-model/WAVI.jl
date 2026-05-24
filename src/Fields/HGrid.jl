@@ -73,9 +73,9 @@ end
             hydraulic_potential_b = zeros(nxh,nyh)
 	        effective_pressure = zeros(nxh,nyh),
             basal_melt = zeros(nxh,nyh),
-            θ_ave = zeros(nxh,nyh))
+            θ_ave = zeros(nxh,nyh),
             grounded_fraction = ones(nxh,nyh),
-            preBfactor = ones(nxh,nyh)
+            preBfactor = ones(nxh,nyh),
             mpi_rank = -ones(nxh,nyh))
 
 Construct a WAVI.jl HGrid with size (nxh,nyh)
@@ -99,7 +99,7 @@ Keyword arguments
     - 'effective_pressure': initial effective pressure
     - 'basal_melt': initial basal melt rate
     - 'θ_ave': initial depth-averaged temperature
-    - 'preBfactor : preBfactor (1=no damage)
+    - 'preBfactor : preBfactor (1=no viscosity enhancement)
     - 'mpi_rank: field to store MPI rank identifier  
 """
 
@@ -122,6 +122,21 @@ function HGrid(;
                 preBfactor = ones(nxh,nyh),
                 mpi_rank = -ones(nxh,nyh)
 )
+
+    println(size(mask)," ",
+            size(h_isfixed)," ",
+            size(hyd_potential_isfixed)," ",
+            size(b)," ",
+            size(h)," ",
+            size(ηav)," ",
+            size(grounded_fraction)," ",
+            size(basal_water_thickness)," ",
+            size(hydraulic_potential_b)," ",
+            size(effective_pressure)," ",
+            size(basal_melt)," ",
+            size(θ_ave)," ",
+            size(preBfactor)," ",
+            size(mpi_rank))
 
     #check the sizes of inputs
     (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == size(mpi_rank) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))

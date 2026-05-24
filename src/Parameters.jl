@@ -2,10 +2,11 @@ module Parameters
 
 using Parameters
 using WAVI.Time: compute_iterations_and_end_time
+using WAVI: AbstractGrid
 
 export Params, SolverParams, TimesteppingParams
 
-struct Params{T <: Real, A, G, H, E}
+struct Params{T, A <: Union{T,Array{T,2}}, G <: Union{T,Array{T,2}}, H <: Union{T,Array{T,2}}, E <: Union{T,Array{T,2}}}
                       dt :: T
                        g :: T
              density_ice :: T
@@ -41,6 +42,7 @@ glen_a_activation_energy :: T
       effective_pressure :: E
               basal_melt :: T
  default_temperature_ave :: T
+      default_preBfactor :: T
 end
 
 
@@ -86,6 +88,7 @@ Keyword arguments
 - `effective_pressure` : effective pressure (Pa)
 - `basal_melt` : basal melt rate (m/yr)
 - `default_temperature_ave` : depth-averaged temperature (K)
+- `default_preBfactor` : default viscosity enhancement factor (non-dimensional).
 """
 function Params(; g = 9.81, 
                   density_ice = 918.0,
@@ -120,7 +123,8 @@ function Params(; g = 9.81,
                   hydraulic_potential_b = 0.0,
                   effective_pressure = 1.0e6,
                   basal_melt = 0.0,
-                  default_temperature_ave = 253.15)
+                  default_temperature_ave = 253.15,
+                  default_preBfactor = 1.0)
                       
   #default the timestep to 1.0 (will be updated when the model is embedded in a simulation)
   dt = 1.0
@@ -160,8 +164,101 @@ function Params(; g = 9.81,
                   hydraulic_potential_b,
                   effective_pressure,
                   basal_melt,
-                  default_temperature_ave
+                  default_temperature_ave,
+                  default_preBfactor
                   )
+end
+
+#Outer constructor that expands scalars into arrays of approriate size.
+Params(params::Params, grid::AbstractGrid) = Params(
+                  params.dt, 
+                  params.g, 
+                  params.density_ice,
+                  params.density_freshwater, 
+                  params.density_ocean, 
+                  params.gas_const,
+                  params.sec_per_year, 
+                  params.default_thickness, 
+                  params.default_viscosity,
+                  params.default_temperature,
+                  params.default_damage,
+                  params.default_strain_history,
+                  params.ice_tensile_strength,
+                  params.ice_compressive_strength,
+                  params.critical_elastic_energy,
+                  params.phase_field_length,
+                  params.energy_release_rate,
+                  params.degradation_regularisation,
+                  isa(params.accumulation_rate, Number) ? 
+                       params.accumulation_rate*ones(grid.nx,grid.ny) : 
+                       params.accumulation_rate,
+                  params.glen_a_activation_energy,
+                  isa(params.glen_a_ref, Number) ? 
+                       params.glen_a_ref*ones(grid.nx,grid.ny) : 
+                       params.glen_a_ref,
+                  params.glen_temperature_ref,
+                  params.glen_n,
+                  params.glen_reg_strain_rate,
+                  params.elastic_lambda,
+                  params.elastic_mu,
+                  params.sea_level_wrt_geoid,
+                  params.minimum_thickness,
+                  params.evolveShelves,
+                  params.smallHAF,
+                  params.basal_water_thickness,
+                  isa(params.hydraulic_potential_b, Number) ? 
+                       params.hydraulic_potential_b*ones(grid.nx,grid.ny) : 
+                       params.hydraulic_potential_b,
+                  isa(params.effective_pressure, Number) ? 
+                       params.effective_pressure*ones(grid.nx,grid.ny) : 
+                       params.effective_pressure,
+                  params.basal_melt,
+                  params.default_temperature_ave,
+                  params.default_preBfactor
+                  )
+
+#Outer constructor that selects parameters for a specified subdomain from parameters defined on a particular grid
+function Params(params::Params, grid::AbstractGrid, subdomain::NTuple{4,<: Integer})
+    
+    x_start,x_end,y_start,y_end = subdomain
+
+    return Params(  params.dt, 
+                    params.g, 
+                    params.density_ice,
+                    params.density_freshwater, 
+                    params.density_ocean, 
+                    params.gas_const,
+                    params.sec_per_year, 
+                    params.default_thickness, 
+                    params.default_viscosity,
+                    params.default_temperature,
+                    params.default_damage,
+                    params.default_strain_history,
+                    params.ice_tensile_strength,
+                    params.ice_compressive_strength,
+                    params.critical_elastic_energy,
+                    params.phase_field_length,
+                    params.energy_release_rate,
+                    params.degradation_regularisation,
+                    params.accumulation_rate[x_start:x_end, y_start:y_end],
+                    params.glen_a_activation_energy,
+                    params.glen_a_ref[x_start:x_end, y_start:y_end],
+                    params.glen_temperature_ref,
+                    params.glen_n,
+                    params.glen_reg_strain_rate,
+                    params.elastic_lambda,
+                    params.elastic_mu,
+                    params.sea_level_wrt_geoid,
+                    params.minimum_thickness,
+                    params.evolveShelves,
+                    params.smallHAF,
+                    params.basal_water_thickness,
+                    params.hydraulic_potential_b[x_start:x_end, y_start:y_end],
+                    params.effective_pressure[x_start:x_end, y_start:y_end],
+                    params.basal_melt,
+                    params.default_temperature_ave,
+                    params.default_preBfactor
+                    )
 end
 
 

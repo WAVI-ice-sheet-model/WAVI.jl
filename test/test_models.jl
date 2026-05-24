@@ -20,11 +20,11 @@ using Test, WAVI
     model = Model(grid = grid, bed_elevation = bed_elevation, sliding_law = sliding_law)
     @test model isa Model
 
-    #check that a scalar weertman c passed to model emerges as an array
+    #check that a scalar accumulation rate passed to model emerges as an array
     model = Model(grid = grid, bed_elevation = bed_elevation, params = Params(accumulation_rate = 1.0))
     @test model.params.accumulation_rate == 1.0 *ones(grid.nx, grid.ny)
 
-    #check that an array weertman_c works
+    #check that an array accumulation rate works
     model = Model(grid = grid, bed_elevation = bed_elevation, params = Params(accumulation_rate =1.0*ones(grid.nx, grid.ny)))
     @test model isa Model
 

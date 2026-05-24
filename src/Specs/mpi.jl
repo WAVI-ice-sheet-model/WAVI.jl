@@ -7,7 +7,7 @@ using Plots
 
 using WAVI.Parameters
 
-import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractModel
+import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractFracture, AbstractSlidingLaw, AbstractBasalHydrology, AbstractThermoDynamics, AbstractModel
 import WAVI.Deferred: Collector, register_item!, field_extractor
 import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 import WAVI.Grids: Grid
@@ -154,7 +154,19 @@ function Model(grid::G,
                initial_conditions::InitialConditions = InitialConditions(),
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
-               melt_rate::M = UniformMeltRate()) where {G<:AbstractGrid, S<:MPISpec, M<:AbstractMeltRate}
+               shelf_melt_rate::M = UniformMeltRate(),
+               fracture::FR = ConstantDamage(),
+               sliding_law::SL = WeertmanSlidingLaw(),
+               basal_hydrology::BH = NoHydrology(),
+               thermo_dynamics::TD = NoThermoDynamics(),
+               verbose = true)                   where {G<:AbstractGrid, 
+                                                        S<:MPISpec, 
+                                                        M<:AbstractMeltRate,
+                                                        FR<:AbstractFracture,
+                                                        SL<:AbstractSlidingLaw,
+                                                        BH<:AbstractBasalHydrology,
+                                                        TD<:AbstractThermoDynamics}
+
     @unpack coords, global_size, rank = spec
     @info "[$(rank+1)/$(global_size)] - $(coords) - creating Grid and Model for MPI rank $(rank)"
 
@@ -172,52 +184,17 @@ function Model(grid::G,
 
     u_grid_size, v_grid_size = (grid.nx+1, grid.ny), (grid.nx, grid.ny+1)
     
-    conditions = InitialConditions(
-        initial_thickness = size(initial_conditions.initial_thickness) == size(grid)[1:2] ? 
-            initial_conditions.initial_thickness[x_start:x_end, y_start:y_end] : initial_conditions.initial_thickness,
-        initial_grounded_fraction = size(initial_conditions.initial_grounded_fraction) == size(grid)[1:2] ? 
-            initial_conditions.initial_grounded_fraction[x_start:x_end, y_start:y_end] : initial_conditions.initial_grounded_fraction,
-        initial_u_veloc = size(initial_conditions.initial_u_veloc) == u_grid_size ? 
-            initial_conditions.initial_u_veloc[x_start:x_end+1, y_start:y_end] : initial_conditions.initial_u_veloc,
-        initial_v_veloc = size(initial_conditions.initial_v_veloc) == v_grid_size ? 
-            initial_conditions.initial_v_veloc[x_start:x_end, y_start:y_end+1] : initial_conditions.initial_v_veloc,
-        initial_viscosity = size(initial_conditions.initial_viscosity) == size(grid) ? 
-            initial_conditions.initial_viscosity[x_start:x_end, y_start:y_end, :] : initial_conditions.initial_viscosity,
-        initial_temperature = size(initial_conditions.initial_temperature) == size(grid) ? 
-            initial_conditions.initial_temperature[x_start:x_end, y_start:y_end, :] : initial_conditions.initial_temperature,
-        initial_damage = size(initial_conditions.initial_damage) == size(grid) ? 
-            initial_conditions.initial_damage[x_start:x_end, y_start:y_end, :] : initial_conditions.initial_damage
-    )
+    #expand scalar paramaters onto grid
+    params = Params(params,grid)
+
+    #Replace all NaN entries with defaults from params on correct grid              
+    initial_conditions = InitialConditions(initial_conditions, params, grid)
+
+    #trim initial conditions to local domain
+    local_initial_conditions = InitialConditions(initial_conditions, grid, (x_start, x_end, y_start, y_end))
 
     # dt cannot be copied via the external constructor so we create the structure directly
-    local_params = Params(
-        params.dt,
-        params.g, 
-        params.density_ice, 
-        params.density_ocean, 
-        params.gas_const,
-        params.sec_per_year, 
-        params.default_thickness, 
-        params.default_viscosity,
-        params.default_temperature,
-        params.default_damage,
-        size(params.accumulation_rate) == size(grid)[1:2] ? 
-            params.accumulation_rate[x_start:x_end, y_start:y_end] : params.accumulation_rate,
-        params.glen_a_activation_energy,
-        size(params.glen_a_ref) == size(grid)[1:2] ? 
-            params.glen_a_ref[x_start:x_end, y_start:y_end] : params.glen_a_ref,
-        params.glen_temperature_ref,
-        params.glen_n,
-        params.glen_reg_strain_rate,
-        size(params.weertman_c) == size(grid)[1:2] ? 
-            params.weertman_c[x_start:x_end, y_start:y_end] : params.weertman_c,
-        params.weertman_m,
-        params.weertman_reg_speed,
-        params.sea_level_wrt_geoid,
-        params.minimum_thickness,
-        params.evolveShelves,
-        params.smallHAF
-    )
+    local_params = Params(params,grid,(x_start, x_end, y_start, y_end))
 
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
@@ -228,6 +205,8 @@ function Model(grid::G,
     (spec.right < 0) || (u_isfixed[end,:] .= true; v_isfixed[end,:] .= true)
     (spec.top < 0) || (u_isfixed[:,1] .= true; v_isfixed[:,1] .= true)
     (spec.bottom < 0) || (u_isfixed[:,end] .= true; v_isfixed[:,end] .= true)
+    
+    #TODO Halo for hyd_potential_isfixed
 
     local_grid = Grid(
         nx = nx_local,
@@ -239,6 +218,7 @@ function Model(grid::G,
         y0 = y0_local,
         h_mask = grid.h_mask[x_start:x_end, y_start:y_end],
         h_isfixed = grid.h_isfixed[x_start:x_end, y_start:y_end],
+        hyd_potential_isfixed = grid.hyd_potential_isfixed[x_start:x_end, y_start:y_end],
         u_iszero = grid.u_iszero[x_start:x_end+1, y_start:y_end],
         v_iszero = grid.v_iszero[x_start:x_end, y_start:y_end+1],
         u_isfixed = u_isfixed,
@@ -256,8 +236,9 @@ function Model(grid::G,
     # Create local mpi_rank field filled with this rank's number
     local_mpi_rank = fill(Float64(rank), nx_local, ny_local)
 
-    fields = GridField(local_grid, bed_array; initial_conditions=conditions, params=local_params, solver_params, mpi_rank=local_mpi_rank)
-    model = Model{Float64, Int64, S, GridField, G, M}(local_grid, fields, local_params, solver_params, spec, melt_rate)
+    fields = GridField(local_grid, bed_array; initial_conditions=local_initial_conditions, params=local_params, solver_params, mpi_rank=local_mpi_rank)
+    model = Model(local_grid, fields, local_params, solver_params, spec, shelf_melt_rate, fracture, sliding_law, basal_hydrology, 
+    thermo_dynamics, verbose)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     # Create global mpi_rank field (will be populated during collection)

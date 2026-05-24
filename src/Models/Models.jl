@@ -83,24 +83,11 @@ function Model(grid::G,
     # FIXME: this all smells, hacking for threading
     bed_array = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     
+    #expand scalar paramaters onto grid
+    params = Params(params,grid)
+
     #Replace all NaN entries with defaults from params on correct grid              
     initial_conditions = InitialConditions(initial_conditions, params, grid)
-
-    #Expand spatial parameters onto correct grid
-    ## Parameter fields checks 
-    #if accumulation is passed as a scalar, replace with a matrix of this value
-    if isa(params.accumulation_rate, Number) 
-        params = @set params.accumulation_rate = params.accumulation_rate*ones(grid.nx,grid.ny)
-    end
-    #check size compatibility of resulting accumulation rate
-    (size(params.accumulation_rate)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input accumulation ($(size(params.accumulation_rate))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
-
-    #if glen_a_ref is passed as a scalar, replace with a matrix of this value
-    if isa(params.glen_a_ref, Number) 
-        params = @set params.glen_a_ref = params.glen_a_ref*ones(grid.nx,grid.ny)
-    end
-    #check size compatibility of resulting glen a ref
-    (size(params.glen_a_ref)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input glen_a_ref ($(size(params.glen_a_ref))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
 
     #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
     if isa(sliding_law.drag_coefficient, Number) 

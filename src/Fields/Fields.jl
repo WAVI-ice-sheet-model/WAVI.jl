@@ -65,8 +65,11 @@ function GridField(grid::AbstractGrid, bed_array;
     h =  deepcopy(initial_conditions.initial_thickness)
     grounded_fraction =  deepcopy(initial_conditions.initial_grounded_fraction)
     basal_water_thickness = deepcopy(initial_conditions.initial_basal_water_thickness)
+    hydraulic_potential_b = deepcopy(initial_conditions.initial_hydraulic_potential_b)
+    effective_pressure = deepcopy(initial_conditions.initial_effective_pressure)
     basal_melt = deepcopy(initial_conditions.initial_basal_melt)
     θ_ave = deepcopy(initial_conditions.initial_θ_ave)
+    preBfactor = deepcopy(initial_conditions.initial_preBfactor)
     ηav = deepcopy(initial_conditions.initial_viscosity[:,:,1]) #set to the viscosity on the first level for now
     
     gh=HGrid(
@@ -80,8 +83,11 @@ function GridField(grid::AbstractGrid, bed_array;
     ηav = ηav,
     grounded_fraction = grounded_fraction,
     basal_water_thickness = basal_water_thickness,
+    hydraulic_potential_b = hydraulic_potential_b,
+    effective_pressure = effective_pressure,
     basal_melt = basal_melt,
     θ_ave = θ_ave,
+    preBfactor = preBfactor,
     mpi_rank = mpi_rank
     )
 
@@ -122,11 +128,21 @@ function GridField(grid::AbstractGrid, bed_array;
     Φ = deepcopy(initial_conditions.initial_damage)
     strain_history = deepcopy(initial_conditions.initial_strain_history)
 
+
     g3_glen_b = zeros(size(η))
+    println(size(g3_glen_b)," ",
+            size(θ)," ",
+            size(Φ)," ",
+            size(params.glen_a_ref)," ",
+            grid.nx," ",
+            grid.ny," ",
+            grid.nσ," ",
+            params.glen_a_ref
+           )
     for i = 1:grid.nx
         for j = 1:grid.ny
             for k = 1:grid.nσ
-                g3_glen_b[i,j,k] = glen_b.(θ[i,j,k],Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
+                g3_glen_b[i,j,k] = glen_b(θ[i,j,k],Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
             end
         end
     end
