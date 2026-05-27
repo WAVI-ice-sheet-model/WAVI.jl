@@ -49,7 +49,17 @@ function Model(grid::G,
 
     # FIXME: this all smells, hacking for threading
     bed_array = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
-    
+
+    if isa(params.weertman_c, Number)
+        params = @set params.weertman_c = params.weertman_c*ones(grid.nx,grid.ny)
+    end
+    if isa(params.accumulation_rate, Number)
+        params = @set params.accumulation_rate = params.accumulation_rate*ones(grid.nx,grid.ny)
+    end
+    if isa(params.glen_a_ref, Number)
+        params = @set params.glen_a_ref = params.glen_a_ref*ones(grid.nx,grid.ny)
+    end
+
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
     model = Model{Float64, Int64, S, GridField, G, M}(grid, fields, params, solver_params, spec, melt_rate)
@@ -57,7 +67,7 @@ function Model(grid::G,
 end
 
 Model(grid, bed_elev; kw...) = Model(grid, bed_elev, BasicSpec(); kw...)
-Model(; grid, bed_elevation, spec, kw...) = Model(grid, bed_elevation, spec; kw...)
+Model(; grid, bed_elevation, spec = BasicSpec(), kw...) = Model(grid, bed_elevation, spec; kw...)
 
 # This is to enable use of Setfield, which derives a parameter setup from the fields of an existing structure via JuliaObjects
 # FIXME: this wasn't required in the original WAVI codebase. 
@@ -69,7 +79,7 @@ Model(g::G, f::F, p::P, sp::SP, s::S, m::M) where {G<:AbstractGrid,F<:AbstractFi
 ##
 # Global domain alterations
 #
-Base.propertynames(model::Model{T,N,S,F,G,M}, private::Bool) where {T,N,S,F,G,M} = (fieldnames(typeof(model)..., :global_fields))
+Base.propertynames(model::Model{T,N,S,F,G,M}, private::Bool) where {T,N,S,F,G,M} = (fieldnames(typeof(model))..., :global_fields, :global_grid)
 
 # FIXME: this is a sign of a frustration in WAVIs structural layout - too many deep nested structures accessed through high level passing
 #  which inhibits multiple dispatch

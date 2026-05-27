@@ -13,7 +13,7 @@ using WAVI.Parameters
 using WAVI.Utilities
 using WAVI.Wavelets
 
-export GridField, InitialConditions
+export GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 
 include("UGrid.jl")
 include("VGrid.jl")
