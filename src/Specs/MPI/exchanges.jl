@@ -1,5 +1,4 @@
 using Parameters
-using Plots
 using MPI
 
 using WAVI.Parameters
