@@ -84,10 +84,13 @@ function OutputParams(outputs::NamedTuple;
     return OutputParams(collector, output_freq, n_iter_out, output_format, prefix, output_path, dump_vel, zip_format, output_start)
 end
 
-OutputParams(; kwargs...) = OutputParams(NamedTuple(); kwargs...)
+function OutputParams(; outputs = NamedTuple(), kwargs...)
+    return OutputParams(outputs; kwargs...)
+end
 clear!(op::OutputParams) = clear!(op.outputs)
 collect!(op::OutputParams, args...) = collect!(op.outputs, args...)
 
+include("checkpoints.jl")
 include("output_writing.jl")
 include("zipping_output.jl")
 
