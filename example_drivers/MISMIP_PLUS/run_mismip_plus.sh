@@ -22,7 +22,7 @@ rmdir outputs
 echo "--------------------------------------------------"
 echo "Running MISMIP_PLUS - ThreadedSpec"
 echo "--------------------------------------------------"
-for t in 2 5; do
+for t in 2 3 5 7; do
     echo "  Threads: $t"
     mkdir -p "$BASE_DIR/threaded_t$t"
     cd "$BASE_DIR/threaded_t$t"

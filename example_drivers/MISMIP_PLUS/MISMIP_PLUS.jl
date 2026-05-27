@@ -91,9 +91,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     MPI.Init()
     if MPI.Comm_size(MPI.COMM_WORLD) > 1
         grid = MISMIP_PLUS_GRID()
-        # mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 3, 2, grid)
-
-        mpi_spec = MPISpec(3, 2, 2, grid; pou=false, niterations=10)  # 3 splits in x, 2 in y, 2 halo cells
+        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid; pou=true, niterations=2)
 
         MISMIP_PLUS(
             grid = grid,
