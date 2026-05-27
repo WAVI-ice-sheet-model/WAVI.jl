@@ -42,11 +42,15 @@ using Test, WAVI
     params = Params()
     bed_elevation = zeros(grid.nx, grid.ny)
     model = Model(grid = grid, bed_elevation = bed_elevation)
-    @test model.initial_conditions.initial_thickness == params.default_thickness*ones(grid.nx, grid.ny)
-    @test model.initial_conditions.initial_damage == params.default_damage*ones(grid.nx, grid.ny, grid.nσ)
-    @test model.initial_conditions.initial_viscosity == params.default_viscosity*ones(grid.nx, grid.ny, grid.nσ)
-    @test model.initial_conditions.initial_temperature == params.default_temperature*ones(grid.nx, grid.ny, grid.nσ)
-    
+    # initial_thickness
+    @test model.fields.gh.h == params.default_thickness * ones(grid.nx, grid.ny)
+    # initial damage
+    @test model.fields.g3d.Φ == params.default_damage * ones(grid.nx, grid.ny, grid.nσ)
+    # initial viscosity
+    @test model.fields.g3d.η == params.default_viscosity * ones(grid.nx, grid.ny, grid.nσ)
+    # initial temperature
+    @test model.fields.g3d.θ == params.default_temperature * ones(grid.nx, grid.ny, grid.nσ)
+
     #test passing arrays of thickness, damage, temperature, and viscosity
     initial_conditions = InitialConditions(initial_thickness = 3.14159 * ones(grid.nx,grid.ny),
                                             initial_viscosity = 2.7182818 * ones(grid.nx, grid.ny, grid.nσ),
@@ -54,13 +58,9 @@ using Test, WAVI
                                             initial_damage = 1.414213 * ones(grid.nx, grid.ny, grid.nσ))
     model = Model(grid = grid, bed_elevation = bed_elevation, initial_conditions = initial_conditions)
     @test model isa Model
-    @test model.initial_conditions.initial_thickness == 3.14159 * ones(grid.nx,grid.ny)
-    @test model.initial_conditions.initial_viscosity == 2.7182818 * ones(grid.nx, grid.ny, grid.nσ)
-    @test model.initial_conditions.initial_temperature == 1.618034 * ones(grid.nx, grid.ny, grid.nσ)
-    @test model.initial_conditions.initial_damage == 1.414213 * ones(grid.nx, grid.ny, grid.nσ)
     
     #check fields successfully passed to fields
-    @test model.fields.gh.h == 3.14159 * ones(grid.nx,grid.ny)
+    @test model.fields.gh.h == 3.14159 * ones(grid.nx, grid.ny)
     @test model.fields.g3d.η == 2.7182818 * ones(grid.nx, grid.ny, grid.nσ)
     @test model.fields.g3d.θ == 1.618034 * ones(grid.nx, grid.ny, grid.nσ)
     @test model.fields.g3d.Φ ==  1.414213 * ones(grid.nx, grid.ny, grid.nσ)

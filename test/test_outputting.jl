@@ -8,7 +8,6 @@ function output_test(; dt  = 0.5,
                     prefix = "outfile", 
                     dump_vel = false, 
                     output_path = ".",
-                    pchkpt_freq = Inf,
                     chkpt_freq = Inf,
                     niter0 = 0,
                     output_start = false)
@@ -17,12 +16,16 @@ function output_test(; dt  = 0.5,
     bed = WAVI.mismip_plus_bed
     solver_params = SolverParams(maxiter_picard = 1)
     model = Model(grid = grid, bed_elevation = bed, solver_params = solver_params)
-    timestepping_params = TimesteppingParams(niter0 = niter0, dt = dt, end_time = end_time, chkpt_freq = chkpt_freq, pchkpt_freq = pchkpt_freq)
+    chkpt_path = chkpt_freq == Inf ? "./" : output_path
+    timestepping_params = TimesteppingParams(niter0 = niter0, dt = dt, end_time = end_time,
+                                           chkpt_freq = chkpt_freq, chkpt_path = chkpt_path)
 
-    outputs = (h = model.fields.gh.h,
-                u = model.fields.gh.u,
-                v = model.fields.gh.v,
-                b = model.fields.gh.b) #output velocities and thickness
+    outputs = (
+        h = "fields.gh.h",
+        u = "fields.gh.u",
+        v = "fields.gh.v",
+        b = "fields.gh.b",
+    )
 
     output_freq = output_freq
     output_params = OutputParams(outputs = outputs, 
@@ -127,7 +130,7 @@ test_output_errors = true
                     dict = load(fname)
 
                     #check that thickness same as IC and time = 0
-                    @test dict["h"] == sim.model.initial_conditions.initial_thickness
+                    @test all(dict["h"] .== 100.0)
                     @test dict["t"] == 0.0
 
 
@@ -210,7 +213,7 @@ test_output_errors = true
                             output_path = folder,
                             zip_format = "nc", 
                             dump_vel = true, 
-                            pchkpt_freq = 1.)
+                            chkpt_freq = 1.)
 
                 #get the time that the first file was outputted (test for https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/35)
                 first_file_name = joinpath("outputs",string("outfile0000000001.", output_format));
@@ -226,7 +229,7 @@ test_output_errors = true
                             output_path = folder,
                             zip_format = "nc", 
                             dump_vel = true, 
-                            pchkpt_freq = 1.)
+                            chkpt_freq = 1.)
 
                 #check that the time that first file modified has not changed -- i.e. simulation has not touched outputs at earlier times than it should have            
                 dt2 = Dates.unix2datetime(mtime(first_file_name)) 
@@ -256,7 +259,7 @@ test_output_errors = true
                 #check we have the right number of output files 
                 foldersim = sim.output_params.output_path 
                 @test foldersim[end] == '/' #test that we do have the / at end of path
-                files = [string(foldersim,f) for f in  readdir(foldersim) if endswith(f, output_format)]
+                files = [string(foldersim,f) for f in  readdir(foldersim) if startswith(f, "outfile") && endswith(f, output_format)]
                 println(files)
                 @test length(files) == 40    #check there are the correct number of output files
                 
@@ -269,7 +272,7 @@ test_output_errors = true
                                 output_path = folder,
                                 zip_format = "nc", 
                                 dump_vel = true, 
-                                pchkpt_freq = 1.)
+                                chkpt_freq = 1.)
                 
                 #test variables read from nc file
                 fname = string(folder, sim.output_params.prefix, ".nc")
@@ -296,7 +299,7 @@ test_output_errors = true
                 #check we have the right number of files
                 foldersim = sim.output_params.output_path 
                 @test foldersim[end] == '/' #test that we do have the / at end of path
-                files = [string(foldersim,f) for f in  readdir(foldersim) if endswith(f, output_format)]
+                files = [string(foldersim,f) for f in  readdir(foldersim) if startswith(f, "outfile") && endswith(f, output_format)]
                 println(files)
                 @test length(files) == 41    #check there are the correct number of output files
 
