@@ -23,9 +23,35 @@ The output will appear as below (in this case for `/test/test_fields.jl`). The t
 <center><img src="./assets/test_output.png" alt="" title="" width="800"  /></center>
 ```
 
-The full suite of tests can be run using the `runtests.jl` script. 
+The full suite of tests can be run using the `runtests.jl` script (non-MPI tests plus MPI tests launched as subprocesses via [`mpiexec()`](https://juliaparallel.org/MPI.jl/stable/usage/#Writing-MPI-tests)). 
 ```julia
 julia> include('./test/runtests.jl')
 ```
 
+For faster structural-only runs (no MPI, no verification), use `runtests_structure.jl` as in CI.
+
+## MPI tests (MPISpec)
+
+MPISpec tests follow the [MPI.jl recommended pattern](https://juliaparallel.org/MPI.jl/stable/usage/#Writing-MPI-tests): a normal Julia process runs a driver that spawns the MPI test script with `mpiexec()`. You do not need to wrap the driver in `mpiexecjl` yourself.
+
+| Driver | What runs |
+|--------|-----------|
+| `test/runtests_mpi_unit.jl` | Fast checks: halo exchange and global collect on a small `MPISpec` grid (two MPI ranks). |
+| `test/runtests_mpi_integration.jl` | Short Iceberg-style run comparing `MPISpec` to `BasicSpec` on two ranks (slower than unit). |
+
+From the repository root (after `Pkg.instantiate()` in the `test` project):
+
+```bash
+julia --project=test test/runtests_mpi_unit.jl
+julia --project=test test/runtests_mpi_integration.jl
+```
+
+To debug a single MPI test script directly under MPI (optional), use [`mpiexecjl`](https://juliaparallel.org/MPI.jl/stable/usage/#Julia-wrapper-for-mpiexec) as described in [Model specifications](./model_specifications.md):
+
+```bash
+mpiexecjl -n 2 --project=test julia test/mpi_tests/test_mpispec_halo_collect.jl
+```
+
 ## Continuous Integration
+
+The GitHub Actions workflow runs `test/runtests_structure.jl` on each supported Julia version, and a separate job runs `test/runtests_mpi_unit.jl` (MPI subprocesses via `mpiexec()` inside Julia). The integration driver is for local or scheduled runs only (not part of the default CI workflow).
