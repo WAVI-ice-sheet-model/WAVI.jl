@@ -28,7 +28,7 @@ Depending on specifications, some considerations need to be taken into account:
 
 * Examples in the docs simply default to `BasicSpec`, so the model will not be distributed by default
 * How you use `Model` interface changes in a distributed setting, to a fully functional interface
-* **Grid Balancing**: If the global grid size is not perfectly divisible by the number of MPI processes, the remainder cells are balanced across the first few ranks. Unlike `ThreadedSpec`, this ensures the full global domain is covered without remainders at the boundaries, meaning users do not have to specify a target number of cores.
+* **Grid Balancing**: If the global grid size is not perfectly divisible by the number of subdomains or MPI processes, the remainder cells are balanced across the first few subdomains (for both `ThreadedSpec` and `MPISpec`). This ensures the full global domain is covered without remainders at the boundaries, removing the previous requirement of the user needing to specify a divisible thread/core count.
 
 ## Setting up specifications
 
@@ -81,8 +81,10 @@ The MPI specification is used to decompose the global domain of the `Model`. Unl
 The list of methods overridden is not explained in detail here, there are numerous areas of the model that require alteration:
 
 * The underlying `Model` constructor is implemented such that each node contains it's own localised portion of the global domain.
-* Velocity solves utilise an **Iterative Restricted Additive Schwarz (RAS)** approach. Each Picard iteration involves `niterations` of local sub-domain solves followed by a halo exchange to propagate information across rank interfaces.
-* **Halo Exchange**: Currently uses a standard overwrite-based ghost-cell mechanism. Support for a Partition of Unity (PoU) approach for interface smoothing is planned for re-introduction as an optional (and potentially default) feature.
+* Velocity solves use overlapping **Schwarz iterations** (multiple local subdomain solves per step). The subdomain boundary treatment is controlled by the `pou` parameter:
+    * **`pou=true` (default)**: Uses a **Partition of Unity** approach. Subdomain velocities are smoothly blended together in overlap zones, ensuring physical continuity. This requires a `halo` size of at least `2`.
+    * **`pou=false`**: Uses **Restricted Additive Schwarz (RAS)**. Velocities are exchanged directly between neighboring subdomains without blending. This is computationally simpler and allows a smaller `halo` size of `1`.
+* **Thickness Halos**: Ice thickness `h` is synchronised across subdomains at the end of each timestep.
 * **Global Residual Check**: Picard convergence is verified globally across all ranks. Each process computes the squared norm of its local residual on "core" unknowns only (excluding halo overlaps) to prevent double-counting. These are then aggregated via `MPI.Allreduce` to determine the global relative residual.
 * `Simulation` operations are updated to collect data as required for outputs using a deferred evaluation mechanism, required to ensure outputs are taken from the global grid and rendered from the root process only.
 
@@ -96,7 +98,6 @@ The topology of an individual ranks grid (in this case rank zero) is also releva
 
 There are elements of MPISpec still under development at time of writing: 
 
-* [Optional Partition of Unity (PoU) and damping are planned for re-introduction](https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/108) to provide smoother interface transitions.
 * [Outputs only can be taken from `model.global_fields`](https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/111) - therefore melt rates, parameters and other fields are not accessible as outputs (though `model.mpi_rank` is now available).
 * Non-2D fields (e.g., 3D temperature) are not yet accessible as distributed outputs.
 
