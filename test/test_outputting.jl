@@ -133,7 +133,6 @@ test_output_errors = true
                     @test all(dict["h"] .== 100.0)
                     @test dict["t"] == 0.0
 
-
                 else
                     #check that no file output
                     @test isempty(readdir(foldersim))

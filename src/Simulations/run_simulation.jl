@@ -8,13 +8,25 @@ using WAVI.Processes: update_state!
 """
     timestep!(model, output_params, clock, timestepping_params)
 
-Perform one timestep of the simulation
+Perform one timestep of the simulation. 
 """
 function timestep!(model::AbstractModel{T,N,S},
                    timestepping_params::TimesteppingParams,
                    output_params::OutputParams,
                    clock::Clock) where {T,N,S}
-    update_state!(model, clock)
+ 
+
+    if mod(clock.n_iter, timestepping_params.ntimesteps_velocity_update) == 0 #if we're on a velocity + thickness update output step
+        update_state!(model, clock)
+        if timestepping_params.verbose
+            println("Completed main timestep update), t = ", clock.time)
+        end
+    else #just a thickness update step
+        update_state_novelocity!(model, clock)
+        if timestepping_params.verbose
+            println("Completed sub-timestep update, t = ", clock.time)
+        end
+    end
 
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
     # Have made the interface consistent
@@ -22,13 +34,19 @@ function timestep!(model::AbstractModel{T,N,S},
     if (output_params.output_start) && (clock.n_iter == 0)
         write_outputs(model, timestepping_params, output_params, clock)
     end
-    
+
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
     end
+
+    if timestepping_params.verbose
+        println("Completed thickness update), t = ", clock.time)
+    end
+
     update_clock!(clock, timestepping_params)
 
     write_outputs(model, timestepping_params, output_params, clock)
+
 end
 timestep!(s::AbstractSimulation) = timestep!(s.model, s.timestepping_params, s.output_params, s.clock)
 

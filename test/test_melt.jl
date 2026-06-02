@@ -22,11 +22,11 @@ using Test, WAVI
 
         #create model 
         model = Model(grid = grid, 
-                      bed_elevation = bed_elevation, 
+                      bed_elevation = bed_elevation,
                       initial_conditions = initial_conditions,
-                      melt_rate = binfile_melt_rate,
+                      shelf_melt_rate = binfile_melt_rate,
                       solver_params = SolverParams(maxiter_picard = 1))
-        @test model.melt_rate isa BinfileMeltRate
+        @test model.shelf_melt_rate isa BinfileMeltRate
 
         #check that melt rate read OK
         update_state!(model)
@@ -63,9 +63,9 @@ using Test, WAVI
       model = Model(grid = grid, 
                     bed_elevation = WAVI.mismip_plus_bed, 
                     initial_conditions = initial_conditions,
-                    melt_rate = quadratic_time_dep_melt_rate,
+                    shelf_melt_rate = quadratic_time_dep_melt_rate,
                     solver_params = SolverParams(maxiter_picard = 1))
-      @test model.melt_rate isa QuadraticTimeDepMeltRate
+      @test model.shelf_melt_rate isa QuadraticTimeDepMeltRate
 
       #test error if we try to pass incorrect arguments in ambient temp of salinity
       @test_throws ArgumentError QuadraticTimeDepMeltRate(Ta = WAVI.isomip_warm0_temp)

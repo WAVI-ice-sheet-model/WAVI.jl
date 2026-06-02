@@ -40,14 +40,14 @@ using WAVI, Test, LinearAlgebra
                         accumulation_rate = accumulation_rate,
                         default_temperature = default_temperature)
 
-        parallel_spec = ThreadedSpec(ngridsx = ngridsx, ngridsy = ngridsy, overlap = overlap, niterations = 1)
+        spec = ThreadedSpec(ngridsx = ngridsx, ngridsy = ngridsy, overlap = overlap, niterations = 1)
 
         #make the model
         model = Model(grid = grid,
                       bed_elevation = bed,
                       params = params,
                       solver_params = solver_params,
-                      spec = parallel_spec)
+                      spec = spec)
 
         #timestepping parameters
         timestepping_params = TimesteppingParams(niter0 = 0,

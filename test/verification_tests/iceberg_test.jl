@@ -64,7 +64,13 @@ initial_conditions = InitialConditions(initial_thickness = starting_thickness,
 
 accumulation_rate=0.3
 default_temperature=265.700709
-params = Params(accumulation_rate = accumulation_rate, default_temperature = default_temperature)
+glen_a_activation_energy = 0.
+glen_a_ref=2.0e-17
+params = Params(accumulation_rate = accumulation_rate, default_temperature = default_temperature,
+                glen_a_activation_energy = glen_a_activation_energy, glen_a_ref = glen_a_ref)
+
+geothermal_heat_flux=0.05
+thermo_dynamics = QuadraticTemperatureApproximation(geothermal_heat_flux = geothermal_heat_flux)
 
 bed_elevation=-500.0.*ones(nx,ny)
 
@@ -76,23 +82,31 @@ model = Model(grid = grid,
               bed_elevation = bed_elevation, 
               params = params, 
               solver_params = solver_params, 
-              initial_conditions = initial_conditions)
+              initial_conditions = initial_conditions,
+              thermo_dynamics = thermo_dynamics)
 
 timestepping_params = TimesteppingParams(dt = 0.1, end_time = end_time)
 simulation = Simulation(model = model, 
                         timestepping_params = timestepping_params)
 run_simulation!(simulation)
 
-h0=((36.0*0.3/(2.0e-17))*(1.0/(9.81*918.0*(1-918.0/1028.0)))^3)^(1.0/4.0)
+h0=((36.0*0.3/(glen_a_ref))*(1.0/(9.81*918.0*(1-918.0/1028.0)))^3)^(1.0/4.0)
 u0 = simulation.model.grid.xxu*0.3/(2.0*h0) .+ solid_body_u
 v0 = simulation.model.grid.yyv*0.3/(2.0*h0) .+ solid_body_v
 relerr_h=norm(simulation.model.fields.gh.h[simulation.model.fields.gh.mask].-h0)/
             norm(h0*ones(length(simulation.model.fields.gh.h[simulation.model.fields.gh.mask])))
 relerr_u=norm(simulation.model.fields.gu.u[simulation.model.fields.gu.mask]-u0[simulation.model.fields.gu.mask])/
-                 norm(u0[simulation.model.fields.gu.mask])
+            norm(u0[simulation.model.fields.gu.mask])
 relerr_v=norm(simulation.model.fields.gv.v[simulation.model.fields.gv.mask]-v0[simulation.model.fields.gv.mask])/
-                 norm(v0[simulation.model.fields.gv.mask])
+            norm(v0[simulation.model.fields.gv.mask])
 
-return simulation, relerr_h, relerr_u, relerr_v
+thermal_diffusivity = simulation.model.thermo_dynamics.thermal_conductivity / 
+            (simulation.model.params.density_ice * simulation.model.thermo_dynamics.specific_heat_capacity)
+theta0 = default_temperature + 3*thermal_diffusivity/(2*simulation.model.thermo_dynamics.thermal_conductivity) * 
+            geothermal_heat_flux/(accumulation_rate/simulation.model.params.sec_per_year+3*thermal_diffusivity/h0)
+relerr_theta=norm(simulation.model.fields.gh.θ_ave[simulation.model.fields.gh.mask].-theta0)/
+            norm(theta0*ones(length(simulation.model.fields.gh.θ_ave[simulation.model.fields.gh.mask])))
+
+return simulation, relerr_h, relerr_u, relerr_v, relerr_theta
 
 end

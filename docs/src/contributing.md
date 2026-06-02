@@ -38,6 +38,35 @@ If you'd like to contribute code to the project:
 6. Open a pull request against the `main` branch of the main repository.
 
 
+## Local development
+
+To set up WAVI for local development (e.g. to contribute or test changes), follow these steps:
+
+**Clone the repository and create branch as needed (above section)**:
+
+```bash
+git clone https://github.com/WAVI-ice-sheet-model/WAVI.jl.git
+cd WAVI.jl
+```
+
+Lets say this is cloned to: `/git/WAVI.jl`.
+
+### Editable install
+
+If you would like to use your local WAVI code in another project (i.e. outside of the WAVI repo), do the following from that project directory:
+
+```julia
+julia> ]
+
+(@v1.12) pkg>activate .
+
+(@v1.12) pkg>develop /git/WAVI.jl
+```
+
+This adds WAVI to your current project environment in editable mode, pointing to your local clone. Any changes you make to the code in `/git/WAVI.jl` will take effect immediately — just restart your Julia session or re-include the relevant files to see the updates.
+
+Make sure to update `/git/WAVI.jl` in the above example to match the actual location where you cloned the `WAVI.jl` repo.
+
 ## Pull Request Process
 
 Please ensure your pull request follows these guidelines:

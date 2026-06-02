@@ -23,10 +23,13 @@ function update_velocities!(model::AbstractModel{T,N}) where {T,N}
     i_picard::Int64 = 0
     rel_resid = Inf
     while !converged && (i_picard < solver_params.maxiter_picard)
+
         i_picard = i_picard + 1
         @debug "Updating velocities, picard iteration $(i_picard)"
         inner_update!(model)
+        
         converged, rel_resid = precondition!(model)
+
     end
     @debug "Solved momentum equation with residual $(round(rel_resid,sigdigits=3)) at iteration $(i_picard)"
 
@@ -40,12 +43,15 @@ function inner_update!(model::AbstractModel)
     update_bed_speed!(model)
     update_β!(model)
     update_basal_drag!(model)
+    update_glen_b!(model)
+    update_damage!(model;store_strain_history = false)
     inner_update_viscosity!(model)
     update_av_viscosity!(model)
     update_quadrature_falpha!(model)
     update_βeff!(model)
     update_βeff_on_uv_grids!(model)
     update_rheological_operators!(model)
+  #  update_surface_velocities_on_uv_grid!(model)
     return model
 end
 
@@ -199,12 +205,11 @@ end
 """
     update_β!(model::AbstractModel)
 
-Find the drag coefficient at the bed using the sliding law.
+Find the drag coefficient at the bed through the chosen sliding law.
+The specific function lives in the corresponding sliding law file.
 """
 function update_β!(model::AbstractModel)
-    @unpack gh=model.fields
-    @unpack params=model
-    gh.β .= gh.weertman_c .* ( sqrt.(gh.bed_speed.^2 .+  params.weertman_reg_speed^2 ) ).^(1.0/params.weertman_m - 1.0)
+    update_β_using_sliding_law!(model.sliding_law,model)
     return model
 end
 
@@ -278,12 +283,14 @@ Use quadrature to compute falpha functions, used to relate average velocities, b
 """
 function update_quadrature_falpha!(model::AbstractModel)
     @unpack gh,g3d=model.fields
+    gh.quad_f0 .= zero(gh.quad_f0)
     gh.quad_f1 .= zero(gh.quad_f1)
     gh.quad_f2 .= zero(gh.quad_f2)
     for k=1:g3d.nσs
        for j = 1:g3d.nys
           for i = 1:g3d.nxs
             if gh.mask[i,j]
+                gh.quad_f0[i,j] += g3d.quadrature_weights[k]*gh.h[i,j]/g3d.η[i,j,k]
                 gh.quad_f1[i,j] += g3d.quadrature_weights[k]*gh.h[i,j]*g3d.ζ[k]/g3d.η[i,j,k]
                 gh.quad_f2[i,j] += g3d.quadrature_weights[k]*gh.h[i,j]*(g3d.ζ[k])^2/g3d.η[i,j,k]
             end
@@ -300,6 +307,7 @@ Compute the effective drag coefficient.
 """
 function update_βeff!(model::AbstractModel)
     @unpack gh=model.fields
+  #  gh.βeff[gh.mask] .= gh.β[gh.mask] ./ (1.0 .+ gh.quad_f2[gh.mask] .* gh.β[gh.mask])
     gh.βeff .= gh.β ./ (1.0 .+ gh.quad_f2 .* gh.β)
     return model
 end
@@ -347,6 +355,8 @@ function update_rheological_operators!(model::AbstractModel)
     gh.dimplicit[] .= gh.crop*Diagonal(-params.density_ice * params.g * solver_params.super_implicitness .* params.dt * gh.dsdh[:])*gh.crop
     return model
 end
+
+
 
 
 """

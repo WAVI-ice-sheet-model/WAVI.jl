@@ -32,7 +32,7 @@ Note that WAVI requires Julia v1.5 or newer.
 Updating WAVI is also achieved using the package manager
 ```julia
 julia>using Pkg
-julia>Pkg.update("WAVI"))
+julia>Pkg.update("WAVI")
 ```
 Note that updating should be done with care as WAVI is still developing rapidly; while we aim to keep breaking changes to a minimum, this cannot be guaranteed at present.
 
@@ -53,7 +53,27 @@ It's as easy as that: entry into the state of the art ice sheet model intercompa
 
 ## Getting help
 
-## Contributing
+### Building documentation
+
+If working on developing the codebase, you can build the documentation locally using:
+
+```julia
+julia docs/serve.jl
+```
+
+or:
+
+```julia
+./docs/serve.jl
+```
+
+And optionally, using the `--live` flag to enable hot-reloading, which will reload the browser upon any changes in the markdown, or source code (including docstrings).
+
+```julia
+./docs/serve.jl --live
+```
+
+### Contributing
 If you're interested in contributing to the development of WAVI we want your help no matter how big or small a contribution you make! Contributing guidelines can be found in our [contributing guide](https://WAVI-ice-sheet-model.github.io/WAVI.jl/contributing/)
 
 ## Credits

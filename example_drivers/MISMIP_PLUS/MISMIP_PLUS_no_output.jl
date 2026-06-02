@@ -3,13 +3,13 @@ using WAVI
 
 function MISMIP_PLUS()
     #Grid and boundary conditions
-    nx = 160
-    ny = 20
+    nx = 320
+    ny = 40
     nσ = 4
     x0 = 0.0
     y0 = -40000.0
-    dx = 4000.0
-    dy = 4000.0
+    dx = 2000.0
+    dy = 2000.0
     h_mask=trues(nx,ny)
     u_iszero = falses(nx+1,ny); u_iszero[1,:].=true
     v_iszero=falses(nx,ny+1); v_iszero[:,1].=true; v_iszero[:,end].=true
@@ -39,16 +39,24 @@ function MISMIP_PLUS()
     #Physical parameters
     default_thickness = 100.0 #set the initial condition this way
     accumulation_rate = 0.3
+    ice_tensile_strength = 220.0e3
+    phase_field_length = sqrt(dx^2 + dy^2)
     params = Params(default_thickness = default_thickness, 
-                    accumulation_rate = accumulation_rate)
+                    accumulation_rate = accumulation_rate,
+                    ice_tensile_strength = ice_tensile_strength,
+                    phase_field_length = phase_field_length)
+
+    fracture = DruckerPragerPhaseField()
 
     #make the model
     model = Model(grid,
                   bed,
                   spec; 
                   params = params, 
-                  solver_params = solver_params)
+                  solver_params = solver_params,
+                  fracture = fracture)
  
+
     #timestepping parameters
     niter0 = 0
     dt = 0.1

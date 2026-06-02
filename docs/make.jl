@@ -2,10 +2,17 @@ using Documenter
 using DocumenterCitations
 using Literate 
 using Plots
+using Revise
 using WAVI
+
+# Track changes in WAVI source code
+# Handle need for re-compiling instead of using previous cache
+Revise.track(WAVI)
 
 bib_filepath = joinpath(dirname(@__FILE__), "wavi.bib")
 bib = CitationBibliography(bib_filepath)
+
+@info "Running makedocs()"
 
 ENV["GKSwstype"] = "100"
 
@@ -78,7 +85,7 @@ pages = [
 
 format = Documenter.HTML(
     collapselevel = 1,
-    prettyurls = get(ENV, "CI", nothing) == "true",
+    prettyurls = true,
     #canonical = "website_url_here",
     mathengine = MathJax3()
 )
@@ -99,7 +106,7 @@ makedocs(
 
 deploydocs(
     repo="github.com/WAVI-ice-sheet-model/WAVI.jl",
-    devbranch="docs-reconcile",
+    devbranch="main",
     versions = nothing
 )
 

@@ -5,6 +5,10 @@ using Parameters
 using WAVI: AbstractModel
 using WAVI.KroneckerProducts
 using WAVI.MeltRates
+using WAVI.Fracture
+using WAVI.SlidingLaw
+using WAVI.BasalHydrology
+using WAVI.ThermoDynamics
 using WAVI.Time
 using WAVI.Utilities
 using WAVI.Wavelets
@@ -21,13 +25,19 @@ function update_state!(model::AbstractModel, clock::Clock)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
-    update_basal_melt!(model, clock)
-    update_weertman_c!(model)
+    update_thermodynamics!(model)
+    update_shelf_basal_melt!(model, clock)
+    update_basal_melt!(model)
+    update_glen_b!(model)
     update_dsdh!(model)
+    update_basal_hydrology!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
+    update_surf_speed!(model)
+    update_strain_history!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+    update_surface_velocities_on_uv_grid!(model)
     return nothing
 end
 
@@ -43,13 +53,45 @@ function update_state!(model::AbstractModel)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model)
-    update_basal_melt!(model, Clock())
-    update_weertman_c!(model)
+    update_thermodynamics!(model)
+    update_shelf_basal_melt!(model, Clock())
+    update_basal_melt!(model)
+    update_glen_b!(model)
     update_dsdh!(model)
+    update_basal_hydrology!(model)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
+    update_surf_speed!(model)
+    update_strain_history!(model)
     update_dhdt!(model)
     update_model_wavelets!(model)
+    update_surface_velocities_on_uv_grid!(model)
+    return nothing
+end
+
+"""
+update_state_novelocity!(model::AbstractModel, clock)
+
+Update the model to the current time dependent situation, without updating the ice velocities
+"""
+function update_state_novelocity!(model, clock)
+    update_surface_elevation!(model)
+    update_geometry_on_uv_grids!(model)
+    update_height_above_floatation!(model)
+    update_grounded_fraction_on_huv_grids!(model)
+    update_accumulation_rate!(model)
+    update_thermodynamics!(model)
+    update_shelf_basal_melt!(model, clock)
+    update_basal_melt!(model, clock)
+    update_glen_b!(model)
+    update_dsdh!(model)
+    update_basal_hydrology!(model)
+    update_velocities_on_h_grid!(model)
+    update_surf_speed!(model)
+    update_strain_history!(model)
+    update_dhdt!(model)
+    update_model_wavelets!(model)
+    update_surface_velocities_on_uv_grid!(model)
     return nothing
 end
 
@@ -122,28 +164,58 @@ function update_accumulation_rate!(model::AbstractModel)
     return model
 end
 
+"""
+    update_thermodynamics!(model::AbstractModel)
+
+Update the ice temperature and grounded melt rate according to the chosen thermodynamics model.
+The specific function lives in the corresponding thermodynamics file.
+"""
+function update_thermodynamics!(model::AbstractModel)
+    update_ice_temperature_grounded_melt_rate!(model.thermo_dynamics,model)
+    return model
+end
+
+
+"""
+    update_shelf_basal_melt!(model::AbstractModel)
+
+Update the basal melt rate under ice shelves.
+"""
+function update_shelf_basal_melt!(model::AbstractModel, clock)
+    update_shelf_melt_rate!(model.shelf_melt_rate, model.fields, model.grid, clock)
+    return model
+end
 
 """
     update_basal_melt!(model::AbstractModel)
 
-Update the basal melt rate.
+Update the basal melt rate (combining grounded_basal_melt and shelf_basal_melt)
 """
-function update_basal_melt!(model::AbstractModel, clock)
-    update_melt_rate!(model.melt_rate, model.fields, model.grid, clock)
-    return model
-end
-
-"""
-    update_weertman_c!(model::AbstractModel)
-
-Update coefficient used in the sliding law to account for migration of grounding line.
-"""
-function update_weertman_c!(model::AbstractModel)
+function update_basal_melt!(model::AbstractModel)
     @unpack gh=model.fields
-    @unpack params=model
-    gh.weertman_c .= params.weertman_c .* gh.grounded_fraction
+    gh.basal_melt .= gh.shelf_basal_melt .+ gh.grounded_basal_melt
     return model
 end
+
+"""
+    update_glen_b!(model::AbstractModel)
+
+Update stiffness parameter B in Glen flow law.
+"""
+function update_glen_b!(model::AbstractModel)
+    @unpack g3d=model.fields
+    @unpack params=model
+    for k=1:g3d.nσs
+        for j=1:g3d.nys
+            for i=1:g3d.nxs
+                g3d.glen_b[i,j,k] = glen_b.(g3d.θ[i,j,k],g3d.Φ[i,j,k],params.glen_a_ref[i,j], params.glen_n, params.glen_a_activation_energy, params.glen_temperature_ref, params.gas_const)
+            end
+        end
+    end
+    return model
+end
+
+
 
 """
     update_dsdh!(model::AbstractModel)
@@ -155,6 +227,17 @@ function update_dsdh!(model::AbstractModel)
     @unpack params = model
     gh.dsdh .= (1.0 - params.density_ice./params.density_ocean) .+
            (params.density_ice./params.density_ocean).*gh.grounded_fraction;
+    return model
+end
+
+"""
+    update_basal_hydrology!(model::AbstractModel)
+
+Update the basal water thickness and effective pressure according to the chosen basal hydrology model.
+The specific function lives in the corresponding basal hydrology file.
+"""
+function update_basal_hydrology!(model::AbstractModel)
+    update_basal_water_thickness_effective_pressure!(model.basal_hydrology,model)
     return model
 end
 
@@ -188,6 +271,18 @@ function update_velocities_on_h_grid!(model::AbstractModel{T,N,S}) where {T,N,S<
     gh.vs .= gh.vb .* (1 .+ (gh.β .* gh.quad_f1))
     return model
 end
+
+"""
+    update_surf_speed!(model::AbstractModel)
+
+Find the sliding speed on the h-grid using the speed components.
+"""
+function update_surf_speed!(model::AbstractModel)
+    @unpack gh=model.fields
+    gh.surf_speed  .= sqrt.(gh.us.^2 .+gh.vs.^2);
+    return model
+end
+
 """
     update_dhdt!(model::AbstractModel)
 
@@ -209,3 +304,12 @@ function update_model_wavelets!(model::AbstractModel)
     update_wavelets!(model)
     return model
 end
+
+function update_surface_velocities_on_uv_grid!(model)
+    @unpack gh,gu,gv = model.fields
+    #surface  velocities
+    gu.us[:].=gu.crop*(gu.centᵀ*gh.crop*(gh.us[:]))
+    gv.vs[:].=gv.crop*(gv.centᵀ*gh.crop*(gh.vs[:]))
+    return model
+end
+

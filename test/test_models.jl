@@ -11,18 +11,20 @@ using Test, WAVI
     @test model isa Model
 
     #check that a scalar weertman c passed to model emerges as an array
-    model = Model(grid = grid, bed_elevation = bed_elevation, params = Params(weertman_c = 1.0))
-    @test model.params.weertman_c == 1.0 *ones(grid.nx, grid.ny)
-
+    sliding_law = WeertmanSlidingLaw(drag_coefficient=1.0)
+    model = Model(grid = grid, bed_elevation = bed_elevation, sliding_law = sliding_law)
+    @test model isa Model
+    
     #check that an array weertman_c works
-    model = Model(grid = grid, bed_elevation = bed_elevation, params = Params(weertman_c =1.0*ones(grid.nx, grid.ny)))
+    sliding_law = WeertmanSlidingLaw(drag_coefficient=1.0*ones(grid.nx, grid.ny))
+    model = Model(grid = grid, bed_elevation = bed_elevation, sliding_law = sliding_law)
     @test model isa Model
 
-    #check that a scalar weertman c passed to model emerges as an array
+    #check that a scalar accumulation rate passed to model emerges as an array
     model = Model(grid = grid, bed_elevation = bed_elevation, params = Params(accumulation_rate = 1.0))
     @test model.params.accumulation_rate == 1.0 *ones(grid.nx, grid.ny)
 
-    #check that an array weertman_c works
+    #check that an array accumulation rate works
     model = Model(grid = grid, bed_elevation = bed_elevation, params = Params(accumulation_rate =1.0*ones(grid.nx, grid.ny)))
     @test model isa Model
 
@@ -103,7 +105,8 @@ using Test, WAVI
     #test dimnesion mismatch if size of input weertman_c incompatible
     grid = Grid()
     bed_elevation = zeros(grid.nx, grid.ny)
-    @test_throws DimensionMismatch Model(grid = grid, bed_elevation = bed_elevation, params = Params(weertman_c =1.0*ones(grid.nx -1, grid.ny -1)))
+    sliding_law = WeertmanSlidingLaw(drag_coefficient = 1.0*ones(grid.nx -1, grid.ny -1))
+    @test_throws DimensionMismatch Model(grid = grid, bed_elevation = bed_elevation, sliding_law = sliding_law)
 
     end
 
