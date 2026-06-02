@@ -14,8 +14,9 @@ end
 #clock constructor
 function Clock(;
                 n_iter = 0,
-                time = 0)
-    return Clock(n_iter, time)
+                time = 0,
+                ref_time = 0)
+    return Clock(n_iter, time, ref_time)
 end
 
 """

@@ -4,7 +4,7 @@ using WAVI
 import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
-using WAVI.MeltRate: update_climate_forcing!
+using WAVI.MeltRates: update_climate_forcing!
 using WAVI.Fracture: update_climate_forcing!
 using WAVI.SurfaceMassBalance: update_climate_forcing!
 

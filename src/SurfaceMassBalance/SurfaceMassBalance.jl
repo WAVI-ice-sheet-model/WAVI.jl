@@ -2,7 +2,7 @@ module SurfaceMassBalance
 
 export update_accumulation_rate!
 
-using WAVI: AbstractSurfaceMassBalance, AbstractModel
+using WAVI: AbstractSurfaceMassBalance, AbstractModel, AbstractClimateForcing
 using Parameters
 using WAVI.Time: Clock
 

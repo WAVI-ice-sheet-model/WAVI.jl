@@ -1,11 +1,11 @@
 export ISMIP7SMB
 
-struct ISMIP7SMB{IC::AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
-    ISMIP7_config::IC
-    reference_elevation::Union{Array{T,2}, nothing}
-    vertical_smb_gradient::Union{Array{T,2}, nothing}
-    smb_anomaly::Union{Array{T,2}, nothing}
-    reference_smb::Union{Array{T,2}, nothing}
+struct ISMIP7SMB{CF <:AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
+    ISMIP7_config::CF
+    reference_elevation::Union{Array{T,2}, Nothing}
+    vertical_smb_gradient::Union{Array{T,2}, Nothing}
+    smb_anomaly::Union{Array{T,2}, Nothing}
+    reference_smb::Union{Array{T,2}, Nothing}
 end
 
 function ISMIP7SMB(; 
