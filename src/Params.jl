@@ -23,7 +23,7 @@ glen_a_activation_energy :: T
    basal_water_thickness :: T
    hydraulic_potential_b :: H
       effective_pressure :: E
-              basal_melt :: T
+      default_basal_melt :: T
  default_temperature_ave :: T
 end
 
@@ -59,7 +59,7 @@ Keyword arguments
 - `basal_water_thickness` : basal water thickness (m)
 - `hydraulic_potential_b` : hydraulic_potential at the bed (Pa)
 - `effective_pressure` : effective pressure (Pa)
-- `basal_melt` : basal melt rate (m/yr)
+- `default_basal_melt` : initial basal melt rate (m/yr). Gets overwritten during first time step by set/calculated shelf- and grounded melt rate
 - `default_temperature_ave` : depth-averaged temperature (K)
 """
 function Params(; g = 9.81, 
@@ -85,7 +85,7 @@ function Params(; g = 9.81,
                   basal_water_thickness = 0.0,
                   hydraulic_potential_b = 0.0,
                   effective_pressure = 1.0e6,
-                  basal_melt = 0.0,
+                  default_basal_melt = 0.0,
                   default_temperature_ave = 253.15)
                       
   #default the timestep to 1.0 (will be updated when the model is embedded in a simulation)
@@ -116,7 +116,7 @@ function Params(; g = 9.81,
                   basal_water_thickness,
                   hydraulic_potential_b,
                   effective_pressure,
-                  basal_melt,
+                  default_basal_melt,
                   default_temperature_ave
                   )
 end

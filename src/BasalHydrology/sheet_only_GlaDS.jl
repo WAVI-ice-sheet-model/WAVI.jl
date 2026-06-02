@@ -8,8 +8,8 @@ struct SheetOnlyGlaDS{T <: Real, N  <: Integer} <: AbstractBasalHydrology
     ɛ           :: T
 
     # GlaDS physics
-    shmip :: Vector{T}
-    m     :: T
+    # shmip :: Vector{T}
+    # m     :: T
     k     :: T
     α     :: T
     β     :: T
@@ -35,8 +35,8 @@ Keyword arguments
 - do_autotune               : 
 - n_autotune                :
 - ɛ                         : avoids division by zero
-- shmip                     :
-- m                         :
+# - shmip                     :
+# - m                         :
 - k                         : sheet conductivity
 - α                         : 1st turbulent flow exponent
 - β                         : 2nd turbulent flow exponent
@@ -57,8 +57,8 @@ function SheetOnlyGlaDS(;
                     ɛ           = 1e-9,
 
                     # GlaDS physics
-                    shmip = [7.93e-11, 1.59e-9, 5.79e-9, 2.5e-8, 4.5e-8, 5.79e-7],
-                    m     = shmip[1], # 7.93e-11 is ~2.5 mm/yr, 5.79e-7 is ~18.3 m/yr
+                    # shmip = [7.93e-11, 1.59e-9, 5.79e-9, 2.5e-8, 4.5e-8, 5.79e-7],
+                    # m     = shmip[1], # 7.93e-11 is ~2.5 mm/yr, 5.79e-7 is ~18.3 m/yr
                     k     = 0.005,    # Sheet conductivity
                     α     = 5 / 4,    # 1st turbulent flow exponent (GlaDS)
                     β     = 3 / 2,    # 2nd turbulent flow exponent
@@ -79,8 +79,8 @@ function SheetOnlyGlaDS(;
                     do_autotune,
                     n_autotune,
                     ɛ,
-                    shmip,
-                    m,
+                    # shmip,
+                    # m,
                     k,
                     α,
                     β,
@@ -136,7 +136,7 @@ end
     return
 end
 
-@views function jvp!(v, r̄, r, ϕ, ϕ̄, ∂ₓϕ, ∂ₓϕ̄, ∂ᵧϕ, ∂ᵧϕ̄, qx, qx̄, qy, qȳ, D, D̄, ρigH, ρigH̄, ρwgB, ρwgB̄, Neff, N̄eff, h, h̄, k, α, β, ϕ_fixed, u_b, u_b̄, h_r, l_r, Ã, glens_n, dx, dy, m, floatMask, domainMask)
+@views function jvp!(v, r̄, r, ϕ, ϕ̄, ∂ₓϕ, ∂ₓϕ̄, ∂ᵧϕ, ∂ᵧϕ̄, qx, qx̄, qy, qȳ, D, D̄, ρigH, ρigH̄, ρwgB, ρwgB̄, Neff, N̄eff, h, h̄, k, α, β, ϕ_fixed, u_b, u_b̄, h_r, l_r, Ã, glens_n, dx, dy, m, m̄, floatMask, domainMask)
     # Set the input vector for cell and vertex components
     @. ϕ̄  = v
 
@@ -165,7 +165,7 @@ end
                     Const(glens_n),
                     Const(dx),
                     Const(dy),
-                    Const(m),
+                    DuplicatedNoNeed(m, m̄),
                     Const(floatMask),
                     Const(domainMask))
     return nothing
@@ -194,9 +194,9 @@ end
 use the sheets only version of GlaDS to calculate the basal water thickness, hydraulic potential at the bed, and effective pressure
 """
 
-function update_basal_water_thickness_effective_pressure!(basal_hydrology::SheetOnlyGlaDS{T}, model::AbstractModel) where {T}
+function update_basal_water_thickness_effective_pressure!(basal_hydrology::SheetOnlyGlaDS{T}, model::AbstractModel; update_basal_water_thickness::Bool = true) where {T}
     # derived parameters
-    @unpack ncheck, maxiter, etol, do_autotune, n_autotune, ɛ, shmip, m, k, α, β, ϕ_fixed, Ã, h_r, l_r = basal_hydrology
+    @unpack ncheck, maxiter, etol, do_autotune, n_autotune, ɛ, k, α, β, ϕ_fixed, Ã, h_r, l_r = basal_hydrology
     @unpack nx, ny, dx, dy = model.grid
     @unpack gh, gu, gv = model.fields
     @unpack params = model
@@ -218,6 +218,7 @@ function update_basal_water_thickness_effective_pressure!(basal_hydrology::Sheet
     floatMask = falses(nx, ny)
     domainMask = (gh=gh.mask, gu=gu.mask, gv=gv.mask, gphi = gh.hyd_potential_isfixed)
 
+    m    = gh.basal_melt./params.sec_per_year # m/s
     u_b  = gh.bed_speed./params.sec_per_year # m/s
     ϕ    = gh.hydraulic_potential_b
 
@@ -249,6 +250,7 @@ function update_basal_water_thickness_effective_pressure!(basal_hydrology::Sheet
     ρwgB̄ = map(zero, ρwgB)
     N̄eff = map(zero, Neff)
     h̄ = map(zero, h)
+    m̄ = map(zero, m)
     u_b̄ = map(zero, u_b)
     I = coloring(nx, ny)
 
@@ -299,7 +301,7 @@ function update_basal_water_thickness_effective_pressure!(basal_hydrology::Sheet
                 fill!(e, 0.0)
                 e[group] .= 1.0
                 jvp!(e, r̄, r, ϕ, ϕ̄, ∂ₓϕ, ∂ₓϕ̄, ∂ᵧϕ, ∂ᵧϕ̄, qx, qx̄, qy, qȳ, D, D̄, ρigH, ρigH̄, ρwgB, ρwgB̄, Neff, N̄eff, h, h̄, k, α, β, ϕ_fixed, u_b, u_b̄, h_r, l_r, Ã, params.glen_n, dx, dy,
-                        m, floatMask, domainMask)
+                        m, m̄, floatMask, domainMask)
                 @. P[group] = 1.0 / (abs(r̄[group]) + ɛ)
             end
         end
@@ -332,7 +334,10 @@ function update_basal_water_thickness_effective_pressure!(basal_hydrology::Sheet
         τ += Δτ
     end
 
-    gh.basal_water_thickness .= h.gh
+    if update_basal_water_thickness
+        println("Updating basal water thickness!")
+        gh.basal_water_thickness .= h.gh
+    end
     gh.hydraulic_potential_b .= ϕ
     @. Neff *= domainMask.gh * gh.grounded_fraction
     gh.effective_pressure .= max.(basal_hydrology.min_effective_pressure, Neff)

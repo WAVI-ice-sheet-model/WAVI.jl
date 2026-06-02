@@ -51,7 +51,7 @@ if all(isnan.(initial_conditions.initial_basal_water_thickness))
 end
 
 if all(isnan.(initial_conditions.initial_basal_melt))
-    default_basal_melt = params.basal_melt
+    default_basal_melt = params.default_basal_melt
     #@info "Did not find a specified initial basal melt field, reverting to default value specified in params ($default_basal_melt everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
     initial_conditions = @set initial_conditions.initial_basal_melt =  default_basal_melt*ones(grid.nx, grid.ny)
 end
