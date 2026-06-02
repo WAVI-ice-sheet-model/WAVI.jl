@@ -3,6 +3,7 @@ module Fracture
 export update_damage!, update_strain_history!
 
 using Parameters
+using NCDatasets
 
 using WAVI: AbstractFracture, AbstractModel
 using WAVI.Advection
@@ -24,8 +25,20 @@ Update the strain history stored in the model structure.
 """
 update_strain_history!(model::AbstractModel{T,N};kwargs ...) where {T,N} = update_strain_history!(get_fracture(model),model; kwargs ...)
 
+
+"""
+
+    update_climate_forcing!(surface_mass_balance::AbstractFracture) 
+
+Generic wrapper function for updating the climate forcing. Overload this in your fracture module of choice (see ISMIP7hydrofracture.jl for an example)
+"""
+function update_climate_forcing!(fracture::AbstractFracture, clock)
+    return nothing
+end
+
 include("./ConstantDamage.jl")
 include("./DruckerPragerPhaseField.jl")
+include("./ISMIP7hydrofracture.jl")
 include("./utils.jl")
 
 end
