@@ -57,11 +57,13 @@ function OutputParams(outputs::NamedTuple;
     #check output_freq
     ((output_freq == Inf) || (output_freq > 0)) || throw(ArgumentError("output frequency must be positive or Inf"))
 
-    #if you don't find folder, be helpful and create it for the user
-    if ~isdir(output_path)
-        @warn string("Did not find output path ", output_path, ", we're creating it for you!")
-        mkdir(output_path)
+    #create output path if it doesn't exist (using mkpath instead of mkdir to avoid MPI races)
+    mpi_rank = get(ENV, "OMPI_COMM_WORLD_RANK", get(ENV, "PMI_RANK", "0"))
+    is_root_rank = mpi_rank == "0"
+    if !isdir(output_path) && is_root_rank
+        @warn string("Did not find output path ", output_path, ", creating it")
     end
+    mkpath(output_path)
 
     #append a "/" to folder if it doesn't have one
     endswith(output_path, "/") || (output_path = string(output_path, "/"))
