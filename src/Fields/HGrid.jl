@@ -123,20 +123,22 @@ function HGrid(;
                 mpi_rank = -ones(nxh,nyh)
 )
 
-    println(size(mask)," ",
-            size(h_isfixed)," ",
-            size(hyd_potential_isfixed)," ",
-            size(b)," ",
-            size(h)," ",
-            size(ηav)," ",
-            size(grounded_fraction)," ",
-            size(basal_water_thickness)," ",
-            size(hydraulic_potential_b)," ",
-            size(effective_pressure)," ",
-            size(basal_melt)," ",
-            size(θ_ave)," ",
-            size(preBfactor)," ",
-            size(mpi_rank))
+    @debug "HGrid input sizes" sizes = (
+        size_mask = size(mask),
+        size_h_isfixed = size(h_isfixed),
+        size_hyd_potential_isfixed = size(hyd_potential_isfixed),
+        size_b = size(b),
+        size_h = size(h),
+        size_ηav = size(ηav),
+        size_grounded_fraction = size(grounded_fraction),
+        size_basal_water_thickness = size(basal_water_thickness),
+        size_hydraulic_potential_b = size(hydraulic_potential_b),
+        size_effective_pressure = size(effective_pressure),
+        size_basal_melt = size(basal_melt),
+        size_θ_ave = size(θ_ave),
+        size_preBfactor = size(preBfactor),
+        size_mpi_rank = size(mpi_rank),
+    )
 
     #check the sizes of inputs
     (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == size(mpi_rank) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
