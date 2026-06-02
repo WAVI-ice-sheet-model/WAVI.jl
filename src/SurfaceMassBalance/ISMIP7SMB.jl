@@ -1,11 +1,14 @@
 export ISMIP7SMB
 
-struct ISMIP7SMB{IC::AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
+using WAVI: AbstractClimateForcing
+using NCDataset
+
+struct ISMIP7SMB{IC <: AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
     ISMIP7_config::IC
-    reference_elevation::Union{Array{T,2}, nothing}
-    vertical_smb_gradient::Union{Array{T,2}, nothing}
-    smb_anomaly::Union{Array{T,2}, nothing}
-    reference_smb::Union{Array{T,2}, nothing}
+    reference_elevation::Union{Array{T,2}, Nothing}
+    vertical_smb_gradient::Union{Array{T,2},Nothing}
+    smb_anomaly::Union{Array{T,2}, Nothing}
+    reference_smb::Union{Array{T,2}, Nothing}
 end
 
 function ISMIP7SMB(; 
@@ -40,9 +43,13 @@ end
 function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::AbstractModel, clock::Clock)
     @unpack reference_smb, smb_anomaly, vertical_smb_gradient, reference_elevation = surface_mass_balance
     @unpack s = model.fields.gh
-
-
+    
     change_in_elevation = s - reference_elevation
+
+    #check the files are the right size
+    (size(smb_anomaly) == (model.grid.nx, model.grid.ny)) || throw(DimensionMismatch("Size of read in smb anomaly is not compatible with grid size"))
+    (size(vertical_smb_gradient) == (model.grid.nx, model.grid.ny)) || throw(DimensionMismatch("Size of read in vertical smb gradient is not compatible with grid size"))
+
 
     #set the updated smb 
     accumulation .=  reference_smb .+ smb_anomaly .+ vertical_smb_gradient .* change_in_elevation
@@ -53,6 +60,30 @@ end
 
 
 function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, clock) 
-    #do the stuff to update the forcing 
+    @unpack smb_anomaly = surface_mass_balance
+    @unpack vertical_smb_gradient = surface_mass_balance
+
+    #get the year from clock for the forcing files
+    current_time = clock.time + clock.ref_time
+    current_time_string = string(Int(round(current_time)))
+
+    #read the grid resolution from the reference smb
+    (nx,ny) = size(surface_mass_balance.reference_smb)
+
+    #compute the grid size from the number of grid points
+    dx = 6088000.0 / nx 
+
+    # load in the smb anomaly from ISMIP7
+    resolution = join([string(Int(dx)), "m"])
+    smb_anomaly_filename = join(["acabf-anomaly_AIS_", model, "_ssp", scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"])
+    smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
+    smb_anomaly .= smb_anomaly_ncfile["acabf-anomaly"][:,:,:] 
+
+
+    # load in the vertical smb gradient from ISMIP7
+    vertical_smb_gradient_anomaly_filename = join(["dacabfdz_AIS_", model, "_ssp", scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,".nc"])
+    vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
+    vertical_smb_gradient .= vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:]
     
+
 end
