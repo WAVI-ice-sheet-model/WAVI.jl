@@ -1,7 +1,7 @@
 export ISMIP7SMB
 
 using WAVI: AbstractClimateForcing
-using NCDataset
+using NCDatasets
 
 struct ISMIP7SMB{IC <: AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
     ISMIP7_config::IC
@@ -77,13 +77,13 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, clock)
     resolution = join([string(Int(dx)), "m"])
     smb_anomaly_filename = join(["acabf-anomaly_AIS_", model, "_ssp", scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"])
     smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
-    smb_anomaly .= smb_anomaly_ncfile["acabf-anomaly"][:,:,:] 
+    smb_anomaly .= replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,:] , missing => NaN)
 
 
     # load in the vertical smb gradient from ISMIP7
     vertical_smb_gradient_anomaly_filename = join(["dacabfdz_AIS_", model, "_ssp", scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,".nc"])
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
-    vertical_smb_gradient .= vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:]
+    vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:], missing => NaN)
     
 
 end
