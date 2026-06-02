@@ -47,7 +47,7 @@ function Simulation(;
         model, clock = pickup_model, pickup_clock
     else
         # TODO: is the change from the default relevant - time is now type-variant (Real not Int)
-        clock = Clock(n_iter = 0, time = 0.0)
+        clock = Clock(n_iter = 0, time = 0.0, ref_time = timestepping_params.ref_time)
         #set the timestep in model parameters (fudge to allow model to see the timestep in velocity solve)
         model = set_dt_in_model!(model, timestepping_params.dt)
     end

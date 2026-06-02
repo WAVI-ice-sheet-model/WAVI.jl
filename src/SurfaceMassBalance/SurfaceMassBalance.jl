@@ -18,10 +18,23 @@ Update the accumulation rate in the model using the time from clock.
 """
 update_accumulation_rate!(model::AbstractModel, clock::Clock) = update_accumulation_rate!(get_surface_mass_balance(model)::AbstractSurfaceMassBalance, model, clock)
 
+"""
+
+    update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalance) 
+
+Generic wrapper function for updating the climate forcing. Overload this in your surface mass balance module of choice (see ISMIP7SMB.jl for an example)
+"""
+function update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalance, clock) 
+    return nothing
+end
+
+
+
 #include all specialised methods for computing accumulation rate
 include("./AccumulationFromParams.jl")
 include("./UniformAccumulationRate.jl")
 include("./BinfileAccumulationRate.jl")
+include("./ISMIP7SMB.jl")
 
 #default behaviour if no clock passed
 update_accumulation_rate!(model::AbstractModel) = update_accumulation_rate!(model::AbstractModel, Clock()) 

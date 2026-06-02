@@ -277,7 +277,7 @@ end
     super_implicitness::T = 1.0
 end
 
-struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
+struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P, Y <: Real}
                         niter0 :: N      #starting iteration number
                             dt :: T      #timestep
     ntimesteps_velocity_update :: N      #number of substeps at which to update the velocity (i.e. the velocity is updated every dt*ntimesteps_velocity_update)
@@ -291,8 +291,9 @@ struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
                  n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
                 step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
                        verbose :: Bool   #toggle whether or not to output when the timestepping have been performed
+ntimesteps_climate_forcing_update :: N   #number of timesteps per update of the climate forcing
+                    ref_time :: Y        #set the reference time of the simulation (e.g. 2015)
 end
-
 
 
 """
@@ -306,7 +307,8 @@ TimesteppingParams(;
                     pchkpt_freq = Inf,
                     chkpt_path = './',
                     step_thickness = true,
-                    verbose = false)
+                    verbose = false, 
+                    ref_time = 0)
 
 Construct a WAVI.jl TimesteppingParams object.
 TimesteppingParams stores information relating to timestepping.
@@ -323,6 +325,8 @@ Keyword arguments
 - 'chkpt_path' : Path to location checkpoint output
 - 'step_thickness': Toggle whether to update the ice thickness (true) or not (false) at each timestep
 - 'verbose': Toggle whether to output when the timestepping have been performed (true) or not (false)
+- 'ntimesteps_climate_forcing_update': set the number of timesteps per update of the climate forcing
+- 'ref_time': set the reference (clock) time
 """
 function TimesteppingParams(;
                         niter0 = 0,
@@ -334,7 +338,9 @@ function TimesteppingParams(;
                         pchkpt_freq = Inf,
                         chkpt_path = "./",
                         step_thickness = true,
-                        verbose = false)
+                        verbose = false, 
+                        ntimesteps_climate_forcing_update = Inf, 
+                        ref_time = 0)
 
     #initialize t0 (really you should read start time from pickup file)
     t0 = niter0 > 0 ? niter0 * dt : 0 
@@ -361,7 +367,7 @@ function TimesteppingParams(;
     end
 
     return TimesteppingParams(niter0, dt, ntimesteps_velocity_update,end_time, t0, chkpt_freq, pchkpt_freq, 
-                            chkpt_path,n_iter_total, n_iter_chkpt, n_iter_pchkpt, step_thickness,verbose)
+                            chkpt_path,n_iter_total, n_iter_chkpt, n_iter_pchkpt, step_thickness,verbose, ntimesteps_climate_forcing_update, ref_time)
 end
 
 end

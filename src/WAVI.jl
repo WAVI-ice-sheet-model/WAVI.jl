@@ -105,8 +105,7 @@ QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBas
 UniformMeltUnderShelvesBasins
 
 using .SurfaceMassBalance
-export AccumulationFromParams, BinfileAccumulationRate, UniformAccumulationRate
-
+export AccumulationFromParams, BinfileAccumulationRate, UniformAccumulationRate, ISMIP7SMB
 using .Processes
 export update_state!, update_velocities!
 
