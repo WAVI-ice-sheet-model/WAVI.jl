@@ -5,6 +5,7 @@ using Parameters
 using WAVI: AbstractModel
 using WAVI.KroneckerProducts
 using WAVI.MeltRates
+using WAVI.SurfaceMassBalance
 using WAVI.Fracture
 using WAVI.SlidingLaw
 using WAVI.BasalHydrology
@@ -24,7 +25,7 @@ function update_state!(model::AbstractModel, clock::Clock)
     update_geometry_on_uv_grids!(model)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
-    update_accumulation_rate!(model)
+    update_accumulation_rate!(model, clock)
     update_thermodynamics!(model)
     update_shelf_basal_melt!(model, clock)
     update_basal_melt!(model)
@@ -52,7 +53,7 @@ function update_state!(model::AbstractModel)
     update_geometry_on_uv_grids!(model)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
-    update_accumulation_rate!(model)
+    update_accumulation_rate!(model, Clock())
     update_thermodynamics!(model)
     update_shelf_basal_melt!(model, Clock())
     update_basal_melt!(model)
@@ -79,7 +80,7 @@ function update_state_novelocity!(model, clock)
     update_geometry_on_uv_grids!(model)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
-    update_accumulation_rate!(model)
+    update_accumulation_rate!(model, clock)
     update_thermodynamics!(model)
     update_shelf_basal_melt!(model, clock)
     update_basal_melt!(model, clock)
@@ -149,18 +150,6 @@ function update_grounded_fraction_on_huv_grids!(model::AbstractModel)
     gh.grounded_fraction[:] .= gfh[:]
     gu.grounded_fraction[:] .= gfu[:]
     gv.grounded_fraction[:] .= gfv[:]
-    return model
-end
-
-"""
-    update_accumulation_rate!(model::AbstractModel)
-
-Update the accumulation rate.
-"""
-function update_accumulation_rate!(model::AbstractModel)
-    @unpack params = model
-    @unpack gh=model.fields
-    gh.accumulation .= params.accumulation_rate
     return model
 end
 

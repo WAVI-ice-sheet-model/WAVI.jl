@@ -7,7 +7,8 @@ using Plots
 
 using WAVI.Parameters
 
-import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractFracture, AbstractSlidingLaw, AbstractBasalHydrology, AbstractThermoDynamics, AbstractModel
+import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance, AbstractFracture, AbstractSlidingLaw, 
+                   AbstractBasalHydrology, AbstractThermoDynamics, AbstractModel
 import WAVI.Deferred: Collector, register_item!, field_extractor
 import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 import WAVI.Grids: Grid
@@ -155,6 +156,7 @@ function Model(grid::G,
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
                shelf_melt_rate::M = UniformMeltRate(),
+               surface_mass_balance::SMB = AccumulationFromParams(),
                fracture::FR = ConstantDamage(),
                sliding_law::SL = WeertmanSlidingLaw(),
                basal_hydrology::BH = NoHydrology(),
@@ -162,6 +164,7 @@ function Model(grid::G,
                verbose = true)                   where {G<:AbstractGrid, 
                                                         S<:MPISpec, 
                                                         M<:AbstractMeltRate,
+                                                        SMB<:AbstractSurfaceMassBalance,
                                                         FR<:AbstractFracture,
                                                         SL<:AbstractSlidingLaw,
                                                         BH<:AbstractBasalHydrology,
@@ -237,7 +240,7 @@ function Model(grid::G,
     local_mpi_rank = fill(Float64(rank), nx_local, ny_local)
 
     fields = GridField(local_grid, bed_array; initial_conditions=local_initial_conditions, params=local_params, solver_params, mpi_rank=local_mpi_rank)
-    model = Model(local_grid, fields, local_params, solver_params, spec, shelf_melt_rate, fracture, sliding_law, basal_hydrology, 
+    model = Model(local_grid, fields, local_params, solver_params, spec, shelf_melt_rate, surface_mass_balance, fracture, sliding_law, basal_hydrology, 
     thermo_dynamics, verbose)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
@@ -255,7 +258,7 @@ end
 #
 
 # TODO: remove getproperty, if it's not a global registered field it should be ignored
-function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
+function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M,SMB,FR,SL,BH,TD}, s::Symbol) where {T,N,F,G,M,SMB,FR,SL,BH,TD}
     if s == :global_fields
         # TODO: these need to be registered fields, not user-specified
         ## TODO: fields = collate_global_fields(model.fields, model.spec)

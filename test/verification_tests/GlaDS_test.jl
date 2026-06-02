@@ -55,6 +55,7 @@ initial_conditions = InitialConditions(initial_thickness = h, initial_basal_wate
 sliding_law = WeertmanSlidingLaw();
 thermo_dynamics = NoThermoDynamics();
 shelf_melt_rate = UniformMeltRate();
+surface_mass_balance = AccumulationFromParams(),
 params = Params(density_ice = 910.0, glen_a_ref=2.5e-25);
 solver_params = SolverParams(maxiter_picard = 1);
 
@@ -66,6 +67,7 @@ model = Model(grid = grid,
             basal_hydrology=basal_hydrology,
             sliding_law = sliding_law,
             shelf_melt_rate = shelf_melt_rate,
+            surface_mass_balance = surface_mass_balance,
             thermo_dynamics = thermo_dynamics);
 
 timestepping_params = TimesteppingParams(dt = dt, end_time = end_time);

@@ -49,7 +49,7 @@ end
 UniformMeltRate(; m = 0.0) = UniformMeltRate(m) 
 
 """
-    update_shelf_melt_rate(shelf_melt_rate::UniformMeltRate, fields, grid) 
+    update_shelf_melt_rate(shelf_melt_rate::UniformMeltRate, fields, grid, clock) 
 
 Update the melt rate under ice shelves for the UniformMeltRate type
 

@@ -35,6 +35,7 @@ abstract type AbstractInversionSimulation end
 
 #Modular physics
 abstract type AbstractMeltRate end
+abstract type AbstractSurfaceMassBalance end
 abstract type AbstractFracture end
 abstract type AbstractSlidingLaw end
 abstract type AbstractBasalHydrology end
@@ -55,6 +56,7 @@ include("Utilities.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
 include("MeltRates/MeltRates.jl")
+include("SurfaceMassBalance/SurfaceMassBalance.jl")
 include("Advection/Advection.jl")
 include("Fracture/Fracture.jl")
 include("SlidingLaw/SlidingLaw.jl")
@@ -67,7 +69,7 @@ include("Simulations/Simulation.jl")
 include("Specs/Specs.jl")
 include("Inversion/Inversion.jl")
 
-export AbstractField, AbstractGrid, AbstractMeltRate, 
+export AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance,
   AbstractFracture, AbstractSlidingLaw , AbstractBasalHydrology,
    AbstractThermoDynamics, AbstractModel, AbstractPreconditioner,
    AbstractSpec
@@ -100,6 +102,9 @@ using .MeltRates
 export PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, 
 QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, 
 UniformMeltUnderShelvesBasins
+
+using .SurfaceMassBalance
+export AccumulationFromParams, BinfileAccumulationRate, UniformAccumulationRate
 
 using .Processes
 export update_state!, update_velocities!
