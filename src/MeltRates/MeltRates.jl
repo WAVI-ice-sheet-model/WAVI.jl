@@ -18,7 +18,17 @@ include("./uniform_melt_under_shelves.jl")
 include("./uniform_melt_under_shelves_basin_specific.jl")
 include("./melt_rate_exponent_variation.jl")
 include("./melt_rate_exponent_variation_basin_specific.jl")
-             
+     
+
+"""
+
+    update_climate_forcing!(melt_rate::AbstractMeltRate) 
+
+Generic wrapper function for updating the climate forcing. Overload this in your surface mass balance module of choice (see ISMIP7_melt_rate.jl for an example)
+"""
+function update_climate_forcing!(melt_rate::AbstractMeltRate, clock) 
+    return nothing
+end
 
 ##### default temperature and salinity profiles #####
 """

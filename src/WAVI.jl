@@ -102,7 +102,7 @@ export GridField, InitialConditions
 using .MeltRates
 export PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, 
 QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, 
-UniformMeltUnderShelvesBasins
+UniformMeltUnderShelvesBasins, ISMIP7MeltRate
 
 using .SurfaceMassBalance
 export AccumulationFromParams, BinfileAccumulationRate, UniformAccumulationRate, ISMIP7SMB
