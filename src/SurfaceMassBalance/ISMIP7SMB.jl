@@ -42,7 +42,7 @@ end
 
 function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::AbstractModel, clock::Clock)
     @unpack reference_smb, smb_anomaly, vertical_smb_gradient, reference_elevation = surface_mass_balance
-    @unpack s = model.fields.gh
+    @unpack accumulation,s = model.fields.gh
     
     change_in_elevation = s - reference_elevation
 
