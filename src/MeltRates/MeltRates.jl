@@ -5,6 +5,7 @@ export update_shelf_melt_rate!, UniformMeltRate
 using Parameters
 
 using WAVI: AbstractMeltRate
+using WAVI.Time
 
 #add each of the individual melt rate models
 #include("./analytic_melt_rate_model.jl")
@@ -18,17 +19,17 @@ include("./uniform_melt_under_shelves.jl")
 include("./uniform_melt_under_shelves_basin_specific.jl")
 include("./melt_rate_exponent_variation.jl")
 include("./melt_rate_exponent_variation_basin_specific.jl")
-include("./ISMIP7_melt_rate.jl")
-
+             
 """
 
-    update_climate_forcing!(melt_rate::AbstractMeltRate) 
+    update_climate_forcing!(shelf_melt_rate::AbstractMeltRate,clock::Clock) 
 
-Generic wrapper function for updating the climate forcing. Overload this in your surface mass balance module of choice (see ISMIP7_melt_rate.jl for an example)
+Generic wrapper function for updating the climate forcing. Overload this if needed.)
 """
-function update_climate_forcing!(melt_rate::AbstractMeltRate, clock) 
+function update_climate_forcing!(shelf_melt_rate::AbstractMeltRate, clock::Clock) 
     return nothing
 end
+
 
 ##### default temperature and salinity profiles #####
 """
@@ -69,5 +70,7 @@ function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltRate, fields, grid,
     shelf_basal_melt .= shelf_melt_rate.m
     return nothing
 end
+
+
 
 end

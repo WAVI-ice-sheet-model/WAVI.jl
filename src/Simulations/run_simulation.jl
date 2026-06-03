@@ -5,8 +5,8 @@ import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
 #using WAVI.MeltRates: update_climate_forcing!
-#using WAVI.Fracture: update_climate_forcing!
-import WAVI.SurfaceMassBalance: update_climate_forcing!
+using WAVI.Fracture: update_climate_forcing!
+using WAVI.SurfaceMassBalance: update_climate_forcing!
 
 
 """
@@ -127,7 +127,7 @@ function update_climate_forcing!(model::AbstractModel, clock)
 
         update_climate_forcing!(surface_mass_balance, grid, clock)
         update_climate_forcing!(shelf_melt_rate, grid, grid, clock)
-        #update_climate_forcing!(fracture, clock)
+        update_climate_forcing!(fracture, grid, clock)
 
     return nothing
 end

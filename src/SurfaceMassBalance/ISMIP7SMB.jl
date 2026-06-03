@@ -3,8 +3,8 @@ export ISMIP7SMB
 using WAVI: AbstractClimateForcing
 using NCDatasets
 
-struct ISMIP7SMB{IC <: AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
-    ISMIP7_config::IC
+struct ISMIP7SMB{CF <: AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
+    ISMIP7_config::CF
     reference_elevation::Union{Array{T,2}, Nothing}
     vertical_smb_gradient::Union{Array{T,2},Nothing}
     smb_anomaly::Union{Array{T,2}, Nothing}
