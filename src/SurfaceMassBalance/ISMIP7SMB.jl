@@ -85,5 +85,6 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, clock)
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
     vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:], missing => NaN)
     
+    return nothing
 
 end
