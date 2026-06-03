@@ -1,6 +1,6 @@
 export WeertmanSlidingLaw
 
-struct WeertmanSlidingLaw{T <: Real, W} <: AbstractSlidingLaw
+struct WeertmanSlidingLaw{T <: Real, W <: Union{T,Array{T,2}}} <: AbstractSlidingLaw
     drag_coefficient :: W
     weertman_m :: T
     reg_speed :: T
@@ -39,4 +39,21 @@ function update_β_using_sliding_law!(sliding_law::WeertmanSlidingLaw, model::Ab
     update_drag_coefficient!(model)
     gh.β .= gh.drag_coefficient .* ( sqrt.(gh.bed_speed.^2 .+  sliding_law.reg_speed^2 ) ).^(1.0/sliding_law.weertman_m - 1.0)
     return model
+end
+
+function reconstruct_on_grid(sliding_law::WeertmanSlidingLaw, grid::Grid)
+    return WeertmanSlidingLaw(
+        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) | sliding_law.drag_coefficient,
+          sliding_law.weertman_m,
+          sliding_law.reg_speed)
+end
+
+function reconstruct_on_subdomain(sliding_law::WeertmanSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
+    
+    x_start,x_end,y_start,y_end = subdomain
+
+    return WeertmanSlidingLaw(
+          sliding_law.drag_coefficient[x_start:x_end, y_start:y_end],
+          sliding_law.weertman_m,
+          sliding_law.reg_speed)
 end

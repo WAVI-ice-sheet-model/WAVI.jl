@@ -1,4 +1,4 @@
-struct ZoetIversonSlidingLaw{T <: Real, C, W} <: AbstractSlidingLaw
+struct ZoetIversonSlidingLaw{T <: Real, C <: Union{T,Array{T,2}}, W <: Union{T,Array{T,2}}} <: AbstractSlidingLaw
     coulomb_coefficient :: C
     drag_coefficient :: W
     weertman_m :: T
@@ -45,4 +45,24 @@ function update_β_using_sliding_law!(sliding_law::ZoetIversonSlidingLaw, model:
     gh.β .= (sliding_law.coulomb_coefficient .* gh.effective_pressure .* ( sqrt.(gh.bed_speed.^2 .+  sliding_law.reg_speed^2 ) ).^(1.0/sliding_law.zoetIverson_p - 1.0) ./
             (( sqrt.(gh.bed_speed.^2 .+  sliding_law.reg_speed^2 ) ) .+ sliding_law.drag_coefficient .* gh.effective_pressure).^(1.0/sliding_law.zoetIverson_p))
     return model
+end
+
+
+function reconstruct_on_grid(sliding_law::ZoetIversonSlidingLaw, grid::Grid)
+    return ZoetIversonSlidingLaw(
+        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) | sliding_law.coulomb_coefficient,
+        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) | sliding_law.drag_coefficient,
+          sliding_law.weertman_m,
+          sliding_law.reg_speed)
+end
+
+function reconstruct_on_subdomain(sliding_law::ZoetIversonSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
+    
+    x_start,x_end,y_start,y_end = subdomain
+
+    return ZoetIversonSlidingLaw(
+          sliding_law.coulomb_coefficient[x_start:x_end, y_start:y_end],
+          sliding_law.drag_coefficient[x_start:x_end, y_start:y_end],
+          sliding_law.weertman_m,
+          sliding_law.reg_speed)
 end

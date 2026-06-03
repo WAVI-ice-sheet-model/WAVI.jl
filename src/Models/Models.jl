@@ -90,15 +90,13 @@ function Model(grid::G,
     bed_array = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     
     #expand scalar paramaters onto grid
-    params = Params(params,grid)
+    params = reconstruct_on_grid(params,grid)
 
     #Replace all NaN entries with defaults from params on correct grid              
-    initial_conditions = InitialConditions(initial_conditions, params, grid)
+    initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
 
     #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
-    if isa(sliding_law.drag_coefficient, Number) 
-        sliding_law = @set sliding_law.drag_coefficient = sliding_law.drag_coefficient*ones(grid.nx,grid.ny)
-    end
+    sliding_law = reconstruct_on_grid(sliding_law,grid)
     #check size compatibility of resulting sliding_law drag_coefficient
     (size(sliding_law.drag_coefficient)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient ($(size(sliding_law.drag_coefficient))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
     

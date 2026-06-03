@@ -31,4 +31,12 @@ function update_drag_coefficient!(model::AbstractModel)
     return model
 end
 
+function reconstruct_on_grid(sliding_law::SL, grid::Grid) where {SL <: AbstractSlidingLaw}
+    return sliding_law
+end
+
+function reconstruct_on_subdomain(sliding_law::SL, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SL <: AbstractSlidingLaw}
+    return sliding_law
+end
+
 end

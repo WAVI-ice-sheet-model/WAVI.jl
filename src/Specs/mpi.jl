@@ -188,16 +188,16 @@ function Model(grid::G,
     u_grid_size, v_grid_size = (grid.nx+1, grid.ny), (grid.nx, grid.ny+1)
     
     #expand scalar paramaters onto grid
-    params = Params(params,grid)
+    params = reconstruct_on_grid(params,grid)
 
     #Replace all NaN entries with defaults from params on correct grid              
-    initial_conditions = InitialConditions(initial_conditions, params, grid)
+    initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
 
     #trim initial conditions to local domain
-    local_initial_conditions = InitialConditions(initial_conditions, grid, (x_start, x_end, y_start, y_end))
+    local_initial_conditions = reconstruct_on_subdomain(initial_conditions, grid, (x_start, x_end, y_start, y_end))
 
     # dt cannot be copied via the external constructor so we create the structure directly
-    local_params = Params(params,grid,(x_start, x_end, y_start, y_end))
+    local_params = reconstruct_on_subdomain(params,grid,(x_start, x_end, y_start, y_end))
 
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]

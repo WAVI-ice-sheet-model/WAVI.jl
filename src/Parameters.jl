@@ -170,7 +170,7 @@ function Params(; g = 9.81,
 end
 
 #Outer constructor that expands scalars into arrays of approriate size.
-Params(params::Params, grid::AbstractGrid) = Params(
+reconstruct_on_grid(params::Params, grid::AbstractGrid) = Params(
                   params.dt, 
                   params.g, 
                   params.density_ice,
@@ -218,7 +218,7 @@ Params(params::Params, grid::AbstractGrid) = Params(
                   )
 
 #Outer constructor that selects parameters for a specified subdomain from parameters defined on a particular grid
-function Params(params::Params, grid::AbstractGrid, subdomain::NTuple{4,<: Integer})
+function reconstruct_on_subdomain(params::Params, grid::AbstractGrid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 

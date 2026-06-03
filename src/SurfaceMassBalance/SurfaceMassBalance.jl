@@ -28,7 +28,13 @@ function update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalanc
     return nothing
 end
 
+function reconstruct_on_grid(smb::SMB, grid::Grid) where {SMB <: AbstractSurfaceMassBalance}
+    return smb
+end
 
+function reconstruct_on_subdomain(smb::SMB, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SMB <: AbstractSurfaceMassBalance}
+    return smb
+end
 
 #include all specialised methods for computing accumulation rate
 include("./AccumulationFromParams.jl")
