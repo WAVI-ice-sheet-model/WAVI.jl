@@ -33,7 +33,7 @@ function ISMIP7hydrofracture(;
               ice_shelf_collapse_file)
 end
 
-function update_climate_forcing!(fracture::ISMIP7hydrofracture, clock)
+function update_climate_forcing!(fracture::ISMIP7hydrofracture, clock::Clock)
   # ice_shelf_collapse_file = "/data/icesheet_output/miradh/ISMIP7/ISMIP7/AIS/CESM2-WACCM/ssp585/fracture/ice_shelf_collapse_mask_cesm2waccm_ssp585_ismip7_8km.nc"
   ds = NCDataset(fracture.ice_shelf_collapse_file)
   timeInd = findfirst(time .== clock.ref_time + clock.time)
