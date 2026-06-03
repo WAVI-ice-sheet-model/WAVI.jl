@@ -193,12 +193,39 @@ function Model(grid::G,
     #Replace all NaN entries with defaults from params on correct grid              
     initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
 
+
+    #expand spatial parameters onto grid
+    surface_mass_balance = reconstruct_on_grid(surface_mass_balance,grid)
+
+    #expand spatial parameters onto grid
+    thermo_dynamics = reconstruct_on_grid(thermo_dynamics,grid)
+
+    #expand spatial parameters onto grid
+    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
+
+    #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
+    sliding_law = reconstruct_on_grid(sliding_law,grid)
+    #check size compatibility of resulting sliding_law drag_coefficient
+    (size(sliding_law.drag_coefficient)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient ($(size(sliding_law.drag_coefficient))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+    
     #trim initial conditions to local domain
     local_initial_conditions = reconstruct_on_subdomain(initial_conditions, grid, (x_start, x_end, y_start, y_end))
 
     # dt cannot be copied via the external constructor so we create the structure directly
     local_params = reconstruct_on_subdomain(params,grid,(x_start, x_end, y_start, y_end))
 
+
+    local_sliding_law = reconstruct_on_subdomain(sliding_law,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+
+    local_fracture = reconstruct_on_subdomain(fracture,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+
+    local_surface_mass_balance = reconstruct_on_subdomain(surface_mass_balance,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+
+    local_basal_hydrology = reconstruct_on_subdomain(basal_hydrology,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+ 
+    local_thermo_dynamics = reconstruct_on_subdomain(thermo_dynamics,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+
+    
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
     # RAS/Schwarz: Only fix the outermost edge cell - this provides Dirichlet BC from neighbor
@@ -240,7 +267,7 @@ function Model(grid::G,
     local_mpi_rank = fill(Float64(rank), nx_local, ny_local)
 
     fields = GridField(local_grid, bed_array; initial_conditions=local_initial_conditions, params=local_params, solver_params, mpi_rank=local_mpi_rank)
-    model = Model(local_grid, fields, local_params, solver_params, spec, shelf_melt_rate, surface_mass_balance, fracture, sliding_law, basal_hydrology, 
+    model = Model(local_grid, fields, local_params, solver_params, spec, shelf_melt_rate, local_surface_mass_balance, local_fracture, local_sliding_law, local_basal_hydrology, 
     thermo_dynamics, verbose)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)

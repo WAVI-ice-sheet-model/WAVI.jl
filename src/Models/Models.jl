@@ -95,6 +95,15 @@ function Model(grid::G,
     #Replace all NaN entries with defaults from params on correct grid              
     initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
 
+    #expand spatial parameters onto grid
+    surface_mass_balance = reconstruct_on_grid(surface_mass_balance,grid)
+
+    #expand spatial parameters onto grid
+    thermo_dynamics = reconstruct_on_grid(thermo_dynamics,grid)
+
+    #expand spatial parameters onto grid
+    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
+
     #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
     sliding_law = reconstruct_on_grid(sliding_law,grid)
     #check size compatibility of resulting sliding_law drag_coefficient
