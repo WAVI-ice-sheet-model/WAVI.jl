@@ -36,7 +36,8 @@ end
 function update_climate_forcing!(fracture::ISMIP7hydrofracture, clock)
   # ice_shelf_collapse_file = "/data/icesheet_output/miradh/ISMIP7/ISMIP7/AIS/CESM2-WACCM/ssp585/fracture/ice_shelf_collapse_mask_cesm2waccm_ssp585_ismip7_8km.nc"
   ds = NCDataset(fracture.ice_shelf_collapse_file)
-  timeInd = findfirst(time .== clock.ref_time + clock.time)
+  timeMask = ds["time"][:]
+  timeInd = findfirst(timeMask .== Int(round(clock.ref_time + clock.time)))
   fracture.ice_shelf_collapse_mask .= ds["mask"][:,:,timeInd]
   close(ds)
 
