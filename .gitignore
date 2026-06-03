@@ -32,3 +32,7 @@ example_drivers/MISMIP/MISMIP_driver.jl
 gendata.m
 PIG_ideal_bed_plot.m
 Project.toml
+
+#SLURM logging
+*.err
+*.out

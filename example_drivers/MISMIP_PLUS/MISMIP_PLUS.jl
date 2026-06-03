@@ -91,9 +91,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
     MPI.Init()
     if MPI.Comm_size(MPI.COMM_WORLD) > 1
         grid = MISMIP_PLUS_GRID()
-        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid; pou=true, niterations=2)
+        # MPISpec(ngridsx, ngridsy, halo, ...)
+        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid; pou=true, niterations=5)
 
         MISMIP_PLUS(
+            folder = "outputs/mpi",
             grid = grid,
             spec = mpi_spec,
         )
@@ -101,12 +103,13 @@ if abspath(PROGRAM_FILE) == @__FILE__
         # Run with:
         # julia --project -t 2 example_drivers/MISMIP_PLUS/MISMIP_PLUS.jl
         grid = MISMIP_PLUS_GRID()
-        threaded_spec = ThreadedSpec(ngridsx=Threads.nthreads(), ngridsy=1, overlap=4, niterations=2)
+        threaded_spec = ThreadedSpec(ngridsx=Threads.nthreads(), ngridsy=1, overlap=2, niterations=5)
         MISMIP_PLUS(
+            folder = "outputs/thread",
             grid = grid,
             spec = threaded_spec,
         )
     else
-        MISMIP_PLUS()
+        MISMIP_PLUS(folder = "outputs/serial")
     end
 end
