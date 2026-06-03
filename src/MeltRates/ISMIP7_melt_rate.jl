@@ -1,9 +1,9 @@
-export ISMIP7_melt_rate
+export ISMIP7MeltRate
 
 using WAVI: AbstractClimateForcing
 using NCDatasets 
 
-struct ISMIP7MeltRate{IC <: AbstractClimateForcing, T <: Real, 
+struct ISMIP7MeltRate{IC <: AbstractClimateForcing, T <: Real} <: AbstractMeltRate
     ISMIP7_config::IC                   #ISMIP 7 config file, specifies the GCM and scenario
     K::T                                #tuning parameter (see here for info: https://drive.google.com/file/d/1SygMQte-7XgKj4e-Hpyj1tHi6XguShCP/view and https://tc.copernicus.org/articles/16/4931/2022/tc-16-4931-2022.pdf)
     shelf_slope::T                      #average slope of ice shelf base (can be local in ISMIP7, but we're doing with the average)
@@ -19,7 +19,7 @@ struct ISMIP7MeltRate{IC <: AbstractClimateForcing, T <: Real,
     Tf_loc::Union{Array{T,3}, Nothing}  #array to hold the 3d thermal forcing, to be read in from ISMIP7 forcing
     z_forcing::Union{Array{T,1}, Nothing} #array to hold the z co-ordinates from the ISMIP7 forcing
     melt_partial_cell::Bool             #Flag for melting applied to partial cells or not
-}
+end
 
 """
     ISMIP7MeltRate(;, kwargs)
@@ -28,11 +28,25 @@ Construct an ISMIP7MeltRate object to prescribe the melt rate in WAVI
 
 Keyword arguments
 =================
-...fill me in...
+- ISMIP7_config: specifies the ISMIP 7 config (GCM and scenario)
+- K: melt rate tuning parameter (see here for info: https://drive.google.com/file/d/1SygMQte-7XgKj4e-Hpyj1tHi6XguShCP/view and https://tc.copernicus.org/articles/16/4931/2022/tc-16-4931-2022.pdf)
+- shelf_slope: average slope of ice shelf base (can be local in ISMIP7, but we're doing with the average)
+- ρ_ocean: density of the ocean water
+- ρ_ice: density of the ice 
+- c_ocean: thermal heat paracity of the ocean 
+- L_ice: ice latent heat of fusion 
+- Salt: contraction coefficient
+- g: gravity 
+- f: Coriolis parameter
+- S_loc: array to hold the 3d salinity, to be read in from ISMIP7 forcing
+- array: to hold the 3d temperature, to be read in from ISMIP7 forcing
+- Tf_loc: array to hold the 3d thermal forcing, to be read in from ISMIP7 forcing
+- z_forcing: array to hold the z co-ordinates from the ISMIP7 forcing
+- melt_partial_cell: Flag for melting applied to partial cells or not
 """
 function ISMIP7MeltRate(; 
                         ISMIP7_config = nothing,
-                        K = 1.,
+                        K = 1.0e-5,
                         shelf_slope = 1.e-3,
                         ρ_ocean = 1028.0,
                         ρ_ice = 918.0,
@@ -69,11 +83,12 @@ function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid,
 
 
     #set the shelf melt rate
+    secs_per_year = 365.25*24*60^2
     if melt_partial_cell
-        shelf_basal_melt[:] .= K * shelf_slope * ρ_ocean / ρ_ice * (c_ocean/L_ice)^2 * β_s * 2 * g /abs(f) * S_local_shelf[:] .* abs.(Tf_local_shelf[:]) .* Tf_local_shelf[:] .*  (1 .- grounded_fraction)
+        shelf_basal_melt[:] .= K * secs_per_year * shelf_slope * ρ_ocean / ρ_ice * (c_ocean/L_ice)^2 * β_s * 2 * g /abs(f) * S_local_shelf[:] .* abs.(Tf_local_shelf[:]) .* Tf_local_shelf[:] .*  (1 .- grounded_fraction)
 
     elseif ~(melt_partial_cell)
-        shelf_basal_melt[grounded_fraction .== 0] .= K * shelf_slope * ρ_ocean / ρ_ice * (c_ocean/L_ice)^2 * β_s * 2 * g /abs(f) * S_local_shelf[grounded_fraction .== 0] .* abs.(Tf_local_shelf[grounded_fraction .== 0]) .* Tf_local_shelf[grounded_fraction .== 0]
+        shelf_basal_melt[grounded_fraction .== 0] .= K * secs_per_year * shelf_slope * ρ_ocean / ρ_ice * (c_ocean/L_ice)^2 * β_s * 2 * g /abs(f) * S_local_shelf[grounded_fraction .== 0] .* abs.(Tf_local_shelf[grounded_fraction .== 0]) .* Tf_local_shelf[grounded_fraction .== 0]
         shelf_basal_melt[.~(grounded_fraction .== 0)] .= 0
     end
 
