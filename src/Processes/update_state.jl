@@ -26,12 +26,11 @@ function update_state!(model::AbstractModel, clock::Clock)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model, clock)
-    update_thermodynamics!(model)
     update_shelf_basal_melt!(model, clock)
-    update_basal_melt!(model)
+    update_thermodynamics_basal_melt!(model)
     update_glen_b!(model)
     update_dsdh!(model)
-    update_basal_hydrology!(model)
+    update_basal_hydrology!(model; update_basal_water_thickness=true)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
     update_surf_speed!(model)
@@ -54,12 +53,11 @@ function update_state!(model::AbstractModel)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model, Clock())
-    update_thermodynamics!(model)
     update_shelf_basal_melt!(model, Clock())
-    update_basal_melt!(model)
+    update_thermodynamics_basal_melt!(model)
     update_glen_b!(model)
     update_dsdh!(model)
-    update_basal_hydrology!(model)
+    update_basal_hydrology!(model; update_basal_water_thickness=true)
     update_model_velocities!(model)
     update_velocities_on_h_grid!(model)
     update_surf_speed!(model)
@@ -81,12 +79,11 @@ function update_state_novelocity!(model, clock)
     update_height_above_floatation!(model)
     update_grounded_fraction_on_huv_grids!(model)
     update_accumulation_rate!(model, clock)
-    update_thermodynamics!(model)
     update_shelf_basal_melt!(model, clock)
-    update_basal_melt!(model, clock)
+    update_thermodynamics_basal_melt!(model)
     update_glen_b!(model)
     update_dsdh!(model)
-    update_basal_hydrology!(model)
+    update_basal_hydrology!(model; update_basal_water_thickness=true)
     update_velocities_on_h_grid!(model)
     update_surf_speed!(model)
     update_strain_history!(model)
@@ -154,18 +151,6 @@ function update_grounded_fraction_on_huv_grids!(model::AbstractModel)
 end
 
 """
-    update_thermodynamics!(model::AbstractModel)
-
-Update the ice temperature and grounded melt rate according to the chosen thermodynamics model.
-The specific function lives in the corresponding thermodynamics file.
-"""
-function update_thermodynamics!(model::AbstractModel)
-    update_ice_temperature_grounded_melt_rate!(model.thermo_dynamics,model)
-    return model
-end
-
-
-"""
     update_shelf_basal_melt!(model::AbstractModel)
 
 Update the basal melt rate under ice shelves.
@@ -176,13 +161,13 @@ function update_shelf_basal_melt!(model::AbstractModel, clock)
 end
 
 """
-    update_basal_melt!(model::AbstractModel)
+    update_thermodynamics!(model::AbstractModel)
 
-Update the basal melt rate (combining grounded_basal_melt and shelf_basal_melt)
+Update the ice temperature and grounded melt rate according to the chosen thermodynamics model.
+The specific function lives in the corresponding thermodynamics file.
 """
-function update_basal_melt!(model::AbstractModel)
-    @unpack gh=model.fields
-    gh.basal_melt .= gh.shelf_basal_melt .+ gh.grounded_basal_melt
+function update_thermodynamics_basal_melt!(model::AbstractModel)
+    update_ice_temperature_and_basal_melt_rate!(model.thermo_dynamics,model)
     return model
 end
 
@@ -220,13 +205,13 @@ function update_dsdh!(model::AbstractModel)
 end
 
 """
-    update_basal_hydrology!(model::AbstractModel)
+    update_basal_hydrology!(model::AbstractModel; update_basal_water_thickness::Bool = true)
 
 Update the basal water thickness and effective pressure according to the chosen basal hydrology model.
 The specific function lives in the corresponding basal hydrology file.
 """
-function update_basal_hydrology!(model::AbstractModel)
-    update_basal_water_thickness_effective_pressure!(model.basal_hydrology,model)
+function update_basal_hydrology!(model::AbstractModel; update_basal_water_thickness::Bool = true)
+    update_basal_water_thickness_effective_pressure!(model.basal_hydrology,model; update_basal_water_thickness=update_basal_water_thickness)
     return model
 end
 

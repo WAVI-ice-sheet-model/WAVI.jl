@@ -56,10 +56,10 @@ isomip_warm0_temp(z) = two_layer_function(z, v_low =1.2, v_hi = -1.0, d_low = -7
 
 
 struct UniformMeltRate{T <: Real} <: AbstractMeltRate 
-    m :: T #uniform melt rate applied everywhere
+    m_floating :: T #uniform melt rate applied under shelves
 end
 
-UniformMeltRate(; m = 0.0) = UniformMeltRate(m) 
+UniformMeltRate(; m_floating = 0.0) = UniformMeltRate(m_floating) 
 
 """
     update_shelf_melt_rate(shelf_melt_rate::UniformMeltRate, fields, grid, clock) 
@@ -67,9 +67,9 @@ UniformMeltRate(; m = 0.0) = UniformMeltRate(m)
 Update the melt rate under ice shelves for the UniformMeltRate type
 
 """
-function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltRate, fields, grid, clock) 
-    @unpack shelf_basal_melt = fields.gh
-    shelf_basal_melt .= shelf_melt_rate.m
+function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltRate, fields, grid, clock)
+    @unpack gh = fields
+    gh.shelf_basal_melt[gh.mask] .= shelf_melt_rate.m_floating .* (1. .- gh.grounded_fraction[gh.mask])
     return nothing
 end
 

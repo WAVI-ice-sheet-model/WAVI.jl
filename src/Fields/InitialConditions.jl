@@ -15,7 +15,6 @@ InitialConditions(;
                     initial_basal_water_thickness = fill!(Array{Float64}(undef,1,1),NaN),
                     initial_hydraulic_potential_b = fill!(Array{Float64}(undef,1,1),NaN),
                     initial_effective_pressure = fill!(Array{Float64}(undef,1,1),NaN),
-                    initial_basal_melt = fill!(Array{Float64}(undef,1,1),NaN),
                     initial_θ_ave = fill!(Array{Float64}(undef,1,1),NaN)
                     initial_preBfactor = fill!(Array{Float64}(undef,1,1),NaN))
 
@@ -36,7 +35,6 @@ Keyword arguments
 - 'initial_basal_water_thickness': (nx x ny) matrix defining basal water thickness at t = 0
 - 'initial_hydraulic_potential_b' : (nx x ny) matrix defining hydraulic potential at bed at t = 0
 - 'initial_effective_pressure' : (nx x ny) matrix defining effective pressure at t = 0
-- 'initial_basal_melt' : (nx x ny) matrix defining basal melt rate at t = 0
 - 'initial_θ_ave' : (nx x ny) matrix defining depth-averaged temperature at t = 0
 - 'initial_preBfactor' : (nx x ny) matrix defining preBfactor at t = 0
 """
@@ -53,7 +51,6 @@ Keyword arguments
     initial_basal_water_thickness::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_hydraulic_potential_b::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_effective_pressure::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
-    initial_basal_melt::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_θ_ave::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
     initial_preBfactor::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
 end
@@ -147,14 +144,6 @@ function InitialConditions(initial_conditions::InitialConditions, params::Params
         initial_effective_pressure = initial_conditions.initial_effective_pressure
     end
 
-    if all(isnan.(initial_conditions.initial_basal_melt))
-        default_basal_melt = params.basal_melt
-        #@info "Did not find a specified initial basal melt field, reverting to default value specified in params ($default_basal_melt everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
-        initial_basal_melt =  default_basal_melt*ones(grid.nx, grid.ny)
-    else
-        initial_basal_melt = initial_conditions.initial_basal_melt
-    end
-
     if all(isnan.(initial_conditions.initial_θ_ave))
         default_θ_ave = params.default_temperature_ave
         #@info "Did not find a specified initial depth-averaged temperature field, reverting to default value specified in params ($default_θ_ave everywhere)...\n...If you have set niter0 > 0 without invoking the update flag, you can ignore this message"
@@ -182,8 +171,7 @@ function InitialConditions(initial_conditions::InitialConditions, params::Params
     (size(initial_strain_history) == (grid.nx, grid.ny, grid.nσ)) || throw(DimensionMismatch("Initial tensile strain history field is not compatible with grid size.Input tensile strain history field has size $(size(initial_conditions.initial_strain_history)), which must match 3D grid size ($(grid.nx), $(grid.ny), $(grid.nσ))"))
     (size(initial_basal_water_thickness) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial basal water thickness field is not compatible with grid size. Input basal water thickness field has size $(size(initial_conditions.initial_basal_water_thickness)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
     (size(initial_hydraulic_potential_b) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial hydraulic_potential field is not compatible with grid size. Input hydraulic_potential field has size $(size(initial_conditions.initial_hydraulic_potential_b)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
-    (size(initial_effective_pressure) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial effective pressure field is not compatible with grid size. Input effective pressure field has size $(size(initial_conditions.initial_basal_melt)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
-    (size(initial_basal_melt) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial basal melt field is not compatible with grid size. Input basal melt field has size $(size(initial_conditions.initial_basal_melt)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
+    (size(initial_effective_pressure) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial effective pressure field is not compatible with grid size. Input effective pressure field has size $(size(initial_conditions.initial_effective_pressure)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
     (size(initial_θ_ave) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial depth-averaged temperature field is not compatible with grid size. Input depth-averaged temperature field has size $(size(initial_conditions.initial_θ_ave)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
     (size(initial_preBfactor) == (grid.nx, grid.ny)) || throw(DimensionMismatch("Initial preBfactor is not compatible with grid size. Input preBfactor field has size $(size(initial_conditions.initial_preBfactor)), which must match horizontal grid size ($(grid.nx) x $(grid.ny))"))
 
@@ -199,7 +187,6 @@ function InitialConditions(initial_conditions::InitialConditions, params::Params
         initial_basal_water_thickness,
         initial_hydraulic_potential_b,
         initial_effective_pressure,
-        initial_basal_melt,
         initial_θ_ave,
         initial_preBfactor
     )
@@ -255,10 +242,6 @@ function InitialConditions(initial_conditions::InitialConditions, grid::Abstract
         size(initial_conditions.initial_effective_pressure) == size(grid)[1:2] ? 
             initial_conditions.initial_effective_pressure[x_start:x_end, y_start:y_end] : 
             initial_conditions.initial_effective_pressure,
-        initial_basal_melt=
-        size(initial_conditions.initial_basal_melt) == size(grid)[1:2] ? 
-            initial_conditions.initial_basal_melt[x_start:x_end, y_start:y_end] : 
-            initial_conditions.initial_basal_melt,
         initial_θ_ave =
         size(initial_conditions.initial_θ_ave) == size(grid)[1:2] ? 
             initial_conditions.initial_θ_ave[x_start:x_end, y_start:y_end] : 

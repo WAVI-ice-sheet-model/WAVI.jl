@@ -33,16 +33,19 @@ function LeakyBucket(;
 end
 
 """
-            update_basal_water_thickness_effective_pressure!(basal_hydrology::LeakyBucket, model::AbstractModel)
+            update_basal_water_thickness_effective_pressure!(basal_hydrology::LeakyBucket, model::AbstractModel; update_basal_water_thickness::Bool = true)
 
 use a leaky bucket model to calculate the effective pressure
 """
 
-function update_basal_water_thickness_effective_pressure!(basal_hydrology::LeakyBucket, model::AbstractModel)
+function update_basal_water_thickness_effective_pressure!(basal_hydrology::LeakyBucket, model::AbstractModel; update_basal_water_thickness::Bool = true)
     @unpack gh=model.fields
     @unpack params=model
-    gh.basal_water_thickness .= max.(min.(gh.basal_water_thickness .+ (gh.grounded_basal_melt .- basal_hydrology.drainage_rate).*params.dt, basal_hydrology.max_water_thickness), 0.)
-    
+
+    if update_basal_water_thickness
+        gh.basal_water_thickness .= max.(min.(gh.basal_water_thickness .+ (gh.basal_melt .* gh.grounded_fraction .- basal_hydrology.drainage_rate).*params.dt, basal_hydrology.max_water_thickness), 0.)
+    end
+
     # G. Flowers, 2000
     gh.effective_pressure .= max.(basal_hydrology.min_effective_pressure, params.density_ice .* params.g .* gh.h .* (1.0 .- min.(gh.basal_water_thickness ./ basal_hydrology.bed_roughness_scale, 1.0).^(3.5)))  
     gh.effective_pressure .= gh.effective_pressure .* gh.grounded_fraction
