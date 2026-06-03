@@ -127,7 +127,7 @@ function update_climate_forcing!(model::AbstractModel, clock)
 
         update_climate_forcing!(surface_mass_balance, grid, clock)
         update_climate_forcing!(shelf_melt_rate, grid, grid, clock)
-        #update_climate_forcing!(fracture, clock)
+        update_climate_forcing!(fracture, grid, clock)
 
     return nothing
 end
