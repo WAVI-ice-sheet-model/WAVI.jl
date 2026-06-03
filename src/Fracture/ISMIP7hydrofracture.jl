@@ -45,7 +45,7 @@ function update_climate_forcing!(fracture::ISMIP7hydrofracture, grid, clock::Clo
   fracture.ice_shelf_collapse_mask .= ice_shelf_collapse_mask_ncfile
   close(ds)
 
-  return model
+  return nothing
 end
 
 function update_damage!(fracture::ISMIP7hydrofracture,model::AbstractModel{T,N};kwargs...) where {T,N}
