@@ -4,7 +4,7 @@ using WAVI
 import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
-using WAVI.MeltRates: update_climate_forcing!
+#using WAVI.MeltRates: update_climate_forcing!
 using WAVI.Fracture: update_climate_forcing!
 using WAVI.SurfaceMassBalance: update_climate_forcing!
 
@@ -122,12 +122,12 @@ end
 run_simulation!(s::Simulation) = run_simulation!(s.model, s.timestepping_params, s.output_params, s.clock)
 
 
-function update_climate_forcing!(model::AbstractModel{T,N,S})
+function update_climate_forcing!(model::AbstractModel)
         @unpack surface_mass_balance, shelf_melt_rate, fracture = model
 
         update_climate_forcing!(surface_mass_balance, clock)
-        update_climate_forcing!(shelf_melt_rate, clock)
-        update_climate_forcing!(fracture, clock)
+        #update_climate_forcing!(shelf_melt_rate, clock)
+        #update_climate_forcing!(fracture, clock)
 
     return nothing
 end
