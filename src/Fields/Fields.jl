@@ -67,7 +67,6 @@ function GridField(grid::AbstractGrid, bed_array;
     basal_water_thickness = deepcopy(initial_conditions.initial_basal_water_thickness)
     hydraulic_potential_b = deepcopy(initial_conditions.initial_hydraulic_potential_b)
     effective_pressure = deepcopy(initial_conditions.initial_effective_pressure)
-    basal_melt = deepcopy(initial_conditions.initial_basal_melt)
     θ_ave = deepcopy(initial_conditions.initial_θ_ave)
     preBfactor = deepcopy(initial_conditions.initial_preBfactor)
     ηav = deepcopy(initial_conditions.initial_viscosity[:,:,1]) #set to the viscosity on the first level for now
@@ -85,7 +84,6 @@ function GridField(grid::AbstractGrid, bed_array;
     basal_water_thickness = basal_water_thickness,
     hydraulic_potential_b = hydraulic_potential_b,
     effective_pressure = effective_pressure,
-    basal_melt = basal_melt,
     θ_ave = θ_ave,
     preBfactor = preBfactor,
     mpi_rank = mpi_rank
