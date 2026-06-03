@@ -59,19 +59,13 @@ function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::Abstr
 end
 
 
-function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, clock) 
+function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid, clock) 
     @unpack smb_anomaly = surface_mass_balance
     @unpack vertical_smb_gradient = surface_mass_balance
 
     #get the year from clock for the forcing files
     current_time = clock.time + clock.ref_time
     current_time_string = string(Int(round(current_time)))
-
-    #read the grid resolution from the reference smb
-    (nx,ny) = size(surface_mass_balance.reference_smb)
-
-    #compute the grid size from the number of grid points
-    dx = 6088000.0 / nx 
 
     # load in the smb anomaly from ISMIP7
     resolution = join([string(Int(dx)), "m"])
@@ -85,5 +79,6 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, clock)
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
     vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:], missing => NaN)
     
+    return nothing
 
 end

@@ -122,11 +122,11 @@ end
 run_simulation!(s::Simulation) = run_simulation!(s.model, s.timestepping_params, s.output_params, s.clock)
 
 
-function update_climate_forcing!(model::AbstractModel)
-        @unpack surface_mass_balance, shelf_melt_rate, fracture = model
+function update_climate_forcing!(model::AbstractModel, clock)
+        @unpack surface_mass_balance, shelf_melt_rate, fracture, grid = model
 
-        update_climate_forcing!(surface_mass_balance, clock)
-        #update_climate_forcing!(shelf_melt_rate, clock)
+        update_climate_forcing!(surface_mass_balance, grid, clock)
+        update_climate_forcing!(shelf_melt_rate, grid, grid, clock)
         #update_climate_forcing!(fracture, clock)
 
     return nothing
