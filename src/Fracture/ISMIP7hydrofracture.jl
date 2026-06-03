@@ -33,15 +33,19 @@ function ISMIP7hydrofracture(;
               ice_shelf_collapse_file)
 end
 
-function update_climate_forcing!(fracture::ISMIP7hydrofracture, clock::Clock)
-  # ice_shelf_collapse_file = "/data/icesheet_output/miradh/ISMIP7/ISMIP7/AIS/CESM2-WACCM/ssp585/fracture/ice_shelf_collapse_mask_cesm2waccm_ssp585_ismip7_8km.nc"
+function update_climate_forcing!(fracture::ISMIP7hydrofracture, grid, clock::Clock)
   ds = NCDataset(fracture.ice_shelf_collapse_file)
-  timeMask = ds["time"][:]
-  timeInd = findfirst(timeMask .== Int(round(clock.ref_time + clock.time)))
-  fracture.ice_shelf_collapse_mask .= ds["mask"][:,:,timeInd]
+
+  time_ncfile = ds["time"][:]
+  time_ind = findfirst(time_ncfile .== Int(round(clock.ref_time + clock.time)))
+
+  ice_shelf_collapse_mask_ncfile = ds["mask"][:,:,time_ind]
+  (size(ice_shelf_collapse_mask_ncfile) == (nx, ny)) || throw(DimensionMismatch("Size of read in ice shelf collapse mask is not compatible with grid size"))
+
+  fracture.ice_shelf_collapse_mask .= ice_shelf_collapse_mask_ncfile
   close(ds)
 
-  return model
+  return nothing
 end
 
 function update_damage!(fracture::ISMIP7hydrofracture,model::AbstractModel{T,N};kwargs...) where {T,N}
