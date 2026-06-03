@@ -3,16 +3,21 @@ export ISMIP7SMB
 using WAVI: AbstractClimateForcing
 using NCDatasets
 
-struct ISMIP7SMB{CF <: AbstractClimateForcing, T <: Real, L <: Real} <: AbstractSurfaceMassBalance
+struct ISMIP7SMB{T <: Real,
+                CF <: AbstractClimateForcing,
+                RE <: Union{Array{T,2}, Nothing}, 
+                VSG <: Union{Array{T,2}, Nothing},
+                SA <: Union{Array{T,2}, Nothing},
+                RS <: Union{Array{T,2}, Nothing}} <: AbstractSurfaceMassBalance
     ISMIP7_config::CF
-    reference_elevation::Union{Array{T,2}, Nothing}
-    vertical_smb_gradient::Union{Array{T,2},Nothing}
-    smb_anomaly::Union{Array{T,2}, Nothing}
-    reference_smb::Union{Array{T,2}, Nothing}
+    reference_elevation::RE
+    vertical_smb_gradient::VSG
+    smb_anomaly::SA
+    reference_smb::RS
 end
 
 function ISMIP7SMB(; 
-                ISMIP_config = nothing,
+                ISMIP7_config = nothing,
                 reference_elevation = nothing,
                 vertical_smb_gradient = nothing, 
                 smb_anomaly = nothing,           
@@ -26,15 +31,9 @@ function ISMIP7SMB(;
     ~(reference_elevation === nothing) || throw(ArgumentError("You must pass a reference elevation file"))
 
     #check that you've passed a vertical smb gradient
-    ~(vertical_smb_gradient === nothing) || throw(ArgumentError("You must pass a reference elevation file"))
-
-    #check that you've passed a vertical smb gradient
-    ~(smb_anomaly === nothing) || throw(ArgumentError("You must pass an smb anomaly"))
-
-    #check that you've passed a vertical smb gradient
     ~(reference_smb === nothing) || throw(ArgumentError("You must pass a reference smb"))
 
-    return ISMIP7SMB(ISMIP_config,reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb)
+    return ISMIP7SMB(ISMIP7_config,reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb)
 
 end
 
@@ -62,6 +61,8 @@ end
 function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid, clock) 
     @unpack smb_anomaly = surface_mass_balance
     @unpack vertical_smb_gradient = surface_mass_balance
+    @unpack dx = grid
+    @unpack ISMIP7_config = surface_mass_balance
 
     #get the year from clock for the forcing files
     current_time = clock.time + clock.ref_time
@@ -69,7 +70,7 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid, clock)
 
     # load in the smb anomaly from ISMIP7
     resolution = join([string(Int(dx)), "m"])
-    smb_anomaly_filename = join(["acabf-anomaly_AIS_", model, "_ssp", scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"])
+    smb_anomaly_filename = join(["acabf-anomaly_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"])
     smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
     smb_anomaly .= replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,:] , missing => NaN)
 

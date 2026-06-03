@@ -62,7 +62,7 @@ function ISMIP7MeltRate(;
                         melt_partial_cell = false)
 
     #check that you've passed an ISMIP config            
-    ~(ISMIP_config === nothing) || throw(ArgumentError("You must pass an ISMIP7 config file"))
+    ~(ISMIP7_config === nothing) || throw(ArgumentError("You must pass an ISMIP7 config file"))
 
     return   ISMIP7MeltRate(ISMIP7_config, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell)
 end
@@ -99,6 +99,8 @@ end
 function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
     @unpack S_loc, T_loc, Tf_loc, z_forcing = ISMIP7_melt_rate
     @unpack dx = grid
+    @unpack ISMIP7_config = ISMIP7_melt_rate
+
 
     #get the year from clock for the forcing files
     current_time = clock.time + clock.ref_time
@@ -106,17 +108,17 @@ function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
 
     # load in the salinity from ISMIP7
     resolution = join([string(Int(dx)), "m"])
-    salinity_filename = join(["so_AIS_", model, "_ssp", scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
+    salinity_filename = join(["so_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
     salinity_ncfile   = NCDataset(salinity_filename)
     S_loc .= replace(salinity_ncfile["so"][:,:,:] , missing => NaN)
 
     # load in the temperature from ISMIP7
-    temperature_filename = join(["thetao_AIS_", model, "_ssp", scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
+    temperature_filename = join(["thetao_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
     temperature_ncfile   = NCDataset(temperature_filename)
     T_loc .= replace(temperature_ncfile["thetao"][:,:,:] , missing => NaN)
 
     # load in the temperature from ISMIP7
-    thermal_forcing_filename = join(["so_AIS_", model, "_ssp", scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
+    thermal_forcing_filename = join(["so_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
     thermal_forcing_ncfile   = NCDataset(thermal_forcing_filename)
     Tf_loc .= replace(thermal_forcing_ncfile["tf"][:,:,:] , missing => NaN)
 
