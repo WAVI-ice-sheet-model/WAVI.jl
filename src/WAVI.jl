@@ -69,6 +69,8 @@ include("Outputs/Outputs.jl")
 include("Simulations/Simulation.jl")
 include("Specs/Specs.jl")
 include("Inversion/Inversion.jl")
+include("ClimateForcing/ClimateForcing.jl")
+
 
 export AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance,
   AbstractFracture, AbstractSlidingLaw , AbstractBasalHydrology,
@@ -102,7 +104,7 @@ export GridField, InitialConditions
 using .MeltRates
 export PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, 
 QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, 
-UniformMeltUnderShelvesBasins
+UniformMeltUnderShelvesBasins, ISMIP7MeltRate
 
 using .SurfaceMassBalance
 export AccumulationFromParams, BinfileAccumulationRate, UniformAccumulationRate, ISMIP7SMB
@@ -128,7 +130,7 @@ using .Specs
 export BasicSpec, ThreadedSpec, MPISpec
 
 using .Fracture
-export ConstantDamage, DruckerPragerPhaseField
+export ConstantDamage, DruckerPragerPhaseField, ISMIP7Hydrofracture
 
 using .SlidingLaw
 export WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw
@@ -143,6 +145,10 @@ using .Inversions
 export run_inversion_simulation!
 export Inversion, InversionParams, JKVsteppingParams, DataFields, 
        InversionSimulation, InversionOutput
+
+using .ClimateForcing 
+export ISMIP7
+
 
 end
 

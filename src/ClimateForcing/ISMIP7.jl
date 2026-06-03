@@ -5,4 +5,4 @@ struct ISMIP7{S <: String} <: AbstractClimateForcing
    scenario::S
 end
 
-ISMIP7(;gcm = "cesm2waccm",scenario = "ssp585") = ISMIP7(gcm,scenario)
+ISMIP7(;gcm = "CESM2-WACCM",scenario = "585") = ISMIP7(gcm,scenario)

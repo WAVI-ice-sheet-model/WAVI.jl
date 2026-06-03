@@ -14,7 +14,7 @@ using Test, WAVI, LinearAlgebra, CairoMakie, ImageFiltering
         include("verification_tests/GlaDS_test.jl")
 
         shmip = [7.93e-11, 1.59e-9, 5.79e-9, 2.5e-8, 4.5e-8, 5.79e-7];
-        melt_rate = shmip[1]; # 7.93e-11 is ~2.5 mm/yr, 5.79e-7 is ~18.3 m/yr
+        melt_rate = shmip[1]*(3600*24*365.25); # 7.93e-11 is ~2.5 mm/yr, 5.79e-7 is ~18.3 m/yr
         do_visu = false; # create output plot
         sim = GlaDS_test(;dt_days=0.1, end_time_days=5.0, melt_rate=melt_rate, do_visu=do_visu);
 

@@ -13,8 +13,8 @@ hyd_potential_isfixed :: Array{Bool,2}                         # Mask specifying
                     h :: Array{T,2}                            # Ice thickness 
                     s :: Array{T,2}                            # Current surface elevation
                  dhdt :: Array{T,2}                            # Time rate of change of thickness 
-         accumulation :: Array{T,2}                            # Accumulation rate 
-           basal_melt :: Array{T,2}                            # Basal melt rate    
+         accumulation :: Array{T,2}                            # Accumulation rate
+           basal_melt :: Array{T,2}                            # basal melt rate  
                   haf :: Array{T,2}                            # Grid cell height above floatation
     grounded_fraction :: Array{T,2}                            # Grid cell grounded fraction 
                  dsdh :: Array{T,2}                            # Change of surface elevation per unit thickness change
@@ -39,8 +39,7 @@ hyd_potential_isfixed :: Array{Bool,2}                         # Mask specifying
             dimplicit :: Base.RefValue{Diagonal{T,Array{T,1}}} # Rheological operator (-ρi × g × dt × dshs)
 basal_water_thickness :: Array{T,2}                            # basal water thickness
 hydraulic_potential_b :: Array{T,2}                            # hydraulic potential at the bed
-   effective_pressure :: Array{T,2}                            # effective pressure
-  grounded_basal_melt :: Array{T,2}                            # grounded basal melt rate
+   effective_pressure :: Array{T,2}                            # effective pressure  
      shelf_basal_melt :: Array{T,2}                            # basal melt rate under ice shelves (ie floating ice)
                 θ_ave :: Array{T,2}                            # depth-averaged temperature
               σzzsurf :: Array{T,2}                            # Sigmazzsurf calculated in inversion (see in Arthern 2015 JGeophysRes)
@@ -154,7 +153,6 @@ function HGrid(;
     s = zeros(nxh,nyh)
     dhdt = zeros(nxh,nyh) 
     accumulation = zeros(nxh,nyh)
-    grounded_basal_melt = zeros(nxh,nyh)
     shelf_basal_melt = zeros(nxh,nyh)
     haf = zeros(nxh,nyh)
     dsdh = ones(nxh,nyh)
@@ -229,7 +227,6 @@ function HGrid(;
     @assert size(basal_water_thickness)==(nxh,nyh)
     @assert size(hydraulic_potential_b)==(nxh,nyh)
     @assert size(effective_pressure)==(nxh,nyh)
-    @assert size(grounded_basal_melt)==(nxh,nyh)
     @assert size(shelf_basal_melt)==(nxh,nyh)
     @assert size(θ_ave)==(nxh,nyh)
     @assert size(σzzsurf)==(nxh,nyh)
@@ -293,7 +290,6 @@ return HGrid(
             basal_water_thickness,
             hydraulic_potential_b,
 	        effective_pressure,
-            grounded_basal_melt,
             shelf_basal_melt,
             θ_ave,
             σzzsurf, 

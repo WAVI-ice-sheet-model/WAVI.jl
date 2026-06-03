@@ -1,7 +1,11 @@
 
 export NoThermoDynamics
 
-struct NoThermoDynamics <: AbstractThermoDynamics end
+struct NoThermoDynamics{T <: Real} <: AbstractThermoDynamics
+    m_grounded :: T #uniform melt rate applied for grounded areas
+end
+
+NoThermoDynamics(; m_grounded = 0.0) = NoThermoDynamics(m_grounded)
 
 """
 NoThermoDynamics(; <kwargs>)
@@ -9,15 +13,17 @@ NoThermoDynamics(; <kwargs>)
 
 Keyword arguments
 =================
-- basal_temperature  : basal ice temperature (K)
+- m_grounded  : grounded basal melt rate (m/yr)
 """
 
 """
-            update_ice_temperature_grounded_melt_rate!(thermo_dynamics::NoThermoDynamics, model::AbstractModel)
+            update_ice_temperature_and_basal_melt_rate!(thermo_dynamics::NoThermoDynamics, model::AbstractModel)
 
 no thermodynamics model is used. ice temperature is constant in time
 """
 
-function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::NoThermoDynamics, model::AbstractModel)
+function update_ice_temperature_and_basal_melt_rate!(thermo_dynamics::NoThermoDynamics, model::AbstractModel)
+    @unpack gh=model.fields
+    gh.basal_melt[gh.mask] .= gh.grounded_fraction[gh.mask] .* thermo_dynamics.m_grounded .+ gh.shelf_basal_melt[gh.mask]
     return model
 end
