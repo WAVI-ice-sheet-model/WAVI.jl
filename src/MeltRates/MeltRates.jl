@@ -4,8 +4,9 @@ export update_shelf_melt_rate!, UniformMeltRate
 
 using Parameters
 
-using WAVI: AbstractMeltRate
-using WAVI.Time
+using WAVI: AbstractMeltRate, AbstractGrid
+using WAVI.Time: Clock
+
 
 #add each of the individual melt rate models
 #include("./analytic_melt_rate_model.jl")
@@ -26,7 +27,7 @@ include("./melt_rate_exponent_variation_basin_specific.jl")
 
 Generic wrapper function for updating the climate forcing. Overload this if needed.)
 """
-function update_climate_forcing!(shelf_melt_rate::AbstractMeltRate, clock::Clock) 
+function update_climate_forcing!(shelf_melt_rate::AbstractMeltRate, grid::AbstractGrid, clock::Clock) 
     return nothing
 end
 

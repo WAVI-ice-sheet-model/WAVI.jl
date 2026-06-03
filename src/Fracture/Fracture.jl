@@ -5,9 +5,9 @@ export update_damage!, update_strain_history!
 using Parameters
 using NCDatasets
 
-using WAVI: AbstractFracture, AbstractModel
+using WAVI: AbstractFracture, AbstractModel, AbstractGrid
 using WAVI.Advection
-using WAVI.Clock
+using WAVI.Time: Clock
 
 get_fracture(model::AbstractModel{T,N}) where {T,N} = model.fracture
 
@@ -33,7 +33,7 @@ update_strain_history!(model::AbstractModel{T,N};kwargs ...) where {T,N} = updat
 
 Generic wrapper function for updating the climate forcing. Overload this in your fracture module of choice (see ISMIP7hydrofracture.jl for an example)
 """
-function update_climate_forcing!(fracture::AbstractFracture, clock::Clock)
+function update_climate_forcing!(fracture::AbstractFracture, grid::AbstractGrid, clock::Clock)
     return nothing
 end
 

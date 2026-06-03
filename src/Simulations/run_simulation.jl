@@ -4,9 +4,13 @@ using WAVI
 import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
+using WAVI.SurfaceMassBalance
+using WAVI.Fracture
+using WAVI.MeltRates
+
+#using WAVI.Fracture: update_climate_forcing!
+#using WAVI.SurfaceMassBalance: update_climate_forcing!
 #using WAVI.MeltRates: update_climate_forcing!
-using WAVI.Fracture: update_climate_forcing!
-using WAVI.SurfaceMassBalance: update_climate_forcing!
 
 
 """
@@ -21,7 +25,7 @@ function timestep!(model::AbstractModel{T,N,S},
 
  
     if mod(clock.n_iter, timestepping_params.ntimesteps_climate_forcing_update) == 0 #if we're at a number of timesteps to update the forcing files, do that
-        update_climate_forcing!(model)
+        update_model_climate_forcing!(model, clock)
     end
 
     if mod(clock.n_iter, timestepping_params.ntimesteps_velocity_update) == 0 #if we're on a velocity + thickness update output step
@@ -122,12 +126,12 @@ end
 run_simulation!(s::Simulation) = run_simulation!(s.model, s.timestepping_params, s.output_params, s.clock)
 
 
-function update_climate_forcing!(model::AbstractModel, clock)
+function update_model_climate_forcing!(model::AbstractModel, clock)
         @unpack surface_mass_balance, shelf_melt_rate, fracture, grid = model
 
-        update_climate_forcing!(surface_mass_balance, grid, clock)
-        update_climate_forcing!(shelf_melt_rate, grid, grid, clock)
-        update_climate_forcing!(fracture, grid, clock)
+        SurfaceMassBalance.update_climate_forcing!(surface_mass_balance, grid, clock)
+        MeltRates.update_climate_forcing!(shelf_melt_rate, grid, clock)
+        Fracture.update_climate_forcing!(fracture, grid, clock)
 
     return nothing
 end
