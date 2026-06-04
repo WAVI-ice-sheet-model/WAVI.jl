@@ -5,6 +5,7 @@ export update_accumulation_rate!
 using WAVI: AbstractSurfaceMassBalance, AbstractModel, AbstractClimateForcing
 using Parameters
 using WAVI.Time: Clock
+using WAVI.Grids: Grid
 
 #return the sceme used to compute surface mass balance
 get_surface_mass_balance(model::AbstractModel) = model.surface_mass_balance
@@ -24,7 +25,7 @@ update_accumulation_rate!(model::AbstractModel, clock::Clock) = update_accumulat
 
 Generic wrapper function for updating the climate forcing. Overload this in your surface mass balance module of choice (see ISMIP7SMB.jl for an example)
 """
-function update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalance, clock) 
+function update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalance, clock::Clock) 
     return nothing
 end
 

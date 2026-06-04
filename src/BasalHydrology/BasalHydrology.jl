@@ -5,6 +5,7 @@ export update_basal_water_thickness_effective_pressure!
 using Parameters, Enzyme
 
 using WAVI: AbstractBasalHydrology, AbstractModel
+using WAVI.Grids: Grid
 
 
 #add each of the individual basal hydrology models

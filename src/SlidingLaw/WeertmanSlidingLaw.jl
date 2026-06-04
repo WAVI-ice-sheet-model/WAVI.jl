@@ -43,7 +43,7 @@ end
 
 function reconstruct_on_grid(sliding_law::WeertmanSlidingLaw, grid::Grid)
     return WeertmanSlidingLaw(
-        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) | sliding_law.drag_coefficient,
+        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) : sliding_law.drag_coefficient,
           sliding_law.weertman_m,
           sliding_law.reg_speed)
 end

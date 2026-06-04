@@ -5,6 +5,8 @@ using Parameters
 export update_β_using_sliding_law!
 
 using WAVI: AbstractSlidingLaw, AbstractModel
+using WAVI.Grids: Grid
+
 
 #add each of the individual sliding laws
 include("./WeertmanSlidingLaw.jl")

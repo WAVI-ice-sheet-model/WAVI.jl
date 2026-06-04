@@ -37,22 +37,23 @@ function ISMIP7SMB(;
 
 end
 
-function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) =  ISMIP7SMB(
+function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
+    return ISMIP7SMB(
     smb.ISMIP7_config,
-    isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) | smb.reference_elevation,
-    isnothing(smb.vertical_smb_gradient) ? zeros(grid.nx,grid.ny) | smb.vertical_smb_gradient,
-    isnothing(smb.smb_anomaly) ? zeros(grid.nx,grid.ny) | smb.smb_anomaly,
-    isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) | smb.reference_smb)
+    isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : smb.reference_elevation,
+    isnothing(smb.vertical_smb_gradient) ? zeros(grid.nx,grid.ny) : smb.vertical_smb_gradient,
+    isnothing(smb.smb_anomaly) ? zeros(grid.nx,grid.ny) : smb.smb_anomaly,
+    isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : smb.reference_smb)
 end
 
 function reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
     x_start,x_end,y_start,y_end = subdomain
     return ISMIP7SMB(
     smb.ISMIP7_config,
-    size(smb.reference_elevation) == size(grid)[1:2] ? smb.reference_elevation[x_start:x_end, y_start:y_end] | smb.reference_elevation,
-    size(smb.vertical_smb_gradient) == size(grid)[1:2] ? smb.vertical_smb_gradient[x_start:x_end, y_start:y_end] | smb.vertical_smb_gradient,
-    size(smb.smb_anomaly) == size(grid)[1:2] ? smb.smb_anomaly[x_start:x_end, y_start:y_end] | smb.smb_anomaly,
-    size(smb.reference_smb) == size(grid)[1:2] ? smb.reference_smb[x_start:x_end, y_start:y_end] | smb.reference_smb)
+    size(smb.reference_elevation) == size(grid)[1:2] ? smb.reference_elevation[x_start:x_end, y_start:y_end] : smb.reference_elevation,
+    size(smb.vertical_smb_gradient) == size(grid)[1:2] ? smb.vertical_smb_gradient[x_start:x_end, y_start:y_end] : smb.vertical_smb_gradient,
+    size(smb.smb_anomaly) == size(grid)[1:2] ? smb.smb_anomaly[x_start:x_end, y_start:y_end] : smb.smb_anomaly,
+    size(smb.reference_smb) == size(grid)[1:2] ? smb.reference_smb[x_start:x_end, y_start:y_end] : smb.reference_smb)
 end
 
 function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::AbstractModel, clock::Clock)
@@ -74,7 +75,7 @@ function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::Abstr
 end
 
 
-function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid, clock) 
+function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, clock::Clock) 
     @unpack smb_anomaly = surface_mass_balance
     @unpack vertical_smb_gradient = surface_mass_balance
     @unpack dx = grid

@@ -95,19 +95,14 @@ function Model(grid::G,
     #Replace all NaN entries with defaults from params on correct grid              
     initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
 
-    #expand spatial parameters onto grid
+    #expand any spatial parameters needed onto correct grid
+    shelf_melt_rate = reconstruct_on_grid(shelf_melt_rate,grid)
     surface_mass_balance = reconstruct_on_grid(surface_mass_balance,grid)
-
-    #expand spatial parameters onto grid
+    fracture = reconstruct_on_grid(fracture,grid)
+    sliding_law = reconstruct_on_grid(sliding_law,grid)
+    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
     thermo_dynamics = reconstruct_on_grid(thermo_dynamics,grid)
 
-    #expand spatial parameters onto grid
-    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
-
-    #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
-    sliding_law = reconstruct_on_grid(sliding_law,grid)
-    #check size compatibility of resulting sliding_law drag_coefficient
-    (size(sliding_law.drag_coefficient)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient ($(size(sliding_law.drag_coefficient))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
     
     # TODO: grids are heavily reliant on the use of keyword arguments which do not allow specializations / multiple dispatch to work effectively
     
