@@ -41,14 +41,14 @@ function update_β_using_sliding_law!(sliding_law::WeertmanSlidingLaw, model::Ab
     return model
 end
 
-function reconstruct_on_grid(sliding_law::WeertmanSlidingLaw, grid::Grid)
+function Grids.reconstruct_on_grid(sliding_law::WeertmanSlidingLaw, grid::Grid)
     return WeertmanSlidingLaw(
         isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) : sliding_law.drag_coefficient,
           sliding_law.weertman_m,
           sliding_law.reg_speed)
 end
 
-function reconstruct_on_subdomain(sliding_law::WeertmanSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
+function Grids.reconstruct_on_subdomain(sliding_law::WeertmanSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 

@@ -2,7 +2,7 @@ module Parameters
 
 using Parameters
 using WAVI.Time: compute_iterations_and_end_time
-using WAVI: AbstractGrid
+using WAVI.Grids
 
 export Params, SolverParams, TimesteppingParams
 
@@ -166,7 +166,8 @@ function Params(; g = 9.81,
 end
 
 #Outer constructor that expands scalars into arrays of approriate size.
-reconstruct_on_grid(params::Params, grid::AbstractGrid) = Params(
+function Grids.reconstruct_on_grid(params::Params, grid::Grid) 
+     return     Params(
                   params.dt, 
                   params.g, 
                   params.density_ice,
@@ -211,9 +212,10 @@ reconstruct_on_grid(params::Params, grid::AbstractGrid) = Params(
                   params.default_temperature_ave,
                   params.default_preBfactor
                   )
+end
 
 #Outer constructor that selects parameters for a specified subdomain from parameters defined on a particular grid
-function reconstruct_on_subdomain(params::Params, grid::AbstractGrid, subdomain::NTuple{4,<: Integer})
+function Grids.reconstruct_on_subdomain(params::Params, grid::Grid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 

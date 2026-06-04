@@ -50,9 +50,10 @@ const MapOrMatrix{T} = Union{LinearMap{T}, AbstractMatrix{T}}
 #include all of the code
 include("Deferred.jl")
 include("Time.jl")
+include("Grids.jl")
+include("ClimateForcing/ClimateForcing.jl")
 include("Parameters.jl")
 include("KroneckerProducts.jl")
-include("Grids.jl")
 include("Utilities.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
@@ -69,7 +70,6 @@ include("Outputs/Outputs.jl")
 include("Simulations/Simulation.jl")
 include("Specs/Specs.jl")
 include("Inversion/Inversion.jl")
-include("ClimateForcing/ClimateForcing.jl")
 
 
 export AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance,

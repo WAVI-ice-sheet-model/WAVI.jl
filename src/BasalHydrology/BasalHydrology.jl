@@ -5,7 +5,7 @@ export update_basal_water_thickness_effective_pressure!
 using Parameters, Enzyme
 
 using WAVI: AbstractBasalHydrology, AbstractModel
-using WAVI.Grids: Grid
+using WAVI.Grids
 
 
 #add each of the individual basal hydrology models
@@ -14,11 +14,11 @@ include("./constant_basal_water_thickness.jl")
 include("./leaky_bucket.jl")
 include("./sheet_only_GlaDS.jl")
 
-function reconstruct_on_grid(basal_hydrology::BH, grid::Grid) where {BH <: AbstractBasalHydrology}
+function Grids.reconstruct_on_grid(basal_hydrology::BH, grid::Grid) where {BH <: AbstractBasalHydrology}
     return basal_hydrology
 end
 
-function reconstruct_on_subdomain(basal_hydrology::BH, grid::Grid,subdomain::NTuple{4,<: Integer}) where {BH <: AbstractBasalHydrology}
+function Grids.reconstruct_on_subdomain(basal_hydrology::BH, grid::Grid,subdomain::NTuple{4,<: Integer}) where {BH <: AbstractBasalHydrology}
     return basal_hydrology
 end
 

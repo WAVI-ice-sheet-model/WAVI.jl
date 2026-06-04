@@ -5,7 +5,7 @@ export update_accumulation_rate!
 using WAVI: AbstractSurfaceMassBalance, AbstractModel, AbstractClimateForcing
 using Parameters
 using WAVI.Time: Clock
-using WAVI.Grids: Grid
+using WAVI.Grids
 
 #return the sceme used to compute surface mass balance
 get_surface_mass_balance(model::AbstractModel) = model.surface_mass_balance
@@ -29,11 +29,11 @@ function update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalanc
     return nothing
 end
 
-function reconstruct_on_grid(smb::SMB, grid::Grid) where {SMB <: AbstractSurfaceMassBalance}
+function Grids.reconstruct_on_grid(smb::SMB, grid::Grid) where {SMB <: AbstractSurfaceMassBalance}
     return smb
 end
 
-function reconstruct_on_subdomain(smb::SMB, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SMB <: AbstractSurfaceMassBalance}
+function Grids.reconstruct_on_subdomain(smb::SMB, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SMB <: AbstractSurfaceMassBalance}
     return smb
 end
 

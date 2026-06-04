@@ -37,7 +37,7 @@ function ISMIP7SMB(;
 
 end
 
-function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
+function Grids.reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
     return ISMIP7SMB(
     smb.ISMIP7_config,
     isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : smb.reference_elevation,
@@ -46,7 +46,7 @@ function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid)
     isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : smb.reference_smb)
 end
 
-function reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
+function Grids.reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
     x_start,x_end,y_start,y_end = subdomain
     return ISMIP7SMB(
     smb.ISMIP7_config,
