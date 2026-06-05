@@ -1,3 +1,6 @@
+using WAVI.Grids: Grid
+
+
 struct ZoetIversonSlidingLaw{T <: Real, C <: Union{T,Array{T,2}}, W <: Union{T,Array{T,2}}} <: AbstractSlidingLaw
     coulomb_coefficient :: C
     drag_coefficient :: W

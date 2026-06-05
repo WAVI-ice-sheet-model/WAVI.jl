@@ -25,7 +25,7 @@ update_accumulation_rate!(model::AbstractModel, clock::Clock) = update_accumulat
 
 Generic wrapper function for updating the climate forcing. Overload this in your surface mass balance module of choice (see ISMIP7SMB.jl for an example)
 """
-function update_climate_forcing!(surface_mass_balance::SMB, grid::Grid, clock::Clock) where {SMB <: AbstractSurfaceMassBalance}
+function update_smb_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalance, clock) 
     return nothing
 end
 

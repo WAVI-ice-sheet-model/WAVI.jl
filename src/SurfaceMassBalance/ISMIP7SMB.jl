@@ -2,6 +2,7 @@ export ISMIP7SMB
 
 using WAVI: AbstractClimateForcing
 using NCDatasets
+using WAVI.Grids: Grid
 
 struct ISMIP7SMB{T <: Real,
                 CF <: AbstractClimateForcing,
@@ -14,6 +15,7 @@ struct ISMIP7SMB{T <: Real,
     vertical_smb_gradient::VSG
     smb_anomaly::SA
     reference_smb::RS
+    path_to_forcing::String
 end
 
 function ISMIP7SMB(; 
@@ -21,10 +23,11 @@ function ISMIP7SMB(;
                 reference_elevation = nothing,
                 vertical_smb_gradient = nothing, 
                 smb_anomaly = nothing,           
-                reference_smb = nothing)
+                reference_smb = nothing,
+                path_to_forcing = "./")
 
     #check that you've passed an ISMIP config            
-    ~(ISMIP_config === nothing) || throw(ArgumentError("You must pass an ISMIP7 config file"))
+    ~(ISMIP7_config === nothing) || throw(ArgumentError("You must pass an ISMIP7 config file"))
     #add test that the ISMIP config has the right fields?
 
     # check that you've passed reference elevation 
@@ -33,17 +36,17 @@ function ISMIP7SMB(;
     #check that you've passed a vertical smb gradient
     ~(reference_smb === nothing) || throw(ArgumentError("You must pass a reference smb"))
 
-    return ISMIP7SMB(ISMIP7_config,reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb)
+    return ISMIP7SMB(ISMIP7_config,reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb, path_to_forcing)
 
 end
 
-function Grids.reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
+function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
     return ISMIP7SMB(
     smb.ISMIP7_config,
-    isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : smb.reference_elevation,
-    isnothing(smb.vertical_smb_gradient) ? zeros(grid.nx,grid.ny) : smb.vertical_smb_gradient,
-    isnothing(smb.smb_anomaly) ? zeros(grid.nx,grid.ny) : smb.smb_anomaly,
-    isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : smb.reference_smb)
+    isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : smb.reference_elevation ,
+    isnothing(smb.vertical_smb_gradient) ? zeros(grid.nx,grid.ny) : smb.vertical_smb_gradient ,
+    isnothing(smb.smb_anomaly) ? zeros(grid.nx,grid.ny) : smb.smb_anomaly ,
+    isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : smb.reference_smb, smb.path_to_forcing)
 end
 
 function Grids.reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
@@ -53,7 +56,7 @@ function Grids.reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTu
     size(smb.reference_elevation) == size(grid)[1:2] ? smb.reference_elevation[x_start:x_end, y_start:y_end] : smb.reference_elevation,
     size(smb.vertical_smb_gradient) == size(grid)[1:2] ? smb.vertical_smb_gradient[x_start:x_end, y_start:y_end] : smb.vertical_smb_gradient,
     size(smb.smb_anomaly) == size(grid)[1:2] ? smb.smb_anomaly[x_start:x_end, y_start:y_end] : smb.smb_anomaly,
-    size(smb.reference_smb) == size(grid)[1:2] ? smb.reference_smb[x_start:x_end, y_start:y_end] : smb.reference_smb)
+    size(smb.reference_smb) == size(grid)[1:2] ? smb.reference_smb[x_start:x_end, y_start:y_end] : smb.reference_smb, smb.path_to_forcing)
 end
 
 function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::AbstractModel, clock::Clock)
@@ -75,28 +78,35 @@ function update_accumulation_rate!(surface_mass_balance::ISMIP7SMB, model::Abstr
 end
 
 
-function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, clock::Clock) 
+function update_smb_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, clock::Clock) 
     @unpack smb_anomaly = surface_mass_balance
     @unpack vertical_smb_gradient = surface_mass_balance
     @unpack dx = grid
-    @unpack ISMIP7_config = surface_mass_balance
+    @unpack ISMIP7_config,path_to_forcing = surface_mass_balance
 
     #get the year from clock for the forcing files
     current_time = clock.time + clock.ref_time
+    println(current_time)
     current_time_string = string(Int(round(current_time)))
 
     # load in the smb anomaly from ISMIP7
     resolution = join([string(Int(dx)), "m"])
-    smb_anomaly_filename = join(["acabf-anomaly_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"])
+    smb_anomaly_filename = joinpath(path_to_forcing,join(["acabf-anomaly_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"]))
     smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
     smb_anomaly .= replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,:] , missing => NaN)
+    #println("read in smb anomaly forcing file: " * smb_anomaly_filename)
+    @info "read in smb anomaly forcing file: $smb_anomaly_filename"
 
 
     # load in the vertical smb gradient from ISMIP7
-    vertical_smb_gradient_anomaly_filename = join(["dacabfdz_AIS_", model, "_ssp", scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,".nc"])
+    vertical_smb_gradient_anomaly_filename = joinpath(path_to_forcing, join(["dacabfdz_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"]))
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
     vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:], missing => NaN)
     
+    #println("read in vertical smb gradient forcing file: " * vertical_smb_gradient_anomaly_filename)
+    @info "read in vertical smb gradient forcing file: $vertical_smb_gradient_anomaly_filename"
+
+
     return nothing
 
 end

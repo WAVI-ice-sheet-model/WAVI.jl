@@ -9,6 +9,14 @@ using WAVI.Time: Clock
 using WAVI.Grids
 
 
+function reconstruct_on_grid(melt::M, grid::Grid) where {M <: AbstractMeltRate}
+    return melt
+end
+
+function reconstruct_on_subdomain(melt::M, grid::Grid,subdomain::NTuple{4,<: Integer}) where {M <: AbstractMeltRate}
+    return melt
+end
+
 #add each of the individual melt rate models
 #include("./analytic_melt_rate_model.jl")
 include("./binfile_melt_rate.jl")

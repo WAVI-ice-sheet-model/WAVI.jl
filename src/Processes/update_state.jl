@@ -167,7 +167,7 @@ Update the ice temperature and grounded melt rate according to the chosen thermo
 The specific function lives in the corresponding thermodynamics file.
 """
 function update_thermodynamics_basal_melt!(model::AbstractModel)
-    update_ice_temperature_and_basal_melt_rate!(model.thermo_dynamics,model)
+    ThermoDynamics.update_ice_temperature_and_basal_melt_rate!(model.thermo_dynamics,model)
     return model
 end
 

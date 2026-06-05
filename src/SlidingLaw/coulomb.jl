@@ -1,4 +1,6 @@
 export CoulombSlidingLaw
+using WAVI.Grids: Grid
+
 
 struct CoulombSlidingLaw{T <: Real, C <: Union{T,Array{T,2}}} <: AbstractSlidingLaw 
     coulomb_coefficient :: C

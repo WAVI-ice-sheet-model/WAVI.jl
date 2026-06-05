@@ -3,7 +3,7 @@ module ThermoDynamics
 export update_ice_temperature_and_basal_melt_rate!
 
 using Parameters
-
+using WAVI.Grids: Grid
 using WAVI: AbstractThermoDynamics, AbstractModel
 using WAVI.Grids
 

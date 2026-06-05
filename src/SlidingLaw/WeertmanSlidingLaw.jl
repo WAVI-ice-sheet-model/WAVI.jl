@@ -1,4 +1,5 @@
 export WeertmanSlidingLaw
+using WAVI.Grids: Grid
 
 struct WeertmanSlidingLaw{T <: Real, W <: Union{T,Array{T,2}}} <: AbstractSlidingLaw
     drag_coefficient :: W
