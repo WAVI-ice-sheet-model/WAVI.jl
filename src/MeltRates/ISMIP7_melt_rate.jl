@@ -77,7 +77,7 @@ function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid,
     zb = b .* (grounded_fraction .== 1) + - ρ_ice / ρ_w .* h .* (grounded_fraction .< 1)
 
     #compute the local thermal forcing and salinity from the climate forcing and ice draft
-    idx = [argmin(abs.(z_forcing .- d)) for d in b] #gives an nx * ny array indices which are closest depth to z in the forcing.
+    idx = [argmin(abs.(z_forcing .- d)) for d in zb] #gives an nx * ny array indices which are closest depth to z in the forcing.
     Tf_local_shelf = [Tf_loc[i,j,idx[i,j]] for i in axes(Tf_loc,1), j in axes(Tf_loc,2)] #fills the array of thermal forcing 
     S_local_shelf = [S_loc[i,j,idx[i,j]] for i in axes(S_loc,1), j in axes(S_loc,2)] #fills the array of thermal forcing 
 
@@ -125,4 +125,72 @@ function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
     # read in the z co-ordinates 
     z_forcing .= replace(thermal_forcing_ncfile["z"][:] , missing => NaN)
 
+end
+
+
+function Grids.reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid) 
+    
+    if isnothing(ISMIP7_melt_rate.z_forcing)
+        throw(ArgumentError("z_forcing must be initialised with correct length"))    
+    else 
+        number_of_zlevels = size(ISMIP7_melt_rate.z_forcing,1)
+    end
+
+    return ISMIP7MeltRate(
+                ISMIP7_melt_rate.ISMIP7_config,
+                ISMIP7_melt_rate.K,
+                ISMIP7_melt_rate.shelf_slope,
+                ISMIP7_melt_rate.ρ_ocean,
+                ISMIP7_melt_rate.ρ_ice,
+                ISMIP7_melt_rate.c_ocean,
+                ISMIP7_melt_rate.L_ice,
+                ISMIP7_melt_rate.β_s,
+                ISMIP7_melt_rate.g,
+                ISMIP7_melt_rate.f,
+                isnothing(ISMIP7_melt_rate.S_loc) ? 
+                    zeros(grid.nx,grid.ny,number_of_zlevels) : 
+                    ISMIP7_melt_rate.S_loc,
+                isnothing(ISMIP7_melt_rate.T_loc) ? 
+                    zeros(grid.nx,grid.ny,number_of_zlevels) : 
+                    ISMIP7_melt_rate.T_loc,
+                isnothing(ISMIP7_melt_rate.Tf_loc) ? 
+                    zeros(grid.nx,grid.ny,number_of_zlevels) : 
+                ISMIP7_melt_rate.Tf_loc,
+                ISMIP7_melt_rate.z_forcing, 
+                ISMIP7_melt_rate.melt_partial_cell)
+end
+
+function Grids.reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
+    
+    (size(ISMIP7_melt_rate.z_forcing,1) == 
+     size(ISMIP7_melt_rate.S_loc,3) ==
+     size(ISMIP7_melt_rate.T_loc,3) ==
+     size(ISMIP7_melt_rate.Tf_loc,3)) || 
+     throw(ArgumentError("Inconsistent size of z_forcing and ocean fields"))    
+
+    x_start,x_end,y_start,y_end = subdomain
+
+    return ISMIP7MeltRate(
+                ISMIP7_melt_rate.ISMIP7_config,
+                ISMIP7_melt_rate.K,
+                ISMIP7_melt_rate.shelf_slope,
+                ISMIP7_melt_rate.ρ_ocean,
+                ISMIP7_melt_rate.ρ_ice,
+                ISMIP7_melt_rate.c_ocean,
+                ISMIP7_melt_rate.L_ice,
+                ISMIP7_melt_rate.β_s,
+                ISMIP7_melt_rate.g,
+                ISMIP7_melt_rate.f,
+                size(ISMIP7_melt_rate.S_loc) == size(grid)[1:2] ? 
+                        ISMIP7_melt_rate.S_loc[x_start:x_end, y_start:y_end,:] : 
+                        ISMIP7_melt_rate.S_loc,
+                size(ISMIP7_melt_rate.T_loc) == size(grid)[1:2] ? 
+                        ISMIP7_melt_rate.T_loc[x_start:x_end, y_start:y_end,:] : 
+                        ISMIP7_melt_rate.T_loc,
+                size(ISMIP7_melt_rate.Tf_loc) == size(grid)[1:2] ? 
+                        ISMIP7_melt_rate.Tf_loc[x_start:x_end, y_start:y_end,:] : 
+                        ISMIP7_melt_rate.Tf_loc,
+                        ISMIP7_melt_rate.Tf_loc,
+                ISMIP7_melt_rate.z_forcing, 
+                ISMIP7_melt_rate.melt_partial_cell)
 end

@@ -8,7 +8,7 @@ using NCDatasets
 using WAVI: AbstractFracture, AbstractModel
 using WAVI.Advection
 using WAVI.Time: Clock
-using WAVI.Grids: Grid
+using WAVI.Grids
 
 
 get_fracture(model::AbstractModel{T,N}) where {T,N} = model.fracture
@@ -27,6 +27,17 @@ update_damage!(model::AbstractModel{T,N};kwargs ...) where {T,N} = update_damage
 Update the strain history stored in the model structure.
 """
 update_strain_history!(model::AbstractModel{T,N};kwargs ...) where {T,N} = update_strain_history!(get_fracture(model),model; kwargs ...)
+
+
+# Default behaviour. Overloaded for types that store spatial information.
+function Grids.reconstruct_on_grid(fracture::F, grid::Grid) where {F <: AbstractFracture}
+    return fracture
+end
+
+# Default behaviour. Overloaded for types that store spatial information.
+function Grids.reconstruct_on_subdomain(fracture::F, grid::Grid,subdomain::NTuple{4,<: Integer}) where {F <: AbstractFracture}
+    return fracture
+end
 
 
 """

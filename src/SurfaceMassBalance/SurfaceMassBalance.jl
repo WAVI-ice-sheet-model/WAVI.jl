@@ -29,10 +29,12 @@ function update_climate_forcing!(surface_mass_balance::SMB, grid::Grid, clock::C
     return nothing
 end
 
+# Default behaviour. Overloaded for types that store spatial information.
 function Grids.reconstruct_on_grid(smb::SMB, grid::Grid) where {SMB <: AbstractSurfaceMassBalance}
     return smb
 end
 
+# Default behaviour. Overloaded for types that store spatial information.
 function Grids.reconstruct_on_subdomain(smb::SMB, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SMB <: AbstractSurfaceMassBalance}
     return smb
 end
