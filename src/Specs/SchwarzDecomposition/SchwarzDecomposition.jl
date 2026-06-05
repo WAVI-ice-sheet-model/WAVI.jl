@@ -105,17 +105,14 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     params_g = reconstruct_on_subdomain(model.params,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
 
-    sliding_law_g = reconstruct_on_subdomain(model.sliding_law,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
-
-    fracture_g = reconstruct_on_subdomain(model.fracture,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
-
+    shelf_melt_rate_g = reconstruct_on_subdomain(model.shelf_melt_rate,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
     surface_mass_balance_g = reconstruct_on_subdomain(model.surface_mass_balance,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
-
+    fracture_g = reconstruct_on_subdomain(model.fracture,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    sliding_law_g = reconstruct_on_subdomain(model.sliding_law,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
     basal_hydrology_g = reconstruct_on_subdomain(model.basal_hydrology,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
- 
     thermo_dynamics_g = reconstruct_on_subdomain(model.thermo_dynamics,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
 
-    solver_params_g=model.solver_params
+    solver_params_g=reconstruct_on_subdomain(model.solver_params,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
 
     initial_thickness_g = gh.h[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_grounded_fraction_g = gh.grounded_fraction[i_start_g:i_stop_g,j_start_g:j_stop_g]
@@ -145,10 +142,6 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         initial_effective_pressure = initial_effective_pressure_g,
         initial_θ_ave = initial_θ_ave_g,
         initial_preBfactor = initial_preBfactor_g)
-
-    shelf_melt_rate_g=model.shelf_melt_rate
-
-    surface_mass_balance_g=model.surface_mass_balance
 
     spec_g = BasicSpec()
 
