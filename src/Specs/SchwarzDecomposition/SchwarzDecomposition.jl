@@ -1,6 +1,7 @@
 using WAVI
 import WAVI: AbstractModel
 using WAVI.Models: Model
+using WAVI.Grids
 
 using Parameters
 using Setfield
@@ -158,7 +159,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         solver_params = solver_params_g,
         initial_conditions = initial_conditions_g,
         shelf_melt_rate = shelf_melt_rate_g,
-        surface_mass_balance = surface_mass_blance_g,
+        surface_mass_balance = surface_mass_balance_g,
         spec = spec_g,
         basal_hydrology = basal_hydrology_g,
         sliding_law = sliding_law_g,
