@@ -1,4 +1,4 @@
-using WAVI, Test
+using WAVI, Test, JLD2
 
 @testset "Version Updates" begin
     @info "testing the current version of WAVI against previous version...."
@@ -84,7 +84,8 @@ using WAVI, Test
         filename = joinpath(dirname(@__FILE__), "v1_5_1_MISMIP_100yr_output_8kmres_maxiter1_timesteppt1.jld2")
         example_output = load(filename)
     else
-    example_output = Dict("h" => NaN, "u" => NaN, "v" => NaN, "viscosity" => NaN, "grounded_fraction" => NaN, "bed_speed" => NaN)
+        filename = joinpath(dirname(@__FILE__), "v1_8_3_MISMIP_100yr_output_8kmres_maxiter1_timesteppt1.jld2")
+        example_output = load(filename)
     end
 
     @testset "Approximate comparison" begin

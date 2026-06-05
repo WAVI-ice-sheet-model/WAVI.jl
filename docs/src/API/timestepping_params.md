@@ -1,39 +1,66 @@
 # Timestepping Parameters
 
 ## Overview
-A `TimesteppingParams` structure is used to pass information relating to [timestepping](../numerical_procedure/numerical_procedure.md) to the simulation. The following parameters as specified by passing appropriate keyword arguments the `TimesteppingParams` constructor:
-- `niter0`: the iteration number at which the simulation. Set `niter0` to `0` to initialize a 'clean' simulation, or `niter0` to a positive integer to (attempt to) pickup from the a corresponding checkpoint (see [Checkpoints and Pickups](#Checkpoints-and-Pickups) below)
+A `TimesteppingParams` structure is used to pass information relating to [timestepping](../numerical_procedure/numerical_procedure.md) to the simulation. The following parameters are specified by passing appropriate keyword arguments to the `TimesteppingParams` constructor:
+
+- `niter0`: the iteration number at which the simulation starts. Set `niter0` to `0` to initialize a new simulation, or to a positive integer to pick up from a checkpoint written at that iteration (see [Checkpoints and pickups](#Checkpoints-and-pickups) below).
 - `dt`: the simulation timestep
 - `end_time`: the clock time at which the simulation should terminate
-- `n_iter_total`: the total number of timesteps to be performed. **NB**: you must specify at least one of `end_time` and `n_iter_total` (the simulation must know when it is going to finish!); specifying both is possible, but they must be compatible (i.e the `end_time` must equal `n_iter_total * dt`).
-- `chkpt_freq` and `pchkpt_freq`: the model time interval between outputting temporary and permanent checkpoints, respectively (see [Checkpoints and Pickups](#Checkpoints-and-Pickups))
-- `step_thickness`: a flag which, when turned off (`stepthickness = false`) turns of thickness updates when timestepping. This is an experimental feature, necessary for coupling WAVI to the MITgcm (see the [MITgcm coupling](../mitgcm_coupling.md) for more info)
+- `n_iter_total`: the total number of timesteps to be performed. **NB**: you must specify at least one of `end_time` and `n_iter_total` (the simulation must know when it is going to finish!); specifying both is possible, but they must be compatible (i.e. `end_time` must equal `n_iter_total * dt`).
+- `chkpt_freq`: the model time interval between writing permanent checkpoints (see [Checkpoints and pickups](#Checkpoints-and-pickups)). Set to `Inf` (the default) to disable checkpointing.
+- `chkpt_path`: directory in which checkpoint files are stored when `chkpt_path` is set explicitly (see [Checkpoint location](#Checkpoint-location) below).
+- `step_thickness`: a flag which, when turned off (`step_thickness = false`), turns off thickness updates when timestepping. This is an experimental feature, necessary for coupling WAVI to the MITgcm (see the [MITgcm coupling](../mitgcm_coupling.md) for more info).
+
+The deprecated keyword `pchkpt_freq` is no longer accepted; use `chkpt_freq` instead.
 
 ## Constructor
-An instance of a `TimesteppingParams` is constucted using the `TimesteppingParams(;<kwargs>)` constructor:
+An instance of `TimesteppingParams` is constructed using the `TimesteppingParams(; kwargs...)` constructor:
+
 ```@docs
 TimesteppingParams()
 ```
 
 ## Checkpoints and Pickups
-Large simulations are computationally expensive, and may take a long time to run. To permit simulations to run for longer than maximum runtime limits which are imposed on many machines, WAVI.jl is equipped with a checkpoint-pickup system that allows the state to be outputted frequently, and the simulation to be picked again from that point. 
+Large simulations are computationally expensive, and may take a long time to run. To permit simulations to run for longer than maximum runtime limits which are imposed on many machines, WAVI.jl is equipped with a checkpoint-pickup system that allows the state to be outputted frequently, and the simulation to be picked again from that point.
 
 ### Checkpoints
-Checkpoints contain a snapshot of *all* of the information on the current state of the simulation. As a result, they may be large and thus outputting checkpoints very frequently is discouraged, except for when debugging simulations which are ran for only a few timesteps (see [Simulation Tips](../simulation_tips.md))
+Checkpoints contain a snapshot of the model state, simulation clock, and the `TimesteppingParams` in use when the file was written. They can be large, so writing them very frequently is discouraged except for short test runs (see [Simulation tips](../simulation_tips.md)).
 
-Both temporary and permanent checkpoints are output in `jld2` format. The path of both of these is specified by setting the `chkpt_path` argument in the TimesteppingParams [constructor](#Constructor).
+Permanent checkpoints are written in `jld2` format. Each file is named `Chkpt_NNNNNNNNNN.jld2`, where `NNNNNNNNNN` is the iteration number zero-padded to ten digits (for example, iteration `1000` gives `Chkpt_0000001000.jld2`).
 
-Temporary checkpoints are outputted every `chkpt_freq` years (model time). These checkpoints are rolling: first checkpoint 'A' (named `chkptA.jld`) is written at time `chkpt_freq`, then checkpoint 'B' (named `chkptB.jld`) is output at a time `2 * chkpt_freq`. Checkpoint 'A' is overwritten at time `3 * chkpt_freq`, and so on.
+Checkpoints are written when all of the following hold:
 
-Similarly, permanent checkpoints are outputted every `pchkpt_freq` model years.  These are output sequentially (i.e. not overwritten) as `pchkpt_xxxxxxxxx.jld2` where `xxxxxxxxxx` is the iteration number, prepended by zeros to be ten digits long (e.g. the filename of a checkpoint outputted at timestep number one thousand is `chkpt_0000001000.jld`).
+- `chkpt_freq` is not `Inf`
+- the current iteration index is greater than zero
+- `mod(n_iter, n_iter_chkpt) == 0`, where `n_iter_chkpt = round(Int, chkpt_freq / dt)`
 
-Note that the number of timesteps, rather than the model time, is used to determine when to output the solution: permanent checkpoints are output every `floor(pchkpt_freq / dt)` timesteps (and similarly for `chkpt_freq`), so the actual output frequency may not exaclty match that specified by the parameter. 
+So the checkpoint interval is set in model time via `chkpt_freq`, but the trigger uses the iteration count; the actual spacing may differ slightly from `chkpt_freq` if `chkpt_freq / dt` is not an integer.
+
+Each file stores top-level variables `model`, `clock`, and `timestepping_params`. Older checkpoints that store a single `simulation` object can still be loaded for pickup.
+
+### Checkpoint location
+The directory used for both writing and reading checkpoints is resolved as follows:
+
+1. If `chkpt_path` is set to something other than the default `"./"`, that directory is used.
+2. Otherwise, if `OutputParams.output_path` is not `"./"`, checkpoints are written alongside ordinary outputs in `output_path`.
+3. Otherwise, checkpoints are written under `"./"`.
+
+For restarts, use the same `chkpt_path` and `output_path` pairing as in the run that created the checkpoint (or set `chkpt_path` explicitly to the folder that contains the `Chkpt_*.jld2` files).
+
+Example: colocate checkpoints with field output in `outputs/`:
+
+```julia
+folder = "outputs/"
+timestepping_params = TimesteppingParams(..., chkpt_freq = 1.0, chkpt_path = folder)
+output_params = OutputParams(..., output_path = folder)
+```
 
 ### Pickups
-Continuining from the state stored in a checkpoint is initiatied by setting the `niter0` parameter to correspond to the number of the timestep to be picked up from. For example, to continue the simulation from a checkpoint outputted at timestep number one thousand, set `niter0 = 1000` in the `TimesteppingParams` constructor.  
+To continue from a checkpoint, set `niter0` to the iteration number in the filename you want to load. For example, to pick up from `Chkpt_0000001000.jld2`, use `niter0 = 1000`.
 
-WAVI.jl only currently supports pickups from permanent checkpoints. The permanent checkpoint from which a pickup is initiated must be in the local directory.
+When `niter0 > 0`, `Simulation` loads `Chkpt_<niter0>.jld2` from the checkpoint directory (see above), and replaces the passed-in `model` and initial clock with the `model` and `clock` stored in that file. The run then continues from iteration `niter0 + 1` up to the new `n_iter_total`.
+
+You must still pass a `model` to `Simulation` when picking up (to construct the simulation object), but the state used for time stepping comes from the checkpoint.
 
 !!! note
-    **After a pickup, WAVI.jl uses the model that was specified in the original simulation that produced the checkpoint**. However, to retain the simulation structure, a `model` must still be passed to `simulation` Similarly, **after picking up, `output_params` will be as specified in the original simulation that produced the checkpoint**. To force a simulation to update to the model and/or output parameters to those just passed, use the `pickup_model_update_flag` and/or `pickup_output_update_flag` flags in the simulation constructor (see [Simulations](simulations.md)). **`TimesteppingParams` are always updated after a pickup**.  
-
+    After a pickup, **`model` and `clock` come from the checkpoint file**. **`TimesteppingParams` and `OutputParams` come from the arguments you pass to the new `Simulation`**—for example, a new `end_time` or `n_iter_total` controls how much further the run continues, and `output_params` controls where and how subsequent field output is written. Ensure the checkpoint file exists at the resolved checkpoint path before starting a pickup run.

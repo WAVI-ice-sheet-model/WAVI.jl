@@ -1,6 +1,7 @@
 using WAVI
 import WAVI: AbstractModel
 using WAVI.Models: Model
+using WAVI.Parameters: Params
 using WAVI.Grids
 
 using Parameters
@@ -13,6 +14,71 @@ export  schwarzModel,
 
 
 
+
+"""
+    _slice_gridded_param(field, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+
+Safely extract a physical parameter field for a subdomain.
+
+If the parameter is a single number (scalar), it is returned directly as-is. If the parameter is
+an array of gridded values, it is sliced to match the specific 2D index ranges of the subdomain.
+"""
+function _slice_gridded_param(field, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+    field isa Number && return field
+    return field[i_range, j_range]
+end
+
+"""
+    _slice_params_for_subdomain(params::Params, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+
+Slice all gridded physical parameters to fit the coordinates of a subdomain.
+
+Loops through all gridded parameters (like `accumulation_rate`, `weertman_c`, and `glen_a_ref`)
+and slices them down to the subdomain size, while keeping scalar numbers unchanged. Needed to
+ensure the physical parameters on each subdomain are consistent with the global domain.
+"""
+function _slice_params_for_subdomain(params::Params, i_range::UnitRange{Int}, j_range::UnitRange{Int})
+    params = @set params.accumulation_rate = _slice_gridded_param(params.accumulation_rate, i_range, j_range)
+    params = @set params.weertman_c = _slice_gridded_param(params.weertman_c, i_range, j_range)
+    params = @set params.glen_a_ref = _slice_gridded_param(params.glen_a_ref, i_range, j_range)
+    return params
+end
+
+"""
+    _schwarz_patch_indices(nx, ny, igrid, jgrid, ngridsx, ngridsy, overlap)
+
+Calculate the 2D global index bounds for both the core and extended (overlap) regions of a subdomain block.
+
+This function:
+1. Splits the main grid (`nx` by `ny`) into `ngridsx` by `ngridsy` blocks using the remainder-balancing rule.
+2. Identifies the core boundaries for the block located at column `igrid` and row `jgrid`.
+3. Extends those core boundaries by the specified `overlap` cells to create the overlapping subdomains.
+4. Clamps the extended boundaries at the outer edges of the global domain to prevent out-of-bound errors.
+"""
+function _schwarz_patch_indices(
+    nx::Int, ny::Int,
+    igrid::Int, jgrid::Int,
+    ngridsx::Int, ngridsy::Int,
+    overlap::Int,
+)
+    (1 <= igrid <= ngridsx) || throw(BoundsError((igrid, ngridsx), igrid))
+    (1 <= jgrid <= ngridsy) || throw(BoundsError((jgrid, ngridsy), jgrid))
+
+    i_start_domain, i_stop_domain = subdomain_core_range(igrid, ngridsx, nx)
+    j_start_domain, j_stop_domain = subdomain_core_range(jgrid, ngridsy, ny)
+
+    i_start_g = max(i_start_domain - overlap, 1)
+    i_stop_g = min(i_stop_domain + overlap, nx)
+    j_start_g = max(j_start_domain - overlap, 1)
+    j_stop_g = min(j_stop_domain + overlap, ny)
+
+    return (
+        i_start_domain, i_stop_domain,
+        j_start_domain, j_stop_domain,
+        i_start_g, i_stop_g,
+        j_start_g, j_stop_g,
+    )
+end
 
 """
 schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,overlap=1)
@@ -35,23 +101,13 @@ model_g:      Subdomain model
 function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,overlap=1)
     @unpack nx,ny,dx,dy,nσ,x0,y0,h_mask,h_isfixed,hyd_potential_isfixed,u_iszero,v_iszero,u_isfixed,v_isfixed,quadrature_weights,σ = model.grid
     @unpack gh,gu,gv,g3d = model.fields
-    
-    @assert rem(nx,ngridsx)==0 "Model domain is not an integer number of subdomains in x-direction"
-    @assert rem(ny,ngridsy)==0 "Model domain is not an integer number of subdomains in y-direction"
-    (1 <= igrid <= ngridsx) || throw(BoundsError(model,igrid))
-    (1 <= jgrid <= ngridsy) || throw(BoundsError(model,jgrid))
 
-    nx_domain=div(nx,ngridsx)
-    ny_domain=div(ny,ngridsy)
-    i_start_domain=(igrid-1)*nx_domain+1
-    i_stop_domain=igrid*nx_domain
-    j_start_domain=(jgrid-1)*ny_domain+1
-    j_stop_domain=jgrid*ny_domain
-
-    i_start_g = max(i_start_domain - overlap, 1)
-    i_stop_g = min(i_stop_domain + overlap, nx)
-    j_start_g = max(j_start_domain - overlap, 1)
-    j_stop_g = min(j_stop_domain + overlap, ny)
+    (
+        i_start_domain, i_stop_domain,
+        j_start_domain, j_stop_domain,
+        i_start_g, i_stop_g,
+        j_start_g, j_stop_g,
+    ) = _schwarz_patch_indices(nx, ny, igrid, jgrid, ngridsx, ngridsy, overlap)
 
     nx_g = i_stop_g - i_start_g + 1
     ny_g = j_stop_g - j_start_g + 1
@@ -67,7 +123,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     u_iszero_g = u_iszero[i_start_g:i_stop_g+1,j_start_g:j_stop_g]
     v_iszero_g = v_iszero[i_start_g:i_stop_g,j_start_g:j_stop_g+1]
 
-    u_isfixed_g = u_isfixed[i_start_g:i_stop_g+1,j_start_g:j_stop_g] 
+    u_isfixed_g = u_isfixed[i_start_g:i_stop_g+1,j_start_g:j_stop_g]
     v_isfixed_g = v_isfixed[i_start_g:i_stop_g,j_start_g:j_stop_g+1]
 
     #Set halo points as fixed velocity points
@@ -80,8 +136,8 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     (jgrid==1) || (u_isfixed_g[:,1] .= true)
     (jgrid==ngridsy) || (u_isfixed_g[:,ny_g] .= true)
 
-    quadrature_weights_g = quadrature_weights 
-    σ_g = σ 
+    quadrature_weights_g = quadrature_weights
+    σ_g = σ
 
     grid_g=Grid(
     nx=nx_g,
@@ -175,27 +231,16 @@ ngridsy:      Number of subdomains in y-direction.
 overlap:      Overlap of subdomains on h-grid.
 
 """
-function schwarzRestrictVelocities!(model_g::AbstractModel, 
-                                    model::AbstractModel; 
+function schwarzRestrictVelocities!(model_g::AbstractModel,
+                                    model::AbstractModel;
                                     igrid=1, jgrid=1, ngridsx=1, ngridsy=1, overlap=1)
     @unpack nx,ny = model.grid
-    
-    @assert rem(nx,ngridsx)==0 "Model domain is not an integer number of subdomains in x-direction"
-    @assert rem(ny,ngridsy)==0 "Model domain is not an integer number of subdomains in y-direction"
-    (1 <= igrid <= ngridsx) || throw(BoundsError(model,igrid))
-    (1 <= jgrid <= ngridsy) || throw(BoundsError(model,jgrid))
 
-    nx_domain=div(nx,ngridsx)
-    ny_domain=div(ny,ngridsy)
-    i_start_domain=(igrid-1)*nx_domain+1
-    i_stop_domain=igrid*nx_domain
-    j_start_domain=(jgrid-1)*ny_domain+1
-    j_stop_domain=jgrid*ny_domain
-
-    i_start_g = max(i_start_domain - overlap, 1)
-    i_stop_g = min(i_stop_domain + overlap, nx)
-    j_start_g = max(j_start_domain - overlap, 1)
-    j_stop_g = min(j_stop_domain + overlap, ny)
+    (
+        _, _, _, _,
+        i_start_g, i_stop_g,
+        j_start_g, j_stop_g,
+    ) = _schwarz_patch_indices(nx, ny, igrid, jgrid, ngridsx, ngridsy, overlap)
 
     model_g.fields.gu.u .= model.fields.gu.u[i_start_g:i_stop_g+1,j_start_g:j_stop_g]
     model_g.fields.gv.v .= model.fields.gv.v[i_start_g:i_stop_g,j_start_g:j_stop_g+1]
@@ -221,23 +266,12 @@ function schwarzProlongVelocities!(model::AbstractModel,
                                    model_g::AbstractModel;
                                    igrid=1, jgrid=1, ngridsx=1, ngridsy=1, overlap=1, damping=0.0)
     @unpack nx,ny = model.grid
-    
-    @assert rem(nx,ngridsx)==0 "Model domain is not an integer number of subdomains in x-direction"
-    @assert rem(ny,ngridsy)==0 "Model domain is not an integer number of subdomains in y-direction"
-    (1 <= igrid <= ngridsx) || throw(BoundsError(model,igrid))
-    (1 <= jgrid <= ngridsy) || throw(BoundsError(model,jgrid))
 
-    nx_domain=div(nx,ngridsx)
-    ny_domain=div(ny,ngridsy)
-    i_start_domain=(igrid-1)*nx_domain+1
-    i_stop_domain=igrid*nx_domain
-    j_start_domain=(jgrid-1)*ny_domain+1
-    j_stop_domain=jgrid*ny_domain
-
-    i_start_g = max(i_start_domain - overlap, 1)
-    i_stop_g = min(i_stop_domain + overlap, nx)
-    j_start_g = max(j_start_domain - overlap, 1)
-    j_stop_g = min(j_stop_domain + overlap, ny)
+    (
+        _, _, _, _,
+        i_start_g, i_stop_g,
+        j_start_g, j_stop_g,
+    ) = _schwarz_patch_indices(nx, ny, igrid, jgrid, ngridsx, ngridsy, overlap)
 
     nx_g = i_stop_g - i_start_g + 1
     ny_g = j_stop_g - j_start_g + 1

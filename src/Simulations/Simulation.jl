@@ -5,9 +5,10 @@ export Simulation
 using JLD2
 using Parameters
 using Setfield
+using ImageFiltering: centered, imfilter, reflect, Fill
 
 using WAVI: AbstractModel, AbstractSimulation
-using WAVI.Outputs: OutputParams
+using WAVI.Outputs: OutputParams, load_checkpoint
 using WAVI.Parameters: TimesteppingParams
 using WAVI.Time
 
@@ -20,18 +21,19 @@ end
 
 """
     Simulation(;
-            model = nothing,
-            timestepping_params = nothing,
-            output_params = OutputParams(),
-            pickup_output_update_flag = false)
+            model,
+            timestepping_params,
+            output_params = OutputParams())
 
 Construct a WAVI.jl Simulation object.
 
 Keyword arguments
 =================
-- `model`: (required) an instance of a `Model` object
+- `model`: (required) an instance of a `Model` object. When `timestepping_params.niter0 > 0`, the model and clock are
+  loaded from the checkpoint file; the passed-in `model` is replaced after pickup.
 - `timestepping_params`: (required) an instance of a `TimesteppingParams` object, which stores information relating to timestepping
-- `output_params`: an instance of an `OutputParams` object, which stores information relating to outputting of solutions
+- `output_params`: an instance of an `OutputParams` object, which stores information relating to outputting of solutions.
+  Also used with `timestepping_params` to locate checkpoint files for pickup (see `checkpoint_path` in `Outputs`).
 """
 function Simulation(; 
                     model::AbstractModel,
@@ -41,7 +43,7 @@ function Simulation(;
 
     #compute number of timesteps per output (should be robust for Inf output frequency)
     output_params = set_n_iter_out!(output_params, timestepping_params.dt, timestepping_params.n_iter_total)
-    pickup_model, pickup_clock = pickup!(timestepping_params)
+    pickup_model, pickup_clock = pickup!(timestepping_params, output_params)
 
     if ~isnothing(pickup_model)
         model, clock = pickup_model, pickup_clock
@@ -73,19 +75,15 @@ function set_n_iter_out!(output_params, dt, n_iter_total)
     return output_params
 end
 
-function pickup!(timestepping_params::TimesteppingParams)::Union{Tuple{Model, Clock}, Tuple{Nothing, Nothing}}
+function pickup!(timestepping_params::TimesteppingParams, output_params::OutputParams)::Union{Tuple{Model, Clock}, Tuple{Nothing, Nothing}}
     model, clock = nothing, nothing
     if timestepping_params.niter0 > 0
-        n_iter_string =  lpad(timestepping_params.niter0, 10, "0"); #filename as a string with 10 digits
         @info "detected niter0 > 0 (niter0 = $(timestepping_params.niter0)). Looking for pickup..."
-
-        try 
-            sim_load = load(string("Chkpt_",n_iter_string, ".jld2"), "simulation")
+        try
+            model, clock = load_checkpoint(timestepping_params, output_params)
             println("Pickup successful")
-
-            model = sim_load.model
-            clock = sim_load.clock
-        catch 
+        catch e
+            @error "Pickup error: $e"
             error("Pickup error, terminating run")
         end
     end

@@ -14,13 +14,8 @@ function write_outputs(model::M,
                        timestepping_params::TimesteppingParams, 
                        output_params::OutputParams, 
                        clock::Clock) where {M<:AbstractModel{<:Any, <:Any, <:Any}}
-    #check if we have hit a permanent checkpoint
-    if mod(clock.n_iter, timestepping_params.n_iter_chkpt) == 0
-        #output a permanent checkpoint
-        n_iter_string =  lpad(clock.n_iter, 10, "0"); #filename as a string with 10 digits
-        fname = joinpath(output_params.output_path, string("Chkpt_",n_iter_string, ".jld2"))
-        @save fname model=model timestepping_params=timestepping_params clock=clock
-        @info "Permanent checkpoint at timestep number $(clock.n_iter)"
+    if should_write_checkpoint(timestepping_params, clock)
+        write_checkpoint!(model, timestepping_params, output_params, clock)
     end
 
     #check if we have hit an output timestep

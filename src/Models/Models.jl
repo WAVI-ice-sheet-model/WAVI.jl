@@ -105,7 +105,6 @@ function Model(grid::G,
 
     
     # TODO: grids are heavily reliant on the use of keyword arguments which do not allow specializations / multiple dispatch to work effectively
-    
 
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
     fields = GridField(grid, bed_array; initial_conditions, params, solver_params)
@@ -154,7 +153,7 @@ Model(g::G, f::F, p::P, sp::SP, s::S, m::M, smb::SMB, fr::FR, sl::SL, bh::BH, td
 ##
 # Global domain alterations
 #
-Base.propertynames(model::Model{T,N,S,F,G,M,SMB,FR,SL,BH,TD}, private::Bool) where {T,N,S,F,G,M,SMB,FR,SL,BH,TD} = (fieldnames(typeof(model)..., :global_fields))
+Base.propertynames(model::Model{T,N,S,F,G,M,SMB,FR,SL,BH,TD}, private::Bool) where {T,N,S,F,G,M,SMB,FR,SL,BH,TD} = (fieldnames(typeof(model))..., :global_fields, :global_grid)
 
 # FIXME: this is a sign of a frustration in WAVIs structural layout - too many deep nested structures accessed through high level passing
 #  which inhibits multiple dispatch

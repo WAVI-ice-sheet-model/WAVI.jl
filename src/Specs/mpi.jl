@@ -36,7 +36,8 @@ Fields:
     global_size: Total number of processes
     global_comm: MPI communicator for the global grid
     global_grid: Global grid to be used for the model
-    global_fields: Global fields to be used for the model
+    damping: Damping factor for halo exchange (default=0.0)
+    niterations: Number of Schwarz iterations per Picard iteration (default=5)
     field_collector: Field collector for the model
 """
 mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGrid} <: AbstractDecompSpec
@@ -72,6 +73,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     halo: Number of halo cells on each side of the subgrid
     grid: Grid to be used for the model
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
+    pou: Whether to use partition of unity for halo exchange (default=true)
+    damping: Damping factor for halo exchange (default=0.0)
     """
     function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5)
         (px < 1 || py < 1 || halo < 0) && 
@@ -86,6 +89,12 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
         if size > 1 && halo == 0
             throw(ArgumentError(
                 "MPI Configuration Error: halo must be >= 1 when running with multiple MPI ranks (size=$(size))."
+            ))
+        end
+
+        if size > 1 && pou && halo < 2
+            throw(ArgumentError(
+                "MPI Configuration Error: Partition of Unity (pou=true) requires a minimum halo size of 2 for blending."
             ))
         end
 
@@ -217,9 +226,9 @@ function Model(grid::G,
     
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
-    # RAS/Schwarz: Only fix the outermost edge cell - this provides Dirichlet BC from neighbor
+    # RAS/Schwarz: Only fix the outermost edge cell - this provides Dirichlet BC from neighbour
     # Interior halo cells (2:halo) are SOLVED locally, then DISCARDED during exchange
-    # The simple overwrite in halo_exchange! replaces them with neighbor's core values
+    # The simple overwrite in halo_exchange! replaces them with neighbour's core values
     (spec.left < 0) || (u_isfixed[1,:] .= true; v_isfixed[1,:] .= true)
     (spec.right < 0) || (u_isfixed[end,:] .= true; v_isfixed[end,:] .= true)
     (spec.top < 0) || (u_isfixed[:,1] .= true; v_isfixed[:,1] .= true)
@@ -319,8 +328,8 @@ function timestep!(model::AbstractModel{T,N,S},
     
     if timestepping_params.step_thickness
         update_thickness!(model, timestepping_params)
-        # Sync thickness halos so next update_state! has correct boundary values
-        halo_exchange!(model)
+        # Sync thickness halos; do not RAS-overwrite u/v when using PoU (see mpi_sync_halos_after_thickness!)
+        mpi_sync_halos_after_thickness!(model)
     end
     update_clock!(clock, timestepping_params)
 
@@ -343,8 +352,7 @@ function run_simulation!(model::AbstractModel{T,N,S},
 
     # TODO: we potentially register other fields here too, but currently concentrating on outputs (update_thickness might want to exploit this mechanism)
 
-    # Initial exchanges so first update_state! has correct halo values
-    halo_exchange!(model)  # Sync initial velocities
+    mpi_sync_halos_initial!(model)
 
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
         @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
@@ -372,14 +380,20 @@ end
 
 Overload for the inner update of the velocity solve.
 We need to sync halos before performing the update so that the viscosity and other
-calculations have correct boundary information from neighboring procs.
+calculations have correct boundary information from neighbouring procs.
+
+Note: `update_rheological_operators!` is called a second time here (after the halo sync)
+because the base `inner_update!` builds the operators before we have correct cross-rank
+rheology values (β, βeff, ηav). The second call rebuilds them with consistent halo data.
 """
 function inner_update!(model::Model{<:Any, <:Any, <:MPISpec})
-    # Sync velocities only — thickness doesn't change during the velocity solve
-    halo_exchange!(model; fields=[:u, :v])
+    # RAS ghost sync for velocities; AS-PoU keeps overlap values from the last prolongation.
+    if !model.spec.pou
+        halo_exchange!(model; fields=[:u, :v])
+    end
     # Call the standard inner update function for the velocity solve
     invoke(inner_update!, Tuple{AbstractModel}, model)
-    # Sync rheology fields used near rank interfaces, then rebuild operators.
+    # Sync rheology fields used near rank interfaces, then rebuild operators with correct halo data.
     halo_exchange!(model; fields=[:β, :βeff, :ηav])
     update_rheological_operators!(model)
     return model
@@ -403,58 +417,79 @@ end
 """
     precondition!(model::Model{<:Any, <:Any, <:MPISpec})
 
-Solves the linear system using an Iterative Restricted Additive Schwarz (RAS) method.
+Solves the linear system using an iterative overlapping Schwarz method across the distributed domain.
 
-# Workflow
-1.  **Iterate** `niterations` times:
-    *   **Local Solve**: Calls the standard `precondition!` for the local domain using Dirichlet boundary conditions at the halo edges.
-    *   **Interface Update**: Calls `halo_exchange!` to update the halo regions with the "Core" values from neighboring processors.
-2.  **Check Convergence**: Computes the Global Relative Residual to verify if the linear system is solved to tolerance.
-
-This structure allows information to propagate across the distributed domain.
+**Iterate** up to `niterations` times:
+*   **Local Solve**: Applies the standard `precondition!` locally on each rank.
+*   **Interface Update**: Exchanges updated velocities with neighbouring ranks. 
+    Depending on the model configuration, this uses either Additive Schwarz with Partition-of-Unity 
+    (`pou = true`) or standard Restricted Additive Schwarz (`pou = false`).
+*   **Check Convergence**: Computes the global relative residual at the end of each iteration.
+    To avoid double-counting, only the non-overlapping "core" unknowns are used in the global MPI reduction.
+    *   Each rank computes the squared norm of its local residual contribution using **core unknowns only**
+        (excluding overlap/halo regions) to prevent double-counting.
+    *   Values are aggregated across all processes using `MPI.Allreduce` with `MPI.SUM`.
+    *   Solver exits early if the global relative residual meets the Picard tolerance.
 """
 function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
     @unpack niterations, pou = model.spec
+    @unpack solver_params = model
+
+    converged = false
+    global_rel_resid = Inf
 
     for iteration = 1:niterations
         if (iteration > 1) && (model.spec.rank == 0)
             @debug "Schwarz iteration $iteration"
         end
 
-        # Solve locally
-        invoke(precondition!, Tuple{AbstractModel}, model)
+        if pou
+            # Snapshot current velocities before the local solve.
+            # These are used later to apply Additive Schwarz damping and 
+            # Partition-of-Unity (PoU) weighting during the interface update.
+            u0 = copy(model.fields.gu.u)
+            v0 = copy(model.fields.gv.v)
+            invoke(precondition!, Tuple{AbstractModel}, model)
+            mpi_pou_weighted_prolong_velocities!(model, u0, v0)
+        else
+            invoke(precondition!, Tuple{AbstractModel}, model)
+            halo_exchange!(model; fields=[:u, :v])
+        end
 
-        halo_exchange!(model; fields=[:u, :v])
+        # Check convergence after each iteration
+        x = get_start_guess(model)
+        op = get_op(model)
+        b = get_rhs(model)
+        resid = get_resid(x, op, b)
+
+        # Global Residual Check (core-only):
+        # exclude overlap halos so each physical unknown is counted once globally.
+        @unpack gu, gv = model.fields
+        u_core_inner, v_core_inner = core_inner_masks(model)
+
+        # Calculate squared norms locally on core unknowns only
+        local_resid_sq = sum(abs2, @view resid[1:gu.ni][u_core_inner]) +
+                         sum(abs2, @view resid[(gu.ni+1):(gu.ni+gv.ni)][v_core_inner])
+        local_rhs_sq = sum(abs2, @view b[1:gu.ni][u_core_inner]) +
+                       sum(abs2, @view b[(gu.ni+1):(gu.ni+gv.ni)][v_core_inner])
+
+        # Sum squared norms across all ranks
+        global_resid_sq = MPI.Allreduce(local_resid_sq, MPI.SUM, model.spec.comm)
+        global_rhs_sq = MPI.Allreduce(local_rhs_sq, MPI.SUM, model.spec.comm)
+
+        # Compute global relative residual (guard against degenerate zero-RHS case)
+        global_rel_resid = iszero(global_rhs_sq) ? sqrt(global_resid_sq) : sqrt(global_resid_sq) / sqrt(global_rhs_sq)
+
+        converged = global_rel_resid < solver_params.tol_picard
+        if converged
+            if model.spec.rank == 0
+                @debug "Schwarz converged early at iteration $iteration"
+            end
+            break
+        end
     end
 
-    # Check convergence after all iterations
-    @unpack solver_params = model
-    x = get_start_guess(model)
-    op = get_op(model)
-    b = get_rhs(model)
-    resid = get_resid(x, op, b)
-
-    # Global Residual Check (core-only):
-    # exclude overlap halos so each physical unknown is counted once globally.
-    @unpack gu, gv = model.fields
-    u_core_inner, v_core_inner = core_inner_masks(model)
-
-    # Calculate squared norms locally on core unknowns only
-    local_resid_sq = sum(abs2, @view resid[1:gu.ni][u_core_inner]) +
-                     sum(abs2, @view resid[(gu.ni+1):(gu.ni+gv.ni)][v_core_inner])
-    local_rhs_sq = sum(abs2, @view b[1:gu.ni][u_core_inner]) +
-                   sum(abs2, @view b[(gu.ni+1):(gu.ni+gv.ni)][v_core_inner])
-
-    # Sum squared norms across all ranks
-    global_resid_sq = MPI.Allreduce(local_resid_sq, MPI.SUM, model.spec.comm)
-    global_rhs_sq = MPI.Allreduce(local_rhs_sq, MPI.SUM, model.spec.comm)
-
-    # Compute global relative residual (guard against degenerate zero-RHS case)
-    global_rel_resid = iszero(global_rhs_sq) ? sqrt(global_resid_sq) : sqrt(global_resid_sq) / sqrt(global_rhs_sq)
-
     @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
-
-    converged = global_rel_resid < solver_params.tol_picard
 
     return converged, global_rel_resid
 end

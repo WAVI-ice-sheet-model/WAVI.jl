@@ -13,7 +13,7 @@ using WAVI.Parameters
 using WAVI.Utilities
 using WAVI.Wavelets
 
-export GridField, InitialConditions
+export GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 
 include("UGrid.jl")
 include("VGrid.jl")
@@ -128,7 +128,16 @@ function GridField(grid::AbstractGrid, bed_array;
 
 
     g3_glen_b = zeros(size(η))
-
+    @debug "Sigma-grid glen_b setup inputs" inputs = (
+        size_g3_glen_b = size(g3_glen_b),
+        size_θ = size(θ),
+        size_Φ = size(Φ),
+        size_glen_a_ref = size(params.glen_a_ref),
+        nx = grid.nx,
+        ny = grid.ny,
+        nσ = grid.nσ,
+        glen_a_ref = params.glen_a_ref,
+    )
     for i = 1:grid.nx
         for j = 1:grid.ny
             for k = 1:grid.nσ

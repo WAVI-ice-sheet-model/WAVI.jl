@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
@@ -31,3 +31,19 @@ jobs:
         run: julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Run tests
         run: julia --project=test/ test/runtests_structure.jl
+
+  mpi-unit-tests:
+    runs-on: ubuntu-latest
+    if: '! github.event.pull_request.draft'
+    name: MPI unit tests (Julia 1.11)
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1.11'
+      - name: Install dependencies
+        run: julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Run MPISpec unit tests
+        run: julia --project=test/ test/runtests_mpi_unit.jl
