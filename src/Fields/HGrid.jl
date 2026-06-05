@@ -122,20 +122,6 @@ function HGrid(;
                 mpi_rank = -ones(nxh,nyh)
 )
 
-    println(size(mask)," ",
-            size(h_isfixed)," ",
-            size(hyd_potential_isfixed)," ",
-            size(b)," ",
-            size(h)," ",
-            size(ηav)," ",
-            size(grounded_fraction)," ",
-            size(basal_water_thickness)," ",
-            size(hydraulic_potential_b)," ",
-            size(effective_pressure)," ",
-            size(basal_melt)," ",
-            size(θ_ave)," ",
-            size(preBfactor)," ",
-            size(mpi_rank))
 
     #check the sizes of inputs
     (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == size(mpi_rank) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
