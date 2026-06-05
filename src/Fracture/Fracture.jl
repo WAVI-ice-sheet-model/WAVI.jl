@@ -8,6 +8,17 @@ using NCDatasets
 using WAVI: AbstractFracture, AbstractModel, AbstractGrid
 using WAVI.Advection
 using WAVI.Time: Clock
+using WAVI.Grids: Grid
+
+
+
+function reconstruct_on_grid(fracture::F, grid::Grid) where {F <: AbstractFracture}
+    return fracture
+end
+
+function reconstruct_on_subdomain(fracture::F, grid::Grid,subdomain::NTuple{4,<: Integer}) where {F <: AbstractFracture}
+    return fracture
+end
 
 get_fracture(model::AbstractModel{T,N}) where {T,N} = model.fracture
 

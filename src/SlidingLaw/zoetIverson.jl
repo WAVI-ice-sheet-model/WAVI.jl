@@ -1,3 +1,6 @@
+using WAVI.Grids: Grid
+
+
 struct ZoetIversonSlidingLaw{T <: Real, C <: Union{T,Array{T,2}}, W <: Union{T,Array{T,2}}} <: AbstractSlidingLaw
     coulomb_coefficient :: C
     drag_coefficient :: W
@@ -50,8 +53,8 @@ end
 
 function reconstruct_on_grid(sliding_law::ZoetIversonSlidingLaw, grid::Grid)
     return ZoetIversonSlidingLaw(
-        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) | sliding_law.coulomb_coefficient,
-        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) | sliding_law.drag_coefficient,
+        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : sliding_law.coulomb_coefficient,
+        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) : sliding_law.drag_coefficient,
           sliding_law.weertman_m,
           sliding_law.reg_speed)
 end

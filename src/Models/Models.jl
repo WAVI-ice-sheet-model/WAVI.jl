@@ -16,14 +16,16 @@ using WAVI: AbstractField,
 using WAVI.Fields
 using WAVI.Grids
 using WAVI.MeltRates
-using WAVI.SurfaceMassBalance
 using WAVI.Fracture
 using WAVI.SlidingLaw
 using WAVI.BasalHydrology
 using WAVI.ThermoDynamics
-using WAVI.Parameters
-
+using WAVI.Parameters: reconstruct_on_grid
+using WAVI.SurfaceMassBalance
+using WAVI.Fields: reconstruct_on_grid
+using WAVI.Parameters: Params, SolverParams
 export Model, update_state!
+
 
 """
 Struct to represent the basic specification for a model
@@ -93,19 +95,24 @@ function Model(grid::G,
     params = reconstruct_on_grid(params,grid)
 
     #Replace all NaN entries with defaults from params on correct grid              
-    initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
+    initial_conditions = Fields.reconstruct_on_grid(initial_conditions, params, grid)
 
     #expand spatial parameters onto grid
-    surface_mass_balance = reconstruct_on_grid(surface_mass_balance,grid)
+    surface_mass_balance = SurfaceMassBalance.reconstruct_on_grid(surface_mass_balance,grid)
+
+    shelf_melt_rate = MeltRates.reconstruct_on_grid(shelf_melt_rate,grid)
+    
+    fracture = Fracture.reconstruct_on_grid(fracture,grid)
 
     #expand spatial parameters onto grid
-    thermo_dynamics = reconstruct_on_grid(thermo_dynamics,grid)
+    thermo_dynamics = ThermoDynamics.reconstruct_on_grid(thermo_dynamics,grid)
 
     #expand spatial parameters onto grid
-    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
+    basal_hydrology = BasalHydrology.reconstruct_on_grid(basal_hydrology,grid)
 
     #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
-    sliding_law = reconstruct_on_grid(sliding_law,grid)
+    sliding_law = SlidingLaw.reconstruct_on_grid(sliding_law,grid)
+
     #check size compatibility of resulting sliding_law drag_coefficient
     (size(sliding_law.drag_coefficient)==(grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient ($(size(sliding_law.drag_coefficient))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
     

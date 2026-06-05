@@ -2,6 +2,7 @@ export ISMIP7MeltRate
 
 using WAVI: AbstractClimateForcing
 using NCDatasets 
+using WAVI.Grids: Grid
 
 struct ISMIP7MeltRate{IC <: AbstractClimateForcing, T <: Real} <: AbstractMeltRate
     ISMIP7_config::IC                   #ISMIP 7 config file, specifies the GCM and scenario
@@ -19,6 +20,7 @@ struct ISMIP7MeltRate{IC <: AbstractClimateForcing, T <: Real} <: AbstractMeltRa
     Tf_loc::Union{Array{T,3}, Nothing}  #array to hold the 3d thermal forcing, to be read in from ISMIP7 forcing
     z_forcing::Union{Array{T,1}, Nothing} #array to hold the z co-ordinates from the ISMIP7 forcing
     melt_partial_cell::Bool             #Flag for melting applied to partial cells or not
+    path_to_forcing :: String   
 end
 
 """
@@ -43,6 +45,7 @@ Keyword arguments
 - Tf_loc: array to hold the 3d thermal forcing, to be read in from ISMIP7 forcing
 - z_forcing: array to hold the z co-ordinates from the ISMIP7 forcing
 - melt_partial_cell: Flag for melting applied to partial cells or not
+- path_to_forcing: path to the forcing files
 """
 function ISMIP7MeltRate(; 
                         ISMIP7_config = nothing,
@@ -58,14 +61,69 @@ function ISMIP7MeltRate(;
                         S_loc = nothing,
                         T_loc = nothing,
                         Tf_loc = nothing, 
-                        z_forcing = nothing, 
-                        melt_partial_cell = false)
+                        z_forcing = nothing,
+                        melt_partial_cell = false, 
+                        path_to_forcing = "./")
 
     #check that you've passed an ISMIP config            
     ~(ISMIP7_config === nothing) || throw(ArgumentError("You must pass an ISMIP7 config file"))
 
-    return   ISMIP7MeltRate(ISMIP7_config, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell)
+    return   ISMIP7MeltRate(ISMIP7_config, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing)
 end
+
+
+function reconstruct_on_grid(melt_rate::ISMIP7MeltRate,grid::Grid) 
+   
+
+    #read in the levels
+    z_levels_path = joinpath(melt_rate.path_to_forcing, "ocean_z_levels.nc")
+    z_levels_ncfile   = NCDataset(z_levels_path)
+    z_forcing = replace(z_levels_ncfile["z"][:] , missing => NaN)
+
+
+    return ISMIP7MeltRate(
+    melt_rate.ISMIP7_config,
+    melt_rate.K,
+    melt_rate.shelf_slope, 
+    melt_rate.ρ_ocean,
+    melt_rate.ρ_ice,
+    melt_rate.c_ocean, 
+    melt_rate.L_ice,
+    melt_rate.β_s, 
+    melt_rate.g,
+    melt_rate.f,
+    isnothing(melt_rate.S_loc) ? zeros(grid.nx,grid.ny,length(z_forcing)) : melt_rate.S_loc,
+    isnothing(melt_rate.T_loc) ? zeros(grid.nx,grid.ny,length(z_forcing)) : melt_rate.T_loc,
+    isnothing(melt_rate.Tf_loc) ? zeros(grid.nx,grid.ny,length(z_forcing)) :  melt_rate.Tf_loc,
+    isnothing(melt_rate.z_forcing) ? z_forcing :  melt_rate.z_forcing,
+    melt_rate.melt_partial_cell, 
+    melt_rate.path_to_forcing)
+end
+
+function reconstruct_on_subdomain(melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
+    x_start,x_end,y_start,y_end = subdomain
+
+    return ISMIP7MeltRate(
+    melt_rate.ISMIP7_config,
+    melt_rate.K,
+    melt_rate.shelf_slope, 
+    melt_rate.ρ_ocean,
+    melt_rate.ρ_ice,
+    melt_rate.c_ocean, 
+    melt_rate.L_ice,
+    melt_rate.β_s, 
+    melt_rate.g,
+    melt_rate.f,
+    size(melt_rate.S_loc)[1:2] == size(grid)[1:2] ? melt_rate.S_loc[x_start:x_end, y_start:y_end,:] : melt_rate.S_loc,
+    size(melt_rate.T_loc)[1:2] == size(grid)[1:2] ? melt_rate.T_loc[x_start:x_end, y_start:y_end,:] : melt_rate.T_loc,
+    size(melt_rate.Tf_loc)[1:2] == size(grid)[1:2] ? melt_rate.Tf_loc[x_start:x_end, y_start:y_end,:] : melt_rate.Tf_loc,
+    size(melt_rate.Tf_loc)[1:2] == size(grid)[1:2] ? melt_rate.Tf_loc[x_start:x_end, y_start:y_end,:] : melt_rate.Tf_loc,
+    melt_rate.z_forcing,
+    melt_rate.melt_partial_cell, 
+    melt_rate.path_to_forcing)
+end
+
+
 
 
 function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid, clock)
@@ -74,10 +132,10 @@ function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid,
     @unpack K, shelf_slope, ρ_ocean, ρ_ice, c_ocean, L_ice, β_s, g, f, S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell = ISMIP7_melt_rate
     
     #compute the ice draft
-    zb = b .* (grounded_fraction .== 1) + - ρ_ice / ρ_w .* h .* (grounded_fraction .< 1)
+    zb = b .* (grounded_fraction .== 1) + - ρ_ice / ρ_ocean .* h .* (grounded_fraction .< 1)
 
     #compute the local thermal forcing and salinity from the climate forcing and ice draft
-    idx = [argmin(abs.(z_forcing .- d)) for d in b] #gives an nx * ny array indices which are closest depth to z in the forcing.
+    idx = [argmin(abs.(z_forcing .- d)) for d in zb] #gives an nx * ny array indices which are closest depth to z in the forcing.
     Tf_local_shelf = [Tf_loc[i,j,idx[i,j]] for i in axes(Tf_loc,1), j in axes(Tf_loc,2)] #fills the array of thermal forcing 
     S_local_shelf = [S_loc[i,j,idx[i,j]] for i in axes(S_loc,1), j in axes(S_loc,2)] #fills the array of thermal forcing 
 
@@ -96,10 +154,10 @@ function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid,
     return nothing
 end
 
-function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
+function update_melt_rate_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
     @unpack S_loc, T_loc, Tf_loc, z_forcing = ISMIP7_melt_rate
     @unpack dx = grid
-    @unpack ISMIP7_config = ISMIP7_melt_rate
+    @unpack ISMIP7_config, path_to_forcing = ISMIP7_melt_rate
 
 
     #get the year from clock for the forcing files
@@ -108,21 +166,26 @@ function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
 
     # load in the salinity from ISMIP7
     resolution = join([string(Int(dx)), "m"])
-    salinity_filename = join(["so_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
+    salinity_filename = joinpath(path_to_forcing, join(["so_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_ocean_v3_", resolution, "_",  current_time_string,".nc"]))
     salinity_ncfile   = NCDataset(salinity_filename)
     S_loc .= replace(salinity_ncfile["so"][:,:,:] , missing => NaN)
+    #println("read in salinity forcing file: " * salinity_filename)
+    @info "read in salinity forcing file: $salinity_filename"
 
     # load in the temperature from ISMIP7
-    temperature_filename = join(["thetao_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
+    temperature_filename = joinpath(path_to_forcing, join(["thetao_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_ocean_v3_", resolution, "_",  current_time_string,".nc"]))
     temperature_ncfile   = NCDataset(temperature_filename)
     T_loc .= replace(temperature_ncfile["thetao"][:,:,:] , missing => NaN)
+    #println("read in temperature forcing file: " * temperature_filename)
+    @info "read in temperature forcing file: $temperature_filename"
+
 
     # load in the temperature from ISMIP7
-    thermal_forcing_filename = join(["so_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "ocean_", resolution, "_v3_",  current_time_string,"_yearlyaveraged.nc"])
+    thermal_forcing_filename = joinpath(path_to_forcing,join(["tf_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_ocean_v3_", resolution, "_",  current_time_string,".nc"]))
     thermal_forcing_ncfile   = NCDataset(thermal_forcing_filename)
     Tf_loc .= replace(thermal_forcing_ncfile["tf"][:,:,:] , missing => NaN)
+    #println("read in thermal-forcing forcing file: " * thermal_forcing_filename)
+    @info "read in thermal-forcing forcing file: $thermal_forcing_filename"
 
-    # read in the z co-ordinates 
-    z_forcing .= replace(thermal_forcing_ncfile["z"][:] , missing => NaN)
 
 end

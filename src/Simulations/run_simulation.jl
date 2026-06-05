@@ -1,4 +1,4 @@
-export run_simulation!, timestep!, update_clock!, update_thickness!
+export run_simulation!, timestep!, update_clock!, update_thickness!, update_model_climate_forcing!
 
 using WAVI
 import WAVI: AbstractModel, AbstractSimulation
@@ -129,9 +129,9 @@ run_simulation!(s::Simulation) = run_simulation!(s.model, s.timestepping_params,
 function update_model_climate_forcing!(model::AbstractModel, clock)
         @unpack surface_mass_balance, shelf_melt_rate, fracture, grid = model
 
-        SurfaceMassBalance.update_climate_forcing!(surface_mass_balance, grid, clock)
-        MeltRates.update_climate_forcing!(shelf_melt_rate, grid, clock)
-        Fracture.update_climate_forcing!(fracture, grid, clock)
+        SurfaceMassBalance.update_smb_climate_forcing!(surface_mass_balance, grid, clock)
+        MeltRates.update_melt_rate_climate_forcing!(shelf_melt_rate, grid, clock)
+        Fracture.update_fracture_climate_forcing!(fracture, grid, clock)
 
     return nothing
 end
