@@ -40,10 +40,18 @@ end
 function Grids.reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
     return ISMIP7SMB(
     smb.ISMIP7_config,
-    isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : smb.reference_elevation,
-    isnothing(smb.vertical_smb_gradient) ? zeros(grid.nx,grid.ny) : smb.vertical_smb_gradient,
-    isnothing(smb.smb_anomaly) ? zeros(grid.nx,grid.ny) : smb.smb_anomaly,
-    isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : smb.reference_smb)
+    isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : 
+    size(smb.reference_elevation) == (grid.nx,grid.ny) ? smb.reference_elevation :
+    throw(DimensionMismatch("Size of reference elevation is incompatible with grid")),
+    isnothing(smb.vertical_smb_gradient) ? zeros(grid.nx,grid.ny) :
+    size(smb.vertical_smb_gradient) == (grid.nx,grid.ny) ? smb.vertical_smb_gradient :
+    throw(DimensionMismatch("Size of vertical smb gradient is incompatible with grid")),
+    isnothing(smb.smb_anomaly) ? zeros(grid.nx,grid.ny) :
+    size(smb.smb_anomaly) == (grid.nx,grid.ny) ? smb.smb_anomaly :
+    throw(DimensionMismatch("Size of smb anomaly is incompatible with grid")),
+    isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : 
+    size(smb.reference_smb) == (grid.nx,grid.ny) ? smb.reference_smb :
+    throw(DimensionMismatch("Size of reference smb is incompatible with grid")))
 end
 
 function Grids.reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 

@@ -48,10 +48,14 @@ end
 
 function Grids.reconstruct_on_grid(sliding_law::TsaiSlidingLaw, grid::Grid)
     return TsaiSlidingLaw(
-        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : sliding_law.coulomb_coefficient,
-        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) : sliding_law.drag_coefficient,
-          sliding_law.weertman_m,
-          sliding_law.reg_speed)
+        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : 
+        size(sliding_law.coulomb_coefficient) == (grid.nx,grid.ny) ? sliding_law.coulomb_coefficient :
+        throw(DimensionMismatch("Coulomb Coefficient does not match grid size")),
+        isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) : 
+        size(sliding_law.drag_coefficient) == (grid.nx,grid.ny) ? sliding_law.drag_coefficient :
+        throw(DimensionMismatch("Drag Coefficient does not match grid size")),
+        sliding_law.weertman_m,
+        sliding_law.reg_speed)
 end
 
 function Grids.reconstruct_on_subdomain(sliding_law::TsaiSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})

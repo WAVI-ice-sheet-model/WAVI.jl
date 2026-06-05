@@ -39,8 +39,10 @@ end
 
 function Grids.reconstruct_on_grid(sliding_law::CoulombSlidingLaw, grid::Grid)
     return CoulombSlidingLaw(
-        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : sliding_law.coulomb_coefficient,
-          sliding_law.reg_speed)
+        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : 
+        size(sliding_law.coulomb_coefficient) == (grid.nx,grid.ny) ? sliding_law.coulomb_coefficient :
+        throw(DimensionMismatch("Coulomb Coefficient does not match grid size")),
+        sliding_law.reg_speed)
 end
 
 function Grids.reconstruct_on_subdomain(sliding_law::CoulombSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
