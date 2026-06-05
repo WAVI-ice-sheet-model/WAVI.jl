@@ -189,3 +189,71 @@ function update_melt_rate_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, gri
 
 
 end
+
+
+function Grids.reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid) 
+    
+    if isnothing(ISMIP7_melt_rate.z_forcing)
+        throw(ArgumentError("z_forcing must be initialised with correct length"))    
+    else 
+        number_of_zlevels = size(ISMIP7_melt_rate.z_forcing,1)
+    end
+
+    return ISMIP7MeltRate(
+                ISMIP7_melt_rate.ISMIP7_config,
+                ISMIP7_melt_rate.K,
+                ISMIP7_melt_rate.shelf_slope,
+                ISMIP7_melt_rate.ρ_ocean,
+                ISMIP7_melt_rate.ρ_ice,
+                ISMIP7_melt_rate.c_ocean,
+                ISMIP7_melt_rate.L_ice,
+                ISMIP7_melt_rate.β_s,
+                ISMIP7_melt_rate.g,
+                ISMIP7_melt_rate.f,
+                isnothing(ISMIP7_melt_rate.S_loc) ? 
+                    zeros(grid.nx,grid.ny,number_of_zlevels) : 
+                    ISMIP7_melt_rate.S_loc,
+                isnothing(ISMIP7_melt_rate.T_loc) ? 
+                    zeros(grid.nx,grid.ny,number_of_zlevels) : 
+                    ISMIP7_melt_rate.T_loc,
+                isnothing(ISMIP7_melt_rate.Tf_loc) ? 
+                    zeros(grid.nx,grid.ny,number_of_zlevels) : 
+                ISMIP7_melt_rate.Tf_loc,
+                ISMIP7_melt_rate.z_forcing, 
+                ISMIP7_melt_rate.melt_partial_cell)
+end
+
+function Grids.reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
+    
+    (size(ISMIP7_melt_rate.z_forcing,1) == 
+     size(ISMIP7_melt_rate.S_loc,3) ==
+     size(ISMIP7_melt_rate.T_loc,3) ==
+     size(ISMIP7_melt_rate.Tf_loc,3)) || 
+     throw(ArgumentError("Inconsistent size of z_forcing and ocean fields"))    
+
+    x_start,x_end,y_start,y_end = subdomain
+
+    return ISMIP7MeltRate(
+                ISMIP7_melt_rate.ISMIP7_config,
+                ISMIP7_melt_rate.K,
+                ISMIP7_melt_rate.shelf_slope,
+                ISMIP7_melt_rate.ρ_ocean,
+                ISMIP7_melt_rate.ρ_ice,
+                ISMIP7_melt_rate.c_ocean,
+                ISMIP7_melt_rate.L_ice,
+                ISMIP7_melt_rate.β_s,
+                ISMIP7_melt_rate.g,
+                ISMIP7_melt_rate.f,
+                size(ISMIP7_melt_rate.S_loc) == size(grid)[1:2] ? 
+                        ISMIP7_melt_rate.S_loc[x_start:x_end, y_start:y_end,:] : 
+                        ISMIP7_melt_rate.S_loc,
+                size(ISMIP7_melt_rate.T_loc) == size(grid)[1:2] ? 
+                        ISMIP7_melt_rate.T_loc[x_start:x_end, y_start:y_end,:] : 
+                        ISMIP7_melt_rate.T_loc,
+                size(ISMIP7_melt_rate.Tf_loc) == size(grid)[1:2] ? 
+                        ISMIP7_melt_rate.Tf_loc[x_start:x_end, y_start:y_end,:] : 
+                        ISMIP7_melt_rate.Tf_loc,
+                        ISMIP7_melt_rate.Tf_loc,
+                ISMIP7_melt_rate.z_forcing, 
+                ISMIP7_melt_rate.melt_partial_cell)
+end

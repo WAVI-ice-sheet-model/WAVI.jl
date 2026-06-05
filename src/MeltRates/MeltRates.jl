@@ -4,9 +4,9 @@ export update_shelf_melt_rate!, UniformMeltRate
 
 using Parameters
 
-using WAVI: AbstractMeltRate, AbstractGrid
+using WAVI: AbstractMeltRate
 using WAVI.Time: Clock
-using WAVI.Grids: Grid
+using WAVI.Grids
 
 
 function reconstruct_on_grid(melt::M, grid::Grid) where {M <: AbstractMeltRate}
@@ -31,13 +31,25 @@ include("./melt_rate_exponent_variation.jl")
 include("./melt_rate_exponent_variation_basin_specific.jl")
 include("./ISMIP7_melt_rate.jl")
              
+
+# Default behaviour. Overloaded for types that store spatial information.
+function Grids.reconstruct_on_grid(shelf_melt_rate::M, grid::Grid) where {M <: AbstractMeltRate}
+    return shelf_melt_rate
+end
+
+# Default behaviour. Overloaded for types that store spatial information.
+function Grids.reconstruct_on_subdomain(shelf_melt_rate::M, grid::Grid,subdomain::NTuple{4,<: Integer}) where {M <: AbstractMeltRate}
+    return shelf_melt_rate
+end
+
+
 """
 
-    update_climate_forcing!(shelf_melt_rate::AbstractMeltRate,clock::Clock) 
+    update_climate_forcing!(shelf_melt_rate::AbstractMeltRate, grid::Grid, clock::Clock) 
 
 Generic wrapper function for updating the climate forcing. Overload this if needed.)
 """
-function update_climate_forcing!(shelf_melt_rate::AbstractMeltRate, grid::AbstractGrid, clock::Clock) 
+function update_climate_forcing!(shelf_melt_rate::AbstractMeltRate, grid::Grid, clock::Clock) 
     return nothing
 end
 

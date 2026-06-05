@@ -4,7 +4,7 @@ import Base: show, size
 
 using WAVI: AbstractGrid
 
-export Grid
+export Grid, reconstruct_on_grid, reconstruct_on_subdomain
 
 struct Grid{T <: Real, N <: Integer} <: AbstractGrid{T,N}
                     nx :: N             # Number of x gridpoints
@@ -245,6 +245,30 @@ Base.size(g::Grid) = (g.nx, g.ny, g.nσ)
 
 function Base.show(io::IO, g::Grid)
     return print(io, "Grid ", summary(g))
+end
+
+
+"""
+    reconstruct_on_grid(s, grid::Grid)
+
+Either return s unchanged, or return a new instance that is modified for use on grid.
+Different types can overload this to implement their own specialised versions.
+
+"""
+function reconstruct_on_grid(s, grid::Grid)
+    return s
+end
+
+"""
+    reconstruct_on_subdomain(s, grid::Grid, subdomain::NTuple{4,<: Integer})
+
+Either return s unchanged, or return a new instance that is modified for use on a subdomain of a grid.
+The subdomain (i_start,i_end,j_start,j_end) contains indices for the portion of the grid [i_start:i_end,j_start:j_end]. 
+Different types can overload this to implement their own specialised versions.
+
+"""
+function reconstruct_on_subdomain(s, grid::Grid, subdomain::NTuple{4,<: Integer}) 
+    return s
 end
 
 end

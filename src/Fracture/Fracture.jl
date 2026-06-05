@@ -5,20 +5,11 @@ export update_damage!, update_strain_history!
 using Parameters
 using NCDatasets
 
-using WAVI: AbstractFracture, AbstractModel, AbstractGrid
+using WAVI: AbstractFracture, AbstractModel
 using WAVI.Advection
 using WAVI.Time: Clock
-using WAVI.Grids: Grid
+using WAVI.Grids
 
-
-
-function reconstruct_on_grid(fracture::F, grid::Grid) where {F <: AbstractFracture}
-    return fracture
-end
-
-function reconstruct_on_subdomain(fracture::F, grid::Grid,subdomain::NTuple{4,<: Integer}) where {F <: AbstractFracture}
-    return fracture
-end
 
 get_fracture(model::AbstractModel{T,N}) where {T,N} = model.fracture
 
@@ -38,13 +29,24 @@ Update the strain history stored in the model structure.
 update_strain_history!(model::AbstractModel{T,N};kwargs ...) where {T,N} = update_strain_history!(get_fracture(model),model; kwargs ...)
 
 
+# Default behaviour. Overloaded for types that store spatial information.
+function Grids.reconstruct_on_grid(fracture::F, grid::Grid) where {F <: AbstractFracture}
+    return fracture
+end
+
+# Default behaviour. Overloaded for types that store spatial information.
+function Grids.reconstruct_on_subdomain(fracture::F, grid::Grid,subdomain::NTuple{4,<: Integer}) where {F <: AbstractFracture}
+    return fracture
+end
+
+
 """
 
     update_climate_forcing!(fracture::AbstractFracture,clock::Clock) 
 
 Generic wrapper function for updating the climate forcing. Overload this in your fracture module of choice (see ISMIP7hydrofracture.jl for an example)
 """
-function update_climate_forcing!(fracture::AbstractFracture, grid::AbstractGrid, clock::Clock)
+function update_climate_forcing!(fracture::AbstractFracture, grid::Grid, clock::Clock)
     return nothing
 end
 

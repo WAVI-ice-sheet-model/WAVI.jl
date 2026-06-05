@@ -55,7 +55,7 @@ initial_conditions = InitialConditions(initial_thickness = h, initial_basal_wate
 sliding_law = WeertmanSlidingLaw();
 thermo_dynamics = NoThermoDynamics(m_grounded = melt_rate);
 shelf_melt_rate = UniformMeltRate(m_floating = melt_rate);
-surface_mass_balance = AccumulationFromParams(),
+surface_mass_balance = AccumulationFromParams();
 params = Params(density_ice = 910.0, glen_a_ref=2.5e-25);
 solver_params = SolverParams(maxiter_picard = 1);
 

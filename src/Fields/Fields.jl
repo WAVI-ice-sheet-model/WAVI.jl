@@ -128,15 +128,7 @@ function GridField(grid::AbstractGrid, bed_array;
 
 
     g3_glen_b = zeros(size(η))
-    println(size(g3_glen_b)," ",
-            size(θ)," ",
-            size(Φ)," ",
-            size(params.glen_a_ref)," ",
-            grid.nx," ",
-            grid.ny," ",
-            grid.nσ," ",
-            params.glen_a_ref
-           )
+
     for i = 1:grid.nx
         for j = 1:grid.ny
             for k = 1:grid.nσ
