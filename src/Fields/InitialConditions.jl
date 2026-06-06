@@ -56,7 +56,7 @@ Keyword arguments
 end
 
 
-function Grids.reconstruct_on_grid(initial_conditions::InitialConditions, params::Params, grid::Grid)
+function reconstruct_on_grid(initial_conditions::InitialConditions, params::Params, grid::Grid)
 
 
     if all(isnan.(initial_conditions.initial_thickness))
@@ -192,7 +192,7 @@ function Grids.reconstruct_on_grid(initial_conditions::InitialConditions, params
     )
 end    
 
-function Grids.reconstruct_on_subdomain(initial_conditions::InitialConditions, grid::AbstractGrid, subdomain::NTuple{4,<: Integer}) 
+function reconstruct_on_subdomain(initial_conditions::InitialConditions, grid::AbstractGrid, subdomain::NTuple{4,<: Integer}) 
     
     x_start,x_end,y_start,y_end = subdomain
     u_grid_size, v_grid_size = (grid.nx+1, grid.ny), (grid.nx, grid.ny+1)

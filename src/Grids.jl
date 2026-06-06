@@ -1,10 +1,9 @@
 module Grids
 
 import Base: show, size
+export Grid, reconstruct_on_grid, reconstruct_on_subdomain
 
 using WAVI: AbstractGrid
-
-export Grid, reconstruct_on_grid, reconstruct_on_subdomain
 
 struct Grid{T <: Real, N <: Integer} <: AbstractGrid{T,N}
                     nx :: N             # Number of x gridpoints
@@ -260,6 +259,18 @@ function reconstruct_on_grid(s, grid::Grid)
 end
 
 """
+    reconstruct_on_grid(s, params::Params, grid::Grid)
+
+Either return s unchanged, or return a new instance that is modified for use on grid.
+Different types can overload this to implement their own specialised versions.
+
+"""
+function reconstruct_on_grid(s, params, grid::Grid)
+    return s
+end
+
+
+"""
     reconstruct_on_subdomain(s, grid::Grid, subdomain::NTuple{4,<: Integer})
 
 Either return s unchanged, or return a new instance that is modified for use on a subdomain of a grid.
@@ -270,5 +281,6 @@ Different types can overload this to implement their own specialised versions.
 function reconstruct_on_subdomain(s, grid::Grid, subdomain::NTuple{4,<: Integer}) 
     return s
 end
+
 
 end

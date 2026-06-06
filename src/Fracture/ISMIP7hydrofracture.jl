@@ -75,7 +75,7 @@ function update_strain_history!(fracture::ISMIP7Hydrofracture,model::AbstractMod
   return model
 end
 
-function Grids.reconstruct_on_grid(fracture::ISMIP7Hydrofracture, grid::Grid)
+function reconstruct_on_grid(fracture::ISMIP7Hydrofracture, grid::Grid)
     return ISMIP7Hydrofracture(
         fracture.ISMIP7_config,
         fracture.damage_value,
@@ -85,7 +85,7 @@ function Grids.reconstruct_on_grid(fracture::ISMIP7Hydrofracture, grid::Grid)
         throw(DimensionMismatch("Size of ice shelf collapse_mask is incompatible with grid")))
 end
 
-function Grids.reconstruct_on_subdomain(fracture::ISMIP7Hydrofracture, grid::Grid,subdomain::NTuple{4,<: Integer})
+function reconstruct_on_subdomain(fracture::ISMIP7Hydrofracture, grid::Grid,subdomain::NTuple{4,<: Integer})
     return ISMIP7Hydrofracture(
         fracture.ISMIP7_config,
         fracture.damage_value,

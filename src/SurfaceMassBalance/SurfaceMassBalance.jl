@@ -1,10 +1,13 @@
 module SurfaceMassBalance
 
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+import WAVI.ClimateForcing: update_climate_forcing!
+export reconstruct_on_grid, reconstruct_on_subdomain,  update_climate_forcing!
 export update_accumulation_rate!
 
 using WAVI: AbstractSurfaceMassBalance, AbstractModel, AbstractClimateForcing
 using Parameters
-using WAVI.Time: Clock
+using WAVI.Time
 using WAVI.Grids
 
 #return the sceme used to compute surface mass balance
@@ -18,26 +21,6 @@ get_surface_mass_balance(model::AbstractModel) = model.surface_mass_balance
 Update the accumulation rate in the model using the time from clock.
 """
 update_accumulation_rate!(model::AbstractModel, clock::Clock) = update_accumulation_rate!(get_surface_mass_balance(model)::AbstractSurfaceMassBalance, model, clock)
-
-"""
-
-    update_climate_forcing!(surface_mass_balance::AbstractSurfaceMassBalance) 
-
-Generic wrapper function for updating the climate forcing. Overload this in your surface mass balance module of choice (see ISMIP7SMB.jl for an example)
-"""
-function update_climate_forcing!(surface_mass_balance::SMB, grid::Grid, clock::Clock) where {SMB <: AbstractSurfaceMassBalance}
-    return nothing
-end
-
-# Default behaviour. Overloaded for types that store spatial information.
-function Grids.reconstruct_on_grid(smb::SMB, grid::Grid) where {SMB <: AbstractSurfaceMassBalance}
-    return smb
-end
-
-# Default behaviour. Overloaded for types that store spatial information.
-function Grids.reconstruct_on_subdomain(smb::SMB, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SMB <: AbstractSurfaceMassBalance}
-    return smb
-end
 
 #include all specialised methods for computing accumulation rate
 include("./AccumulationFromParams.jl")

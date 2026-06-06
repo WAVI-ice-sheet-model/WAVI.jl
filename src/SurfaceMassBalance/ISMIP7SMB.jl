@@ -37,7 +37,7 @@ function ISMIP7SMB(;
 
 end
 
-function Grids.reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
+function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
     return ISMIP7SMB(
     smb.ISMIP7_config,
     isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : 
@@ -54,7 +54,7 @@ function Grids.reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid)
     throw(DimensionMismatch("Size of reference smb is incompatible with grid")))
 end
 
-function Grids.reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
+function reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
     x_start,x_end,y_start,y_end = subdomain
     return ISMIP7SMB(
     smb.ISMIP7_config,

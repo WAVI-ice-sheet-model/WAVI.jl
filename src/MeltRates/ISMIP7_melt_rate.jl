@@ -128,7 +128,7 @@ function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
 end
 
 
-function Grids.reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid) 
+function reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid) 
     
     if isnothing(ISMIP7_melt_rate.z_forcing)
         throw(ArgumentError("z_forcing must be initialised with correct length"))    
@@ -160,7 +160,7 @@ function Grids.reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid)
                 ISMIP7_melt_rate.melt_partial_cell)
 end
 
-function Grids.reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
+function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
     
     (size(ISMIP7_melt_rate.z_forcing,1) == 
      size(ISMIP7_melt_rate.S_loc,3) ==

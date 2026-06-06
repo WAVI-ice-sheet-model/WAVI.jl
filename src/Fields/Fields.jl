@@ -1,5 +1,9 @@
 module Fields
 
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+export reconstruct_on_grid, reconstruct_on_subdomain
+export GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
+
 using LinearAlgebra
 using LinearMaps
 using Parameters
@@ -13,7 +17,6 @@ using WAVI.Parameters
 using WAVI.Utilities
 using WAVI.Wavelets
 
-export GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 
 include("UGrid.jl")
 include("VGrid.jl")

@@ -1,10 +1,13 @@
 module Parameters
 
-using Parameters
-using WAVI.Time: compute_iterations_and_end_time
-using WAVI.Grids
-
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+export reconstruct_on_grid, reconstruct_on_subdomain
 export Params, SolverParams, TimesteppingParams
+
+using Parameters
+
+using WAVI.Grids
+using WAVI.Time
 
 struct Params{T, A <: Union{T,Array{T,2}}, G <: Union{T,Array{T,2}}, H <: Union{T,Array{T,2}}, E <: Union{T,Array{T,2}}}
                       dt :: T
@@ -166,7 +169,7 @@ function Params(; g = 9.81,
 end
 
 #Outer constructor that expands scalars into arrays of approriate size.
-function Grids.reconstruct_on_grid(params::Params, grid::Grid) 
+function reconstruct_on_grid(params::Params, grid::Grid) 
      return     Params(
                   params.dt, 
                   params.g, 
@@ -215,7 +218,7 @@ function Grids.reconstruct_on_grid(params::Params, grid::Grid)
 end
 
 #Outer constructor that selects parameters for a specified subdomain from parameters defined on a particular grid
-function Grids.reconstruct_on_subdomain(params::Params, grid::Grid, subdomain::NTuple{4,<: Integer})
+function reconstruct_on_subdomain(params::Params, grid::Grid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 

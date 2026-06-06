@@ -48,7 +48,7 @@ function update_β_using_sliding_law!(sliding_law::ZoetIversonSlidingLaw, model:
 end
 
 
-function Grids.reconstruct_on_grid(sliding_law::ZoetIversonSlidingLaw, grid::Grid)
+function reconstruct_on_grid(sliding_law::ZoetIversonSlidingLaw, grid::Grid)
     return ZoetIversonSlidingLaw(
         isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : 
         size(sliding_law.coulomb_coefficient) == (grid.nx,grid.ny) ? sliding_law.coulomb_coefficient :
@@ -60,7 +60,7 @@ function Grids.reconstruct_on_grid(sliding_law::ZoetIversonSlidingLaw, grid::Gri
         sliding_law.reg_speed)
 end
 
-function Grids.reconstruct_on_subdomain(sliding_law::ZoetIversonSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
+function reconstruct_on_subdomain(sliding_law::ZoetIversonSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 

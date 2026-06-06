@@ -42,7 +42,7 @@ function update_β_using_sliding_law!(sliding_law::BuddSlidingLaw, model::Abstra
     return model
 end
 
-function Grids.reconstruct_on_grid(sliding_law::BuddSlidingLaw, grid::Grid)
+function reconstruct_on_grid(sliding_law::BuddSlidingLaw, grid::Grid)
     return BuddSlidingLaw(
         isa(sliding_law.drag_coefficient,Number) ? sliding_law.drag_coefficient*ones(grid.nx,grid.ny) : 
         size(sliding_law.drag_coefficient) == (grid.nx,grid.ny) ? sliding_law.drag_coefficient :
@@ -52,7 +52,7 @@ function Grids.reconstruct_on_grid(sliding_law::BuddSlidingLaw, grid::Grid)
         budd_q)
 end
 
-function Grids.reconstruct_on_subdomain(sliding_law::BuddSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
+function reconstruct_on_subdomain(sliding_law::BuddSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 

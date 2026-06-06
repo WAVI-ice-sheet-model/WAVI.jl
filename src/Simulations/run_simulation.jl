@@ -4,13 +4,13 @@ using WAVI
 import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
 using WAVI.Processes: update_state!
+
+using WAVI.MeltRates
 using WAVI.SurfaceMassBalance
 using WAVI.Fracture
-using WAVI.MeltRates
-
-#using WAVI.Fracture: update_climate_forcing!
-#using WAVI.SurfaceMassBalance: update_climate_forcing!
-#using WAVI.MeltRates: update_climate_forcing!
+using WAVI.SlidingLaw
+using WAVI.BasalHydrology
+using WAVI.ThermoDynamics
 
 
 """
@@ -127,11 +127,14 @@ run_simulation!(s::Simulation) = run_simulation!(s.model, s.timestepping_params,
 
 
 function update_model_climate_forcing!(model::AbstractModel, clock)
-        @unpack surface_mass_balance, shelf_melt_rate, fracture, grid = model
+        @unpack shelf_melt_rate, surface_mass_balance, fracture, sliding_law, basal_hydrology, thermo_dynamics, grid = model
 
-        SurfaceMassBalance.update_climate_forcing!(surface_mass_balance, grid, clock)
-        MeltRates.update_climate_forcing!(shelf_melt_rate, grid, clock)
-        Fracture.update_climate_forcing!(fracture, grid, clock)
+        update_climate_forcing!(shelf_melt_rate, grid, clock)
+        update_climate_forcing!(surface_mass_balance, grid, clock)
+        update_climate_forcing!(fracture, grid, clock)
+        update_climate_forcing!(sliding_law, grid, clock)
+        update_climate_forcing!(basal_hydrology, grid, clock)
+        update_climate_forcing!(thermo_dynamics, grid, clock)
 
     return nothing
 end

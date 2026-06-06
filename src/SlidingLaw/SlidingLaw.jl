@@ -1,11 +1,15 @@
 module SlidingLaw
 
-using Parameters
-
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+import WAVI.ClimateForcing: update_climate_forcing!
+export reconstruct_on_grid, reconstruct_on_subdomain,  update_climate_forcing!
 export update_β_using_sliding_law!
+
+using Parameters
 
 using WAVI: AbstractSlidingLaw, AbstractModel
 using WAVI.Grids
+using WAVI.Time
 
 
 #add each of the individual sliding laws
@@ -31,14 +35,6 @@ function update_drag_coefficient!(model::AbstractModel)
     @unpack sliding_law=model
     gh.drag_coefficient .= sliding_law.drag_coefficient .* gh.grounded_fraction
     return model
-end
-
-function Grids.reconstruct_on_grid(sliding_law::SL, grid::Grid) where {SL <: AbstractSlidingLaw}
-    return sliding_law
-end
-
-function Grids.reconstruct_on_subdomain(sliding_law::SL, grid::Grid,subdomain::NTuple{4,<: Integer}) where {SL <: AbstractSlidingLaw}
-    return sliding_law
 end
 
 end
