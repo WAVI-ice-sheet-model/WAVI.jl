@@ -6,7 +6,7 @@ export reconstruct_on_grid, reconstruct_on_subdomain,  update_climate_forcing!
 export update_ice_temperature_and_basal_melt_rate!
 
 using Parameters
-
+using WAVI.Grids: Grid
 using WAVI: AbstractThermoDynamics, AbstractModel
 using WAVI.Grids
 using WAVI.Time

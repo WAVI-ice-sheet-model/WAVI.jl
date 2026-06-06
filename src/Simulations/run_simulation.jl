@@ -1,4 +1,4 @@
-export run_simulation!, timestep!, update_clock!, update_thickness!
+export run_simulation!, timestep!, update_clock!, update_thickness!, update_model_climate_forcing!
 
 using WAVI
 import WAVI: AbstractModel, AbstractSimulation

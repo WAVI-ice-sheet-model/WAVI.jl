@@ -1,3 +1,5 @@
+export BuddSlidingLaw
+
 struct BuddSlidingLaw{T <: Real, W <: Union{T,Array{T,2}}} <: AbstractSlidingLaw
     drag_coefficient :: W
     weertman_m :: T
