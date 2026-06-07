@@ -216,12 +216,12 @@ function Model(grid::G,
     # dt cannot be copied via the external constructor so we create the structure directly
     local_params = reconstruct_on_subdomain(params,grid,(x_start, x_end, y_start, y_end))
 
-    local_shelf_melt_rate = reconstruct_on_subdomain(local_shelf_melt_rate,grid,(x_start, x_end, y_start, y_end))
-    local_surface_mass_balance = reconstruct_on_subdomain(surface_mass_balance,model.grid,(x_start, x_end, y_start, y_end))
-    local_fracture = reconstruct_on_subdomain(fracture,model.grid,(x_start, x_end, y_start, y_end))
-    local_sliding_law = reconstruct_on_subdomain(sliding_law,model.grid,(x_start, x_end, y_start, y_end))
-    local_basal_hydrology = reconstruct_on_subdomain(basal_hydrology,model.grid,(x_start, x_end, y_start, y_end))
-    local_thermo_dynamics = reconstruct_on_subdomain(thermo_dynamics,model.grid,(x_start, x_end, y_start, y_end))
+    local_shelf_melt_rate = reconstruct_on_subdomain(shelf_melt_rate,grid,(x_start, x_end, y_start, y_end))
+    local_surface_mass_balance = reconstruct_on_subdomain(surface_mass_balance,grid,(x_start, x_end, y_start, y_end))
+    local_fracture = reconstruct_on_subdomain(fracture,grid,(x_start, x_end, y_start, y_end))
+    local_sliding_law = reconstruct_on_subdomain(sliding_law,grid,(x_start, x_end, y_start, y_end))
+    local_basal_hydrology = reconstruct_on_subdomain(basal_hydrology,grid,(x_start, x_end, y_start, y_end))
+    local_thermo_dynamics = reconstruct_on_subdomain(thermo_dynamics,grid,(x_start, x_end, y_start, y_end))
 
     
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]

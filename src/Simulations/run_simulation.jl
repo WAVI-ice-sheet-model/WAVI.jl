@@ -3,7 +3,7 @@ export run_simulation!, timestep!, update_clock!, update_thickness!, update_mode
 using WAVI
 import WAVI: AbstractModel, AbstractSimulation
 using WAVI.Outputs: write_outputs, zip_output
-using WAVI.Processes: update_state!
+using WAVI.Processes: update_state!, update_state_novelocity!
 
 using WAVI.MeltRates
 using WAVI.SurfaceMassBalance

@@ -338,7 +338,7 @@ function TimesteppingParams(;
                         chkpt_path = "./",
                         step_thickness = true,
                         verbose = false, 
-                        ntimesteps_climate_forcing_update = 1, 
+                        ntimesteps_climate_forcing_update = typemax(Int), 
                         ref_time = 0)
 
     #initialize t0 (really you should read start time from pickup file)

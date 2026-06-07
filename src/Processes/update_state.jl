@@ -1,4 +1,4 @@
-export update_state!, update_velocities_on_h_grid!
+export update_state!, update_velocities_on_h_grid!, update_state_novelocity!
 
 using Parameters
 

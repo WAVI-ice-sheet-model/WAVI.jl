@@ -70,7 +70,7 @@ model = Model(grid = grid,
             surface_mass_balance = surface_mass_balance,
             thermo_dynamics = thermo_dynamics);
 
-timestepping_params = TimesteppingParams(dt = dt, end_time = end_time);
+timestepping_params = TimesteppingParams(dt = dt, end_time = end_time, ntimesteps_velocity_update = typemax(Int));
 simulation = Simulation(model = model, timestepping_params = timestepping_params);
 
 t = 0;
