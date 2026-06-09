@@ -52,12 +52,18 @@ As can be seen, the grid is necessarily provided to the MPI specification prior 
 
 #### MPI specific execution
 
-MPI.jl has a dependency on MPIPreferences in order to set up the necessary links to your execution framework. This is outside the scope here to pick up, but you [should follow these instructions](https://juliaparallel.org/MPI.jl/stable/usage/#Julia-wrapper-for-mpiexec) in order to access `mpiexecjl`.
+Configure MPI for your Julia project once per machine (MPIPreferences, `mpiexecjl`, verification). See [MPI setup](./mpi_setup.md) and the [MPI.jl configuration guide](https://juliaparallel.org/MPI.jl/stable/configuration/).
 
-To then run with an `MPISpec`, use the following command: 
+To run a driver with an `MPISpec`:
 
-```julia
-mpiexecjl --project -np <num> julia <path to driver> <driver args...>`
+```bash
+mpiexecjl -n <num> --project=<path-to-project> julia <path-to-driver.jl> <driver args...>
+```
+
+Example (MISMIP+ driver, four ranks):
+
+```bash
+mpiexecjl -n 4 --project=../.. julia example_drivers/MISMIP_PLUS/MISMIP_PLUS.jl
 ```
 
 ## Domain Decomposition
