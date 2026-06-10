@@ -17,6 +17,9 @@ const BENCH_ROOT = dirname(@__DIR__)
 include(joinpath(BENCH_ROOT, "drivers.jl"))
 include(joinpath(BENCH_ROOT, "utils.jl"))
 include(joinpath(BENCH_ROOT, "plotting.jl"))
+include(joinpath(@__DIR__, "harness.jl"))
+
+export BenchmarkOptions, run_benchmark
 
 """
 List registered benchmark driver adaptors discovered under `benchmarks/drivers/`.
