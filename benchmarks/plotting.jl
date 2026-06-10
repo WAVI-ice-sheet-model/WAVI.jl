@@ -2,6 +2,16 @@ using NCDatasets
 using Plots
 using Printf
 
+"""Return a NetCDF variable, matching `name` exactly or case-insensitively."""
+function nc_var(ds, name::AbstractString)
+    haskey(ds, name) && return ds[name]
+    lname = lowercase(name)
+    for k in keys(ds)
+        lowercase(k) == lname && return ds[k]
+    end
+    throw(KeyError(name))
+end
+
 function create_heatmap_animation(netcdf_file::String, variable_name::String, output_dir::String)
     @info "Creating heatmap animation for variable: $variable_name"
     
@@ -12,13 +22,11 @@ function create_heatmap_animation(netcdf_file::String, variable_name::String, ou
     nc = NCDataset(netcdf_file)
     
     try
-        # Read coordinates
-        x = nc["x"]
-        y = nc["y"]
-        time = nc["time"]
-        
-        # Read the variable data
-        data = nc[variable_name]
+        # Read coordinates (WAVI output may use mixed-case names, e.g. TIME)
+        x = nc_var(nc, "x")
+        y = nc_var(nc, "y")
+        time = nc_var(nc, "time")
+        data = nc_var(nc, variable_name)
         
         @info "Data dimensions: $(size(data))"
         @info "Time steps: $(length(time))"
