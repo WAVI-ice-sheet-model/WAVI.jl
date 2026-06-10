@@ -3,6 +3,8 @@ using JSON3
 using Printf
 using Profile
 
+const BENCHMARK_OUTPUT_DIR = joinpath(@__DIR__, "output")
+
 struct BenchmarkResults
     execution_time::Float64
     memory_usage::Float64
@@ -19,15 +21,16 @@ function benchmark_main(id::String,
                         variables_to_plot::Vector{String},
                         rank::Int = 0)
 
-    output_dir = "benchmark_$(id)_$(Dates.format(now(), "yyyymmdd_HHMMSS"))"
+    output_dir = joinpath(
+        BENCHMARK_OUTPUT_DIR,
+        "benchmark_$(id)_$(Dates.format(now(), "yyyymmdd_HHMMSS"))",
+    )
     model_args[:folder] = output_dir
+    mkpath(output_dir)
 
     if rank == 0
         @info "JULIA WAVI BENCHMARK SUITE - $(id)"
         @info "Start time: $(now())"
-
-        # Configuration
-        mkpath(output_dir)
         @info "Executing model with $(model_args)"
     end
     
@@ -41,7 +44,7 @@ function benchmark_main(id::String,
         @info "GC time: $(@sprintf("%.3f", benchmark_results.gc_time)) seconds"
         @info "Allocations: $(benchmark_results.allocations)"
         #@info "Profile samples: $(benchmark_results.profile_data["profile_samples"])"
-            
+
         benchmark_file = joinpath(output_dir, "benchmark_results.json")
         save_benchmark_results(benchmark_results, benchmark_file)
         
@@ -70,7 +73,8 @@ function monitor_resources(func, args...; kwargs...)
     Profile.clear()
     
     @profile begin
-        result = @timed func(args...; kwargs...)
+        # invokelatest: driver functions are included at runtime (Fixes world age error)
+        result = @timed Base.invokelatest(func, args...; kwargs...)
     end
     
     #profile_data = Profile.fetch()

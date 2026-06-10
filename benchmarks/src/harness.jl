@@ -35,6 +35,18 @@ end
 BenchmarkOptions(mode::AbstractString; kwargs...) =
     BenchmarkOptions(; mode = Symbol(lowercase(mode)), kwargs...)
 
+# Set from benchmarks/run.jl before the CLI runs; logged at the start of run_benchmark.
+const BENCHMARK_COMMAND = Ref{Union{String, Nothing}}(nothing)
+
+"""
+    set_benchmark_command!(cmd::AbstractString)
+
+Store the exact command-line invocation used to launch the benchmark.
+This is logged to the console at the start of `run_benchmark` and is intended
+to be saved alongside benchmark metadata for reproducibility.
+"""
+set_benchmark_command!(cmd::AbstractString) = (BENCHMARK_COMMAND[] = String(cmd))
+
 # # Execution dispatch
 
 """
@@ -45,15 +57,18 @@ Load the requested driver adaptor, build appropriate WAVI spec, and run
 """
 function run_benchmark(opts::BenchmarkOptions)
     opts.mode in _VALID_MODES || error("Unknown mode '$(opts.mode)'. Use basic, threaded, or mpi.")
-    driver = load_driver(opts.driver)
 
     # Initialise MPI up front so the entire setup is covered by finalisation.
     opts.mode == :mpi && !MPI.Initialized() && MPI.Init()
 
+    rank = opts.mode == :mpi ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
+    rank == 0 && !isnothing(BENCHMARK_COMMAND[]) && @info "Command: $(BENCHMARK_COMMAND[])"
+
+    driver = load_driver(opts.driver)
+
     try
         run_id = ""
         spec_kwargs = Dict{Symbol, Any}()
-        rank = 0
 
         if opts.mode == :basic
             # Serial: BasicSpec setup
@@ -68,14 +83,13 @@ function run_benchmark(opts::BenchmarkOptions)
         elseif opts.mode == :mpi
             # Distributed: MPISpec setup
             comm = MPI.COMM_WORLD
-            rank = MPI.Comm_rank(comm)
             sz = MPI.Comm_size(comm)
 
             px = something(opts.px, sz)
             py = something(opts.py, 1)
             px * py == sz || error("MPI process grid px×py ($(px)×$(py)) must equal world size ($(sz)).")
 
-            grid = driver.grid()
+            grid = Base.invokelatest(driver.grid)
             spec = MPISpec(px, py, 2, grid; pou = false, niterations = opts.niterations)
 
             spec_kwargs[:grid] = grid
