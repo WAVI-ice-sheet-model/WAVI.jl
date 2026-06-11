@@ -45,7 +45,7 @@ function ISMIP7Hydrofracture(;
               path_to_forcing)
 end
 
-function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid, clock::Clock)
+function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid::Grid, clock::Clock)
   @unpack dx = grid
   @unpack ISMIP7_config, path_to_forcing = fracture
 

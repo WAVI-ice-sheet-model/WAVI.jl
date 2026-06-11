@@ -106,7 +106,7 @@ function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid,
     return nothing
 end
 
-function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid, clock)
+function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid::Grid, clock::Clock)
     @unpack S_loc, T_loc, Tf_loc, z_forcing = ISMIP7_melt_rate
     @unpack dx = grid
     @unpack ISMIP7_config, path_to_forcing = ISMIP7_melt_rate
@@ -169,7 +169,7 @@ function reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid)
                 ISMIP7_melt_rate.Tf_loc,
                 ISMIP7_melt_rate.z_forcing, 
                 ISMIP7_melt_rate.melt_partial_cell,
-                melt_rate.path_to_forcing)
+                ISMIP7_melt_rate.path_to_forcing)
 end
 
 function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
@@ -205,5 +205,5 @@ function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,su
                         ISMIP7_melt_rate.Tf_loc,
                 ISMIP7_melt_rate.z_forcing, 
                 ISMIP7_melt_rate.melt_partial_cell,
-                melt_rate.path_to_forcing)
+                ISMIP7_melt_rate.path_to_forcing)
 end

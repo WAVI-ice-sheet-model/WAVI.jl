@@ -80,4 +80,10 @@ if true
 
     end
 end
+
+@testset "Climate Forcing Test" begin
+  include(joinpath("verification_tests","climate_forcing_test.jl"))
+end
+
+
 end

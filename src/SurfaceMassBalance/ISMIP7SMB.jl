@@ -53,7 +53,8 @@ function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid)
     throw(DimensionMismatch("Size of smb anomaly is incompatible with grid")),
     isnothing(smb.reference_smb) ? zeros(grid.nx,grid.ny) : 
     size(smb.reference_smb) == (grid.nx,grid.ny) ? smb.reference_smb :
-    throw(DimensionMismatch("Size of reference smb is incompatible with grid")))
+    throw(DimensionMismatch("Size of reference smb is incompatible with grid")),
+    smb.path_to_forcing)
 end
 
 function reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,<: Integer}) 
@@ -101,7 +102,7 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, cl
     resolution = join([string(Int(dx)), "m"])
     smb_anomaly_filename = joinpath(path_to_forcing,join(["acabf-anomaly_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"]))
     smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
-    smb_anomaly .= replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,:] , missing => NaN)
+    smb_anomaly .= replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,1] , missing => NaN)
     #println("read in smb anomaly forcing file: " * smb_anomaly_filename)
     @info "read in smb anomaly forcing file: $smb_anomaly_filename"
 
@@ -109,7 +110,7 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, cl
     # load in the vertical smb gradient from ISMIP7
     vertical_smb_gradient_anomaly_filename = joinpath(path_to_forcing, join(["dacabfdz_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"]))
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
-    vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,:], missing => NaN)
+    vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,1], missing => NaN)
     
     #println("read in vertical smb gradient forcing file: " * vertical_smb_gradient_anomaly_filename)
     @info "read in vertical smb gradient forcing file: $vertical_smb_gradient_anomaly_filename"
