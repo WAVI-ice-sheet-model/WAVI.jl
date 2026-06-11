@@ -57,7 +57,7 @@ function benchmark_main(id::String,
         netcdf_output = "$(output_dir)/outfile.nc"
         
         if isfile(netcdf_output)
-            @info "Creating visualizations..."
+            @info "Creating visualisations..."
             plot_output_dir = joinpath(output_dir, "plots")
             plot_multiple_variables(netcdf_output, variables_to_plot, plot_output_dir)
         else

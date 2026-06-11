@@ -27,7 +27,7 @@ function create_heatmap_animation(netcdf_file::String, variable_name::String, ou
         y = nc_var(nc, "y")
         time = nc_var(nc, "time")
         data = nc_var(nc, variable_name)
-        
+
         @info "Data dimensions: $(size(data))"
         @info "Time steps: $(length(time))"
         
@@ -45,7 +45,7 @@ function create_heatmap_animation(netcdf_file::String, variable_name::String, ou
                 color=:viridis,
                 clim=(minimum(data), maximum(data)),
                 aspect_ratio=:equal,
-                size=(600, 500)
+                size=(600, 500),
             )
             
             # Save frame

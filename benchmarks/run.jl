@@ -12,6 +12,8 @@
 #   mpiexecjl --project=benchmarks -n 4 julia -t 1 benchmarks/run.jl run mpi mismip_plus \
 #     --px 2 --py 2
 
+# Force GR plotting backend to run headlessly to prevent flashing plot window
+ENV["GKSwstype"] = "100"
 using WAVIBenchmarks
 
 if abspath(PROGRAM_FILE) == @__FILE__
