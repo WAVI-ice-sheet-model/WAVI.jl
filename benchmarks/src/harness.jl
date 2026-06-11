@@ -1,5 +1,6 @@
 # # WAVI.jl benchmark harness
 
+using LinearAlgebra
 using MPI
 using WAVI
 
@@ -47,6 +48,35 @@ to be saved alongside benchmark metadata for reproducibility.
 """
 set_benchmark_command!(cmd::AbstractString) = (BENCHMARK_COMMAND[] = String(cmd))
 
+# # BLAS / threading
+
+"""
+    pin_blas_threads!()
+
+Pin BLAS to exactly one thread per process by setting OpenBLAS/MKL environment variables.
+This is critical to prevent severe thread oversubscription during MPI or ThreadedSpec runs.
+"""
+function pin_blas_threads!()
+    !haskey(ENV, "OPENBLAS_NUM_THREADS") && (ENV["OPENBLAS_NUM_THREADS"] = "1")
+    !haskey(ENV, "MKL_NUM_THREADS") && (ENV["MKL_NUM_THREADS"] = "1")
+    BLAS.set_num_threads(1)
+end
+
+"""
+    benchmark_metadata(opts::BenchmarkOptions)
+
+Extract benchmark details (mode, driver, julia threads, and BLAS threads)
+into a dict for serialisation with final benchmark JSON results output.
+"""
+function benchmark_metadata(opts::BenchmarkOptions)
+    return Dict{String, Any}(
+        "mode" => string(opts.mode),
+        "driver" => opts.driver,
+        "julia_threads" => Threads.nthreads(),
+        "blas_threads" => BLAS.get_num_threads(),
+    )
+end
+
 # # Execution dispatch
 
 """
@@ -57,6 +87,9 @@ Load the requested driver adaptor, build appropriate WAVI spec, and run
 """
 function run_benchmark(opts::BenchmarkOptions)
     opts.mode in _VALID_MODES || error("Unknown mode '$(opts.mode)'. Use basic, threaded, or mpi.")
+
+    pin_blas_threads!()
+    metadata = benchmark_metadata(opts)
 
     # Initialise MPI up front so the entire setup is covered by finalisation.
     opts.mode == :mpi && !MPI.Initialized() && MPI.Init()
@@ -97,7 +130,7 @@ function run_benchmark(opts::BenchmarkOptions)
             run_id = "mpi.$(px)x$(py)_sz$(sz)"
         end
 
-        benchmark_main(run_id, driver.run, spec_kwargs, driver.plot_vars, rank)
+        benchmark_main(run_id, driver.run, spec_kwargs, driver.plot_vars, rank; metadata = metadata)
     finally
         opts.mode == :mpi && MPI.Initialized() && MPI.Finalize()
     end

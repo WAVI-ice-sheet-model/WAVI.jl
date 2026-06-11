@@ -16,10 +16,11 @@ struct BenchmarkResults
 end
 
 function benchmark_main(id::String,
-                        model::Function, 
-                        model_args::Dict, 
+                        model::Function,
+                        model_args::Dict,
                         variables_to_plot::Vector{String},
-                        rank::Int = 0)
+                        rank::Int = 0;
+                        metadata::Dict{String, Any} = Dict{String, Any}())
 
     output_dir = joinpath(
         BENCHMARK_OUTPUT_DIR,
@@ -46,7 +47,7 @@ function benchmark_main(id::String,
         #@info "Profile samples: $(benchmark_results.profile_data["profile_samples"])"
 
         benchmark_file = joinpath(output_dir, "benchmark_results.json")
-        save_benchmark_results(benchmark_results, benchmark_file)
+        save_benchmark_results(benchmark_results, benchmark_file; metadata = metadata)
         
         #profile_file = joinpath(output_dir, "profile_data.txt")
         #open(profile_file, "w") do io
@@ -102,7 +103,8 @@ function get_system_info()
     )
 end
 
-function save_benchmark_results(results::BenchmarkResults, filename::String)
+function save_benchmark_results(results::BenchmarkResults, filename::String;
+                                metadata::Dict{String, Any} = Dict{String, Any}())
     output_data = Dict(
         "timestamp" => string(results.timestamp),
         "execution_time_seconds" => results.execution_time,
@@ -110,7 +112,8 @@ function save_benchmark_results(results::BenchmarkResults, filename::String)
         "gc_time_seconds" => results.gc_time,
         "allocations" => results.allocations,
         #"profile_samples" => results.profile_data["profile_samples"],
-        "system_info" => results.system_info
+        "system_info" => results.system_info,
+        "metadata" => metadata,
     )
     
     open(filename, "w") do io

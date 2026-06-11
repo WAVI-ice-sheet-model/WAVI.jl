@@ -2,7 +2,7 @@
 
 julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "dc13895400063731ca5bc65ed1afb97e0121ac3a"
+project_hash = "5e7f63f610389bdd52a54c224ddd700dbc4b97cd"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "bbc22a9a08a0ef6460041086d8a7b27940ed4ffd"
@@ -2559,7 +2559,7 @@ uuid = "881191c6-26ca-4787-919d-8f98f1c41532"
 version = "0.0.3"
 
 [[deps.WAVIBenchmarks]]
-deps = ["CSV", "Comonicon", "Dates", "JSON3", "MPI", "NCDatasets", "Plots", "Printf", "Profile", "WAVI"]
+deps = ["CSV", "Comonicon", "Dates", "JSON3", "LinearAlgebra", "MPI", "NCDatasets", "Plots", "Printf", "Profile", "WAVI"]
 path = "."
 uuid = "28b13f4d-81fd-4a65-aa2c-631609bcbcf8"
 version = "0.1.0"
