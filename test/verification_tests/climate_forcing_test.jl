@@ -1,5 +1,6 @@
 
-using WAVI, NCDatasets, Test, Parameters
+using WAVI, NCDatasets, Test, Parameters, Interpolations
+using WAVI.Parameters
 
 
 """
@@ -27,12 +28,32 @@ end
 
 function climate_forcing_test(grid)
 
-thickness_scale = 500.0
+params = Params()
+
 #random thickness iceberg, but not too thin
+thickness_scale = 500.0
 reference_thickness = thickness_scale .* (0.1 .+ 0.9*rand(grid.nx,grid.ny))
 
 nzforcing = 3
 z_forcing = .- thickness_scale * 0.9 .* [0.0,0.5,1.0]     
+
+#deep enough to ensure floatation
+bed_elevation = -1000*ones(grid.nx,grid.ny)
+
+ISMIP7_config = ISMIP7(gcm = "TEST",scenario = "MOCK")
+
+shelf_melt_rate = ISMIP7MeltRate(;ISMIP7_config,z_forcing)
+
+#Just to get default parameters for later
+@unpack K, shelf_slope, ρ_ocean, ρ_ice, c_ocean, L_ice, β_s, g, f, melt_partial_cell = shelf_melt_rate 
+C_melt = params.sec_per_year*K*shelf_slope*(ρ_ocean/ρ_ice)*g*β_s*(c_ocean/L_ice)^2/(2*abs(f)) 
+
+manufactured_melt_solution = 0.01*ones(grid.nx,grid.ny,nzforcing,2)
+
+delta = (one(typeof(ρ_ice/ρ_ocean)) .- ρ_ice./ρ_ocean)
+
+reference_elevation = reference_thickness * delta  
+reference_smb = rand(grid.nx,grid.ny)
 
 mask = Int8.(rand(Bool,grid.nx,grid.ny,2))
 NCDataset("ice_shelf_collapse_mask_TEST_sspMOCK_ismip7_5000m_0.nc","c") do ds
@@ -56,7 +77,8 @@ NCDataset("dacabfdz_AIS_TEST_sspMOCK_SDBN1-5000m_v2_1_yearlyaveraged.nc","c") do
     defVar(ds,"dacabfdz",dacabfdz[:,:,2],("x","y","t"))
 end
 
-so = rand(Float32,grid.nx,grid.ny,nzforcing,2)
+salinity_floor = 0.1
+so = rand(Float32,grid.nx,grid.ny,nzforcing,2) .+ salinity_floor
 NCDataset("so_AIS_TEST_sspMOCK_ocean_v3_5000m_0.nc","c") do ds
     defVar(ds,"so",so[:,:,:,1],("x","y","z","t"))
 end
@@ -73,7 +95,9 @@ NCDataset("thetao_AIS_TEST_sspMOCK_ocean_v3_5000m_1.nc","c") do ds
     defVar(ds,"thetao",thetao[:,:,:,2],("x","y","z","t"))
 end
 
-tf = rand(Float32,grid.nx,grid.ny,nzforcing,2)
+#tf = rand(Float32,grid.nx,grid.ny,nzforcing,2)
+#Choose tf to match manufactured melt solution.
+tf = abs.(manufactured_melt_solution./(C_melt*so)).^-0.5.*(manufactured_melt_solution./(C_melt*so))
 NCDataset("tf_AIS_TEST_sspMOCK_ocean_v3_5000m_0.nc","c") do ds
     defVar(ds,"tf",tf[:,:,:,1],("x","y","z","t"))
 end
@@ -81,27 +105,14 @@ NCDataset("tf_AIS_TEST_sspMOCK_ocean_v3_5000m_1.nc","c") do ds
     defVar(ds,"tf",tf[:,:,:,2],("x","y","z","t"))
 end
 
-bed_elevation = -1000*ones(grid.nx,grid.ny)
 
-ISMIP7_config = ISMIP7(gcm = "TEST",scenario = "MOCK")
-
-shelf_melt_rate = ISMIP7MeltRate(;ISMIP7_config,z_forcing)
-
-#Just to get default parameters for later
-@unpack K, shelf_slope, ρ_ocean, ρ_ice, c_ocean, L_ice, β_s, g, f, melt_partial_cell = shelf_melt_rate 
-
-delta = (one(typeof(ρ_ice/ρ_ocean)) .- ρ_ice./ρ_ocean)
-println(delta)
-
-reference_elevation = reference_thickness * delta  
-reference_smb = rand(grid.nx,grid.ny)
 
 surface_mass_balance = ISMIP7SMB(;ISMIP7_config,reference_elevation,reference_smb)
 fracture = ISMIP7Hydrofracture(;ISMIP7_config)
 
 initial_conditions = InitialConditions(initial_thickness = reference_thickness)
 
-model = Model(grid,bed_elevation;initial_conditions,shelf_melt_rate,fracture,surface_mass_balance)
+model = Model(grid,bed_elevation;params,initial_conditions,shelf_melt_rate,fracture,surface_mass_balance)
 
 timestepping_params=TimesteppingParams(dt=0.1,n_iter_total=20,ntimesteps_climate_forcing_update=10)
 
@@ -174,6 +185,29 @@ tf_from_model2 = load("outfile0000000020.jld2")["tf"]
 @test tf_from_model1 == tf[:,:,:,1]
 @test tf_from_model2 == tf[:,:,:,2]
 
+basal_melt1=ds["basal_melt"][:,:,1] 
+basal_melt2=ds["basal_melt"][:,:,2] 
+
+expected_melt_rate_3d_time1 = zeros(grid.nx,grid.ny,nzforcing)
+expected_melt_rate_3d_time1 .= C_melt.*so[:,:,:,1].*tf[:,:,:,1].*abs.(tf[:,:,:,1])
+expected_melt_rate_3d_time2 = zeros(grid.nx,grid.ny,nzforcing)
+expected_melt_rate_3d_time2 .= C_melt.*so[:,:,:,2].*tf[:,:,:,2].*abs.(tf[:,:,:,2])
+
+zb1 = - (ρ_ice/ρ_ocean) * ds["h"][:,:,1]
+zb2 = - (ρ_ice/ρ_ocean) * ds["h"][:,:,2]
+
+iarr = [i for i = 1:grid.nx]
+jarr = [j for j = 1:grid.ny]
+itp1 = interpolate((iarr,jarr,z_forcing[end:-1:1]),expected_melt_rate_3d_time1[:,:,end:-1:1],(NoInterp(),NoInterp(),Gridded(Constant())))
+itp1 = extrapolate(itp1,Flat())
+expected_melt_rate_2d_time1 = itp1.([i for i = 1:grid.nx,j=1:grid.ny],[j for i = 1:grid.nx,j=1:grid.ny],zb1)
+
+itp2 = interpolate((iarr,jarr,z_forcing[end:-1:1]),expected_melt_rate_3d_time2[:,:,end:-1:1],(NoInterp(),NoInterp(),Gridded(Constant())))
+itp2 = extrapolate(itp2,Flat())
+expected_melt_rate_2d_time2 = itp2.([i for i = 1:grid.nx,j=1:grid.ny],[j for i = 1:grid.nx,j=1:grid.ny],zb2)
+
+@test expected_melt_rate_2d_time1 ≈ basal_melt1
+@test expected_melt_rate_2d_time2 ≈ basal_melt2
 
 end
 
