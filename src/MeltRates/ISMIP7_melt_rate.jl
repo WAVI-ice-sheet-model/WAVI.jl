@@ -202,7 +202,6 @@ function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,su
                 size(ISMIP7_melt_rate.Tf_loc) == size(grid)[1:2] ? 
                         ISMIP7_melt_rate.Tf_loc[x_start:x_end, y_start:y_end,:] : 
                         ISMIP7_melt_rate.Tf_loc,
-                        ISMIP7_melt_rate.Tf_loc,
                 ISMIP7_melt_rate.z_forcing, 
                 ISMIP7_melt_rate.melt_partial_cell,
                 ISMIP7_melt_rate.path_to_forcing)
