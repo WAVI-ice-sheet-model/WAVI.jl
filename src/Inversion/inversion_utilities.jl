@@ -142,7 +142,7 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
                  if inversion_params.verbose
                 println("Loop $i : True Relative Residual Norm = $true_rel_resid_norm_pD")
                  end
-                if  true_rel_resid_norm  < inversion_params.reltol
+                if  true_rel_resid_norm_pD  < inversion_params.reltol
                      if inversion_params.verbose
                 println("Stopping early: Relative Residual below tolerance.")
                 println("pD solved after $iter_total_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
