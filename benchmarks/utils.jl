@@ -5,22 +5,53 @@ using Profile
 
 const BENCHMARK_OUTPUT_DIR = joinpath(@__DIR__, "output")
 
+"""
+    BenchmarkResults
+
+Summary of one timed driver run: wall time, allocations, GC, peak RSS, and
+the sample interval used for the resource time series.
+"""
 struct BenchmarkResults
     execution_time::Float64
-    memory_usage::Float64
+    allocated_bytes::Int64
     gc_time::Float64
     allocations::Int64
-    #profile_data::Dict{String, Any}
+    peak_rss_bytes::Int
+    sample_interval_s::Float64
     system_info::Dict{String, Any}
     timestamp::DateTime
 end
 
+"""
+    write_resource_timeseries(path, samples)
+
+Write resource samples to CSV with columns
+`elapsed_s,rss_bytes,cpu_cores_used`.
+"""
+function write_resource_timeseries(path::AbstractString, samples)
+    open(path, "w") do io
+        println(io, "elapsed_s,rss_bytes,cpu_cores_used")
+        for s in samples
+            println(io, "$(s.elapsed_s),$(s.rss_bytes),$(s.cpu_cores_used)")
+        end
+    end
+end
+
+"""
+    benchmark_main(id, model, model_args, variables_to_plot, rank=0; kwargs...)
+
+Create an output folder, optionally warm up, time `model`, save JSON/CSV, and
+optionally plot NetCDF fields. Only rank 0 writes files and plots.
+"""
 function benchmark_main(id::String,
                         model::Function,
                         model_args::Dict,
                         variables_to_plot::Vector{String},
                         rank::Int = 0;
-                        metadata::Dict{String, Any} = Dict{String, Any}())
+                        metadata::Dict{String, Any} = Dict{String, Any}(),
+                        sample_interval::Float64 = 0.25,
+                        no_plots::Bool = false,
+                        warmup::Bool = false)
 
     output_dir = joinpath(
         BENCHMARK_OUTPUT_DIR,
@@ -34,62 +65,91 @@ function benchmark_main(id::String,
         @info "Start time: $(now())"
         @info "Executing model with $(model_args)"
     end
-    
+
+    if warmup
+        rank == 0 && @info "Warm-up run (not timed)..."
+        Base.invokelatest(model; model_args...)
+    end
+
     # Run the model with benchmarking
-    result, benchmark_results = monitor_resources(model; model_args...)
-    
+    timeseries_path = rank == 0 ? joinpath(output_dir, "resource_timeseries.csv") : nothing
+    result, benchmark_results = monitor_resources(
+        model;
+        sample_interval = sample_interval,
+        timeseries_path = timeseries_path,
+        model_args...,
+    )
+
     if rank == 0
         # Display results
         @info "Execution time: $(@sprintf("%.3f", benchmark_results.execution_time)) seconds"
-        @info "Memory usage: $(@sprintf("%.2f", benchmark_results.memory_usage / 1024^2)) MB"
+        @info "Allocated: $(@sprintf("%.2f", benchmark_results.allocated_bytes / 1024^2)) MB"
+        @info "Peak RSS: $(@sprintf("%.2f", benchmark_results.peak_rss_bytes / 1024^2)) MB"
         @info "GC time: $(@sprintf("%.3f", benchmark_results.gc_time)) seconds"
         @info "Allocations: $(benchmark_results.allocations)"
-        #@info "Profile samples: $(benchmark_results.profile_data["profile_samples"])"
 
         benchmark_file = joinpath(output_dir, "benchmark_results.json")
         save_benchmark_results(benchmark_results, benchmark_file; metadata = metadata)
-        
-        #profile_file = joinpath(output_dir, "profile_data.txt")
-        #open(profile_file, "w") do io
-        #    Profile.print(io, format=:flat)
-        #end
-        #@info "Profile data saved to: $profile_file"
-        
-        netcdf_output = "$(output_dir)/outfile.nc"
-        
-        if isfile(netcdf_output)
+
+        netcdf_output = joinpath(output_dir, "outfile.nc")
+        if !no_plots && isfile(netcdf_output)
             @info "Creating visualisations..."
-            plot_output_dir = joinpath(output_dir, "plots")
-            plot_multiple_variables(netcdf_output, variables_to_plot, plot_output_dir)
+            plot_multiple_variables(netcdf_output, variables_to_plot, joinpath(output_dir, "plots"))
+        elseif no_plots
+            @info "Skipping plots (--no-plots)."
         else
-            @info "Warning: NetCDF output file '$netcdf_output' not found. Skipping visualization."
+            @info "Warning: NetCDF output file '$netcdf_output' not found. Skipping visualisation."
         end
-        
+
         @info "End time: $(now())"
         @info "All output saved to: $output_dir"
     end
+
+    return result, benchmark_results
 end
 
-function monitor_resources(func, args...; kwargs...)
+"""
+    monitor_resources(func, args...; sample_interval=0.25, timeseries_path=nothing, kwargs...)
+
+Time `func(args...; kwargs...)` while sampling RSS and CPU.
+
+The resource monitor starts before `@timed` and stops afterwards, so helper
+allocations are not counted in `allocated_bytes`. If `timeseries_path` is set,
+samples are written there as CSV.
+"""
+function monitor_resources(func, args...;
+                           sample_interval::Float64 = 0.25,
+                           timeseries_path::Union{Nothing, AbstractString} = nothing,
+                           kwargs...)
     Profile.clear()
-    
-    @profile begin
-        # invokelatest: driver functions are included at runtime (Fixes world age error)
-        result = @timed Base.invokelatest(func, args...; kwargs...)
+
+    mon = start_monitor!(sample_interval)
+    local result
+    try
+        @profile begin
+            # invokelatest: driver functions are included at runtime (Fixes world age error)
+            result = @timed Base.invokelatest(func, args...; kwargs...)
+        end
+    finally
+        stop_monitor!(mon)
     end
-    
-    #profile_data = Profile.fetch()
-    
+
+    if timeseries_path !== nothing
+        write_resource_timeseries(timeseries_path, mon.samples)
+        @info "Resource time series saved to: $timeseries_path"
+    end
+
     benchmark_result = BenchmarkResults(
         result.time,
-        result.bytes,
+        Int64(result.bytes),
         result.gctime,
-        result.gcstats.allocd,
-        #Dict("profile_samples" => length(profile_data)),
+        Int64(result.gcstats.allocd),
+        mon.peak_rss_bytes,
+        sample_interval,
         get_system_info(),
-        now()
+        now(),
     )
-    
+
     return result.value, benchmark_result
 end
 
@@ -99,26 +159,32 @@ function get_system_info()
         "cpu_threads" => Sys.CPU_THREADS,
         "total_memory" => Sys.total_memory(),
         "hostname" => gethostname(),
-        "os" => string(Sys.KERNEL)
+        "os" => string(Sys.KERNEL),
     )
 end
 
+"""
+    save_benchmark_results(results, filename; metadata=Dict())
+
+Write timing and memory summary fields to JSON, including `metadata`.
+"""
 function save_benchmark_results(results::BenchmarkResults, filename::String;
                                 metadata::Dict{String, Any} = Dict{String, Any}())
     output_data = Dict(
         "timestamp" => string(results.timestamp),
         "execution_time_seconds" => results.execution_time,
-        "memory_usage_bytes" => results.memory_usage,
+        "allocated_bytes" => results.allocated_bytes,
+        "peak_rss_bytes" => results.peak_rss_bytes,
+        "sample_interval_s" => results.sample_interval_s,
         "gc_time_seconds" => results.gc_time,
         "allocations" => results.allocations,
-        #"profile_samples" => results.profile_data["profile_samples"],
         "system_info" => results.system_info,
         "metadata" => metadata,
     )
-    
+
     open(filename, "w") do io
         JSON3.pretty(io, output_data)
     end
-    
+
     @info "Benchmark results saved to: $filename"
 end

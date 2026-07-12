@@ -19,6 +19,9 @@ Configuration for a benchmark run.
 - `driver`: registered adaptor name (e.g. `"mismip_plus"`)
 - `ngridsx`, `ngridsy`, `overlap`, `niterations`: ThreadedSpec / Schwarz parameters
 - `px`, `py`: MPI process grid dimensions (`nothing` defaults to `Comm_size` × 1)
+- `sample_interval`: seconds between resource samples
+- `no_plots`: skip NetCDF plots if true
+- `warmup`: untimed run before the measured benchmark
 """
 Base.@kwdef struct BenchmarkOptions
     mode::Symbol
@@ -29,6 +32,9 @@ Base.@kwdef struct BenchmarkOptions
     niterations::Int = 2
     px::Union{Int, Nothing} = nothing
     py::Union{Int, Nothing} = nothing
+    sample_interval::Float64 = 0.25
+    no_plots::Bool = false
+    warmup::Bool = false
 end
 
 # Convenience constructor accepting a string mode (from the Comonicon CLI),
@@ -74,6 +80,7 @@ function benchmark_metadata(opts::BenchmarkOptions)
         "driver" => opts.driver,
         "julia_threads" => Threads.nthreads(),
         "blas_threads" => BLAS.get_num_threads(),
+        "sample_interval_s" => opts.sample_interval,
     )
 end
 
@@ -130,7 +137,11 @@ function run_benchmark(opts::BenchmarkOptions)
             run_id = "mpi.$(px)x$(py)_sz$(sz)"
         end
 
-        benchmark_main(run_id, driver.run, spec_kwargs, driver.plot_vars, rank; metadata = metadata)
+        benchmark_main(run_id, driver.run, spec_kwargs, driver.plot_vars, rank;
+                       metadata = metadata,
+                       sample_interval = opts.sample_interval,
+                       no_plots = opts.no_plots,
+                       warmup = opts.warmup)
     finally
         opts.mode == :mpi && MPI.Initialized() && MPI.Finalize()
     end

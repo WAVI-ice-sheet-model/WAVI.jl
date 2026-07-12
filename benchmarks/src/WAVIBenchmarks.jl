@@ -12,6 +12,7 @@ const BENCH_ROOT = dirname(@__DIR__)
 
 # Include shared harness components
 include(joinpath(BENCH_ROOT, "drivers.jl"))
+include(joinpath(BENCH_ROOT, "resource_monitor.jl"))
 include(joinpath(BENCH_ROOT, "utils.jl"))
 include(joinpath(BENCH_ROOT, "plotting.jl"))
 include(joinpath(@__DIR__, "harness.jl"))
@@ -47,6 +48,10 @@ Run a timed benchmark for the given execution mode and driver adaptor.
 
 - `--px <n>`: [MPISpec] process grid x dimension (default: MPI world size)
 - `--py <n>`: [MPISpec] process grid y dimension (default: 1)
+
+- `--sample-interval <s>`: resource sample period in seconds (default: 0.25)
+- `--no-plots`: skip NetCDF plots
+- `--warmup`: run once untimed before the measured run
 """
 @cast function run(
     mode::String,
@@ -57,6 +62,9 @@ Run a timed benchmark for the given execution mode and driver adaptor.
     niterations::Int = 2,
     px = nothing,
     py = nothing,
+    sample_interval::Float64 = 0.25,
+    no_plots::Bool = false,
+    warmup::Bool = false,
 )
     opts = BenchmarkOptions(
         mode;
@@ -67,6 +75,9 @@ Run a timed benchmark for the given execution mode and driver adaptor.
         niterations = niterations,
         px = px isa Integer ? Int(px) : nothing,
         py = py isa Integer ? Int(py) : nothing,
+        sample_interval = sample_interval,
+        no_plots = no_plots,
+        warmup = warmup,
     )
     run_benchmark(opts)
 end
