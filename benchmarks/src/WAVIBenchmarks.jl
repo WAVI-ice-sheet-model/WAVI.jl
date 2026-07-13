@@ -19,7 +19,6 @@ export BenchmarkOptions, run_benchmark, run_profile, set_benchmark_command!
 
 """
 List registered benchmark driver adaptors discovered under `benchmarks/drivers/`.
-
 This command checks the registry for available drivers that can be used 
 with the benchmark harness and prints them to the console.
 """
@@ -82,7 +81,6 @@ end
 
 """
 On-demand CPU profile of a driver (separate from timed `run`).
-
 Warm up once, then `@profile`, and write a flat report under `benchmarks/output/`.
 For allocation profiling, launch Julia with `--track-allocation=user` instead
 (slow; not handled by this subcommand).
@@ -126,7 +124,6 @@ end
 
 """
 Overlay RSS and CPU time series from one or more `resource_timeseries.csv` files.
-
 Writes a two-panel PNG (RSS and CPU fraction vs elapsed time).
 CPU fraction uses each run's `benchmark_results.json` (`metadata.reference_cores`)
 when needed; pass `--reference-cores` to override for every series.
