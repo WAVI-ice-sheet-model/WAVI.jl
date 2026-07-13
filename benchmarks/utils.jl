@@ -10,7 +10,8 @@ const BENCHMARK_OUTPUT_DIR = joinpath(@__DIR__, "output")
     BenchmarkResults
 
 Summary of one timed driver run: wall time (local and MPI-max), allocations, GC,
-peak RSS, and the sample interval used for the resource time series.
+peak RSS (local, MPI-max, and MPI-sum), and the sample interval used for the
+resource time series.
 """
 struct BenchmarkResults
     execution_time::Float64
@@ -19,6 +20,8 @@ struct BenchmarkResults
     gc_time::Float64
     allocations::Int64
     peak_rss_bytes::Int
+    peak_rss_max_bytes::Int
+    peak_rss_sum_bytes::Int
     sample_interval_s::Float64
     system_info::Dict{String, Any}
     timestamp::DateTime
@@ -90,6 +93,11 @@ function benchmark_main(id::String,
         end
         @info "Allocated: $(@sprintf("%.2f", benchmark_results.allocated_bytes / 1024^2)) MB"
         @info "Peak RSS: $(@sprintf("%.2f", benchmark_results.peak_rss_bytes / 1024^2)) MB"
+        if benchmark_results.peak_rss_max_bytes > benchmark_results.peak_rss_bytes ||
+           benchmark_results.peak_rss_sum_bytes > benchmark_results.peak_rss_bytes
+            @info "Peak RSS (MPI max): $(@sprintf("%.2f", benchmark_results.peak_rss_max_bytes / 1024^2)) MB"
+            @info "Peak RSS (MPI sum): $(@sprintf("%.2f", benchmark_results.peak_rss_sum_bytes / 1024^2)) MB"
+        end
         @info "GC time: $(@sprintf("%.3f", benchmark_results.gc_time)) seconds"
         @info "Allocations: $(benchmark_results.allocations)"
 
@@ -123,7 +131,8 @@ allocations are not counted in `allocated_bytes`. If `timeseries_path` is set,
 samples are written there as CSV.
 
 When MPI is initialised, wall time is reduced with `MPI.MAX` so every rank
-shares the slowest-rank time as `execution_time_max`.
+shares the slowest-rank time as `execution_time_max`. Peak RSS is reduced with
+`MPI.MAX` and `MPI.SUM` for cluster-wide memory figures.
 """
 function monitor_resources(func, args...;
                            sample_interval::Float64 = 0.25,
@@ -148,7 +157,16 @@ function monitor_resources(func, args...;
     end
 
     t_local = result.time
-    t_max = MPI.Initialized() ? MPI.Allreduce(t_local, MPI.MAX, MPI.COMM_WORLD) : t_local
+    rss_local = mon.peak_rss_bytes
+    if MPI.Initialized()
+        t_max = MPI.Allreduce(t_local, MPI.MAX, MPI.COMM_WORLD)
+        rss_max = Int(MPI.Allreduce(rss_local, MPI.MAX, MPI.COMM_WORLD))
+        rss_sum = Int(MPI.Allreduce(rss_local, MPI.SUM, MPI.COMM_WORLD))
+    else
+        t_max = t_local
+        rss_max = rss_local
+        rss_sum = rss_local
+    end
 
     benchmark_result = BenchmarkResults(
         t_local,
@@ -156,7 +174,9 @@ function monitor_resources(func, args...;
         Int64(result.bytes),
         result.gctime,
         Int64(result.gcstats.allocd),
-        mon.peak_rss_bytes,
+        rss_local,
+        rss_max,
+        rss_sum,
         sample_interval,
         get_system_info(),
         now(),
@@ -219,6 +239,8 @@ function save_benchmark_results(results::BenchmarkResults, filename::String;
         "execution_time_max_seconds" => results.execution_time_max,
         "allocated_bytes" => results.allocated_bytes,
         "peak_rss_bytes" => results.peak_rss_bytes,
+        "peak_rss_max_rank_bytes" => results.peak_rss_max_bytes,
+        "peak_rss_sum_ranks_bytes" => results.peak_rss_sum_bytes,
         "sample_interval_s" => results.sample_interval_s,
         "gc_time_seconds" => results.gc_time,
         "allocations" => results.allocations,
