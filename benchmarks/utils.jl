@@ -164,6 +164,37 @@ function get_system_info()
 end
 
 """
+    slurm_metadata() -> Dict{String, Any}
+
+Reads SLURM env vars if they are set.
+
+When run inside a SLURM allocation, this copies scheduler env vars into the
+results JSON with a `slurm_` prefix, e.g. `slurm_job_id`, `slurm_ntasks`.
+Outside SLURM, this returns an empty dict so local runs stay unchanged.
+"""
+function slurm_metadata()
+    mapping = (
+        "SLURM_JOB_ID" => "slurm_job_id",
+        "SLURM_NNODES" => "slurm_nnodes",
+        "SLURM_NTASKS" => "slurm_ntasks",
+        "SLURM_NTASKS_PER_NODE" => "slurm_ntasks_per_node",
+        "SLURM_CPUS_PER_TASK" => "slurm_cpus_per_task",
+        "SLURM_JOB_PARTITION" => "slurm_job_partition",
+        "SLURM_JOB_QOS" => "slurm_job_qos",
+        "SLURM_JOB_ACCOUNT" => "slurm_job_account",
+    )
+
+    out = Dict{String, Any}()
+    for (env_name, key) in mapping
+        haskey(ENV, env_name) || continue
+        raw = ENV[env_name]
+        parsed = tryparse(Int, raw)
+        out[key] = parsed === nothing ? raw : parsed
+    end
+    return out
+end
+
+"""
     save_benchmark_results(results, filename; metadata=Dict())
 
 Write timing and memory summary fields to JSON, including `metadata`.

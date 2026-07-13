@@ -69,19 +69,40 @@ function pin_blas_threads!()
 end
 
 """
-    benchmark_metadata(opts::BenchmarkOptions)
+    benchmark_metadata(opts::BenchmarkOptions; mpi_world_size=nothing)
 
 Extract benchmark details (mode, driver, julia threads, and BLAS threads)
 into a dict for serialisation with final benchmark JSON results output.
 """
-function benchmark_metadata(opts::BenchmarkOptions)
-    return Dict{String, Any}(
+function benchmark_metadata(opts::BenchmarkOptions; mpi_world_size::Union{Nothing, Int} = nothing)
+    return merge!(Dict{String, Any}(
         "mode" => string(opts.mode),
         "driver" => opts.driver,
         "julia_threads" => Threads.nthreads(),
         "blas_threads" => BLAS.get_num_threads(),
         "sample_interval_s" => opts.sample_interval,
-    )
+        "reference_cores" => reference_cores(opts; mpi_world_size = mpi_world_size),
+    ), slurm_metadata())
+end
+
+"""
+    reference_cores(opts; mpi_world_size=nothing) -> Int
+
+How many cores this benchmark is meant to use, for normalising CPU samples
+(`cpu_fraction = cpu_cores_used / reference_cores`).
+
+- `:basic`: `1`
+- `:threaded`: `ngridsx * ngridsy`
+- `:mpi`: `mpi_world_size` if given, else `SLURM_NTASKS`, else `1`
+"""
+function reference_cores(opts::BenchmarkOptions; mpi_world_size::Union{Nothing, Int} = nothing)
+    if opts.mode == :threaded
+        return opts.ngridsx * opts.ngridsy
+    elseif opts.mode == :mpi
+        return something(mpi_world_size, tryparse(Int, get(ENV, "SLURM_NTASKS", "")), 1)
+    else
+        return 1
+    end
 end
 
 # # Execution dispatch
@@ -96,12 +117,14 @@ function run_benchmark(opts::BenchmarkOptions)
     opts.mode in _VALID_MODES || error("Unknown mode '$(opts.mode)'. Use basic, threaded, or mpi.")
 
     pin_blas_threads!()
-    metadata = benchmark_metadata(opts)
 
     # Initialise MPI up front so the entire setup is covered by finalisation.
     opts.mode == :mpi && !MPI.Initialized() && MPI.Init()
 
     rank = opts.mode == :mpi ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
+    mpi_world_size = opts.mode == :mpi ? MPI.Comm_size(MPI.COMM_WORLD) : nothing
+    metadata = benchmark_metadata(opts; mpi_world_size = mpi_world_size)
+
     rank == 0 && !isnothing(BENCHMARK_COMMAND[]) && @info "Command: $(BENCHMARK_COMMAND[])"
 
     driver = load_driver(opts.driver)
