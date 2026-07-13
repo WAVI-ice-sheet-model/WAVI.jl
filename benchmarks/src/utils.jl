@@ -4,7 +4,7 @@ using MPI
 using Printf
 using Profile
 
-const BENCHMARK_OUTPUT_DIR = joinpath(@__DIR__, "output")
+const BENCHMARK_OUTPUT_DIR = normpath(@__DIR__, "..", "output")
 
 """
     BenchmarkResults

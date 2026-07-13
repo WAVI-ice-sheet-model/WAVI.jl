@@ -7,10 +7,10 @@
 # On other OS, only record peak memory when sampling stops (`Sys.maxrss()`).
 #
 # Command to run self-test:
-#   julia --project=benchmarks -t 1 benchmarks/resource_monitor.jl
+#   julia --project=benchmarks -t 1 benchmarks/src/resource_monitor.jl
 #
 # Helper (started by `start_monitor!`; do not run by hand unless debugging):
-#   julia --startup-file=no benchmarks/resource_monitor.jl --sampler \
+#   julia --startup-file=no benchmarks/src/resource_monitor.jl --sampler \
 #       <pid> <interval_s> <csv_path> <stop_path>
 
 module ResourceMonitorModule

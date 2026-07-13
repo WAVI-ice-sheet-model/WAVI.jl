@@ -8,13 +8,11 @@ module WAVIBenchmarks
 
 using Comonicon
 
-const BENCH_ROOT = dirname(@__DIR__)
-
 # Include shared harness components
-include(joinpath(BENCH_ROOT, "drivers.jl"))
-include(joinpath(BENCH_ROOT, "resource_monitor.jl"))
-include(joinpath(BENCH_ROOT, "utils.jl"))
-include(joinpath(BENCH_ROOT, "plotting.jl"))
+include(joinpath(@__DIR__, "drivers.jl"))
+include(joinpath(@__DIR__, "resource_monitor.jl"))
+include(joinpath(@__DIR__, "utils.jl"))
+include(joinpath(@__DIR__, "plotting.jl"))
 include(joinpath(@__DIR__, "harness.jl"))
 
 export BenchmarkOptions, run_benchmark, run_profile, set_benchmark_command!

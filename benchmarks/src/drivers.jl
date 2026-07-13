@@ -6,14 +6,14 @@
 # example drivers behind a common interface so the benchmarking
 # harness is driver agnostic.
 #
-# Usage (from main WAVI.jl directory):
-#   julia --project=. benchmarks/drivers.jl
-#   julia --project=. -e 'include("benchmarks/drivers.jl"); load_driver("mismip_plus")'
+# Usage (from repository root):
+#   julia --project=benchmarks benchmarks/src/drivers.jl
+#   julia --project=benchmarks -e 'include("benchmarks/src/drivers.jl"); load_driver("mismip_plus")'
 
 module BenchmarkDrivers
 end
 
-const DRIVERS_DIR = joinpath(@__DIR__, "drivers")
+const DRIVERS_DIR = normpath(@__DIR__, "..", "drivers")
 
 # Cache for loaded drivers to avoid redefining modules
 const _LOADED_DRIVERS = Dict{String, NamedTuple}()
