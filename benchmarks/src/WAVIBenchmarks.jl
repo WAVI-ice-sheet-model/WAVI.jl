@@ -17,7 +17,7 @@ include(joinpath(BENCH_ROOT, "utils.jl"))
 include(joinpath(BENCH_ROOT, "plotting.jl"))
 include(joinpath(@__DIR__, "harness.jl"))
 
-export BenchmarkOptions, run_benchmark, set_benchmark_command!
+export BenchmarkOptions, run_benchmark, run_profile, set_benchmark_command!
 
 """
 List registered benchmark driver adaptors discovered under `benchmarks/drivers/`.
@@ -80,6 +80,50 @@ Run a timed benchmark for the given execution mode and driver adaptor.
         warmup = warmup,
     )
     run_benchmark(opts)
+end
+
+"""
+On-demand CPU profile of a driver (separate from timed `run`).
+
+Warm up once, then `@profile`, and write a flat report under `benchmarks/output/`.
+For allocation profiling, launch Julia with `--track-allocation=user` instead
+(slow; not handled by this subcommand).
+
+# Arguments
+
+- `driver`: registered adaptor name (e.g. `mismip_plus`)
+
+# Options
+
+- `--mode <mode>`: `basic` (default), `threaded`, or `mpi`
+- `--niterations <n>`: [ThreadedSpec, MPISpec] Schwarz/PoU iterations (default: 2)
+- `--ngridsx <n>`: [ThreadedSpec] x domain decomposition (default: 2)
+- `--ngridsy <n>`: [ThreadedSpec] y domain decomposition (default: 2)
+- `--overlap <n>`: [ThreadedSpec] Schwarz overlap cells (default: 2)
+- `--px <n>`: [MPISpec] process grid x dimension (default: MPI world size)
+- `--py <n>`: [MPISpec] process grid y dimension (default: 1)
+"""
+@cast function profile(
+    driver::String;
+    mode::String = "basic",
+    ngridsx::Int = 2,
+    ngridsy::Int = 2,
+    overlap::Int = 2,
+    niterations::Int = 2,
+    px = nothing,
+    py = nothing,
+)
+    opts = BenchmarkOptions(
+        mode;
+        driver = driver,
+        ngridsx = ngridsx,
+        ngridsy = ngridsy,
+        overlap = overlap,
+        niterations = niterations,
+        px = px isa Integer ? Int(px) : nothing,
+        py = py isa Integer ? Int(py) : nothing,
+    )
+    run_profile(opts)
 end
 
 # Initialise Comonicon CLI

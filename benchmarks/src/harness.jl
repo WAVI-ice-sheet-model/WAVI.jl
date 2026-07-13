@@ -176,3 +176,75 @@ function run_benchmark(opts::BenchmarkOptions)
 
     return nothing
 end
+
+"""
+    run_profile(opts::BenchmarkOptions)
+
+Warm up once, then `@profile` the driver. Rank 0 writes a flat Profile report
+under `benchmarks/output/profile_<id>_<timestamp>/`.
+
+For allocation profiling, launch Julia with `--track-allocation=user` instead
+(slow; not part of this subcommand).
+"""
+function run_profile(opts::BenchmarkOptions)
+    opts.mode in _VALID_MODES || error("Unknown mode '$(opts.mode)'. Use basic, threaded, or mpi.")
+
+    pin_blas_threads!()
+    opts.mode == :mpi && !MPI.Initialized() && MPI.Init()
+
+    rank = opts.mode == :mpi ? MPI.Comm_rank(MPI.COMM_WORLD) : 0
+    rank == 0 && !isnothing(BENCHMARK_COMMAND[]) && @info "Command: $(BENCHMARK_COMMAND[])"
+
+    driver = load_driver(opts.driver)
+
+    try
+        spec_kwargs = Dict{Symbol, Any}()
+        run_id = "basic"
+
+        if opts.mode == :threaded
+            nx, ny, ov, ni = opts.ngridsx, opts.ngridsy, opts.overlap, opts.niterations
+            spec_kwargs[:spec] = ThreadedSpec(; ngridsx = nx, ngridsy = ny, overlap = ov, niterations = ni)
+            run_id = "threaded.$(nx)x$(ny)_o$(ov)_i$(ni)"
+
+        elseif opts.mode == :mpi
+            sz = MPI.Comm_size(MPI.COMM_WORLD)
+            px = something(opts.px, sz)
+            py = something(opts.py, 1)
+            px * py == sz || error("MPI process grid px×py ($(px)×$(py)) must equal world size ($(sz)).")
+
+            slurm_ntasks = tryparse(Int, get(ENV, "SLURM_NTASKS", ""))
+            if slurm_ntasks !== nothing && slurm_ntasks != sz
+                error("SLURM_NTASKS ($(slurm_ntasks)) must equal MPI world size ($(sz)).")
+            end
+
+            grid = Base.invokelatest(driver.grid)
+            spec_kwargs[:grid] = grid
+            spec_kwargs[:spec] = MPISpec(px, py, 2, grid; pou = false, niterations = opts.niterations)
+            run_id = "mpi.$(px)x$(py)_sz$(sz)"
+        end
+
+        output_dir = joinpath(
+            BENCHMARK_OUTPUT_DIR,
+            "profile_$(run_id)_$(Dates.format(Dates.now(), "yyyymmdd_HHMMSS"))",
+        )
+        mkpath(output_dir)
+        spec_kwargs[:folder] = output_dir
+
+        rank == 0 && @info "Profiling $(opts.driver) ($(opts.mode)): warm-up then @profile..."
+        Base.invokelatest(driver.run; spec_kwargs...)
+        Profile.clear()
+        @profile Base.invokelatest(driver.run; spec_kwargs...)
+
+        if rank == 0
+            profile_file = joinpath(output_dir, "profile_flat.txt")
+            open(profile_file, "w") do io
+                Profile.print(io; format = :flat)
+            end
+            @info "Flat profile saved to: $profile_file"
+        end
+    finally
+        opts.mode == :mpi && MPI.Initialized() && MPI.Finalize()
+    end
+
+    return nothing
+end
