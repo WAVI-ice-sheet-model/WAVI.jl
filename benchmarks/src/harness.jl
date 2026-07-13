@@ -152,6 +152,11 @@ function run_benchmark(opts::BenchmarkOptions)
             py = something(opts.py, 1)
             px * py == sz || error("MPI process grid px×py ($(px)×$(py)) must equal world size ($(sz)).")
 
+            slurm_ntasks = tryparse(Int, get(ENV, "SLURM_NTASKS", ""))
+            if slurm_ntasks !== nothing && slurm_ntasks != sz
+                error("SLURM_NTASKS ($(slurm_ntasks)) must equal MPI world size ($(sz)).")
+            end
+
             grid = Base.invokelatest(driver.grid)
             spec = MPISpec(px, py, 2, grid; pou = false, niterations = opts.niterations)
 

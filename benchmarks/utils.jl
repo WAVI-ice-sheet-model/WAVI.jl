@@ -1,5 +1,6 @@
 using Dates
 using JSON3
+using MPI
 using Printf
 using Profile
 
@@ -8,11 +9,12 @@ const BENCHMARK_OUTPUT_DIR = joinpath(@__DIR__, "output")
 """
     BenchmarkResults
 
-Summary of one timed driver run: wall time, allocations, GC, peak RSS, and
-the sample interval used for the resource time series.
+Summary of one timed driver run: wall time (local and MPI-max), allocations, GC,
+peak RSS, and the sample interval used for the resource time series.
 """
 struct BenchmarkResults
     execution_time::Float64
+    execution_time_max::Float64
     allocated_bytes::Int64
     gc_time::Float64
     allocations::Int64
@@ -83,6 +85,9 @@ function benchmark_main(id::String,
     if rank == 0
         # Display results
         @info "Execution time: $(@sprintf("%.3f", benchmark_results.execution_time)) seconds"
+        if benchmark_results.execution_time_max > benchmark_results.execution_time
+            @info "Execution time (MPI max): $(@sprintf("%.3f", benchmark_results.execution_time_max)) seconds"
+        end
         @info "Allocated: $(@sprintf("%.2f", benchmark_results.allocated_bytes / 1024^2)) MB"
         @info "Peak RSS: $(@sprintf("%.2f", benchmark_results.peak_rss_bytes / 1024^2)) MB"
         @info "GC time: $(@sprintf("%.3f", benchmark_results.gc_time)) seconds"
@@ -116,6 +121,9 @@ Time `func(args...; kwargs...)` while sampling RSS and CPU.
 The resource monitor starts before `@timed` and stops afterwards, so helper
 allocations are not counted in `allocated_bytes`. If `timeseries_path` is set,
 samples are written there as CSV.
+
+When MPI is initialised, wall time is reduced with `MPI.MAX` so every rank
+shares the slowest-rank time as `execution_time_max`.
 """
 function monitor_resources(func, args...;
                            sample_interval::Float64 = 0.25,
@@ -139,8 +147,12 @@ function monitor_resources(func, args...;
         @info "Resource time series saved to: $timeseries_path"
     end
 
+    t_local = result.time
+    t_max = MPI.Initialized() ? MPI.Allreduce(t_local, MPI.MAX, MPI.COMM_WORLD) : t_local
+
     benchmark_result = BenchmarkResults(
-        result.time,
+        t_local,
+        t_max,
         Int64(result.bytes),
         result.gctime,
         Int64(result.gcstats.allocd),
@@ -204,6 +216,7 @@ function save_benchmark_results(results::BenchmarkResults, filename::String;
     output_data = Dict(
         "timestamp" => string(results.timestamp),
         "execution_time_seconds" => results.execution_time,
+        "execution_time_max_seconds" => results.execution_time_max,
         "allocated_bytes" => results.allocated_bytes,
         "peak_rss_bytes" => results.peak_rss_bytes,
         "sample_interval_s" => results.sample_interval_s,
