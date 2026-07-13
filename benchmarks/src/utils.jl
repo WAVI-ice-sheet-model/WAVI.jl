@@ -30,16 +30,93 @@ end
 """
     write_resource_timeseries(path, samples)
 
-Write resource samples to CSV with columns
-`elapsed_s,rss_bytes,cpu_cores_used`.
+Write resource samples to CSV.
+
+Non-MPI (and single-rank MPI) columns:
+`elapsed_s,cpu_cores_used,rss_max_bytes,rss_sum_bytes,cpu_rank0,rss_rank0`
+(`rss_max` / `rss_sum` match the local process).
+
+When running with MPI, all processors must call this function together. Rank 0
+collects everyone's CPU and memory data and saves it into a single CSV file.
+This file shows the total resource usage across the entire cluster, alongside
+individual columns for each processor (e.g., `cpu_rank0`, `cpu_rank1`).
 """
 function write_resource_timeseries(path::AbstractString, samples)
+    if MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
+        _write_resource_timeseries_mpi(path, samples)
+    else
+        _write_resource_timeseries_local(path, samples)
+    end
+    return nothing
+end
+
+function _write_resource_timeseries_local(path::AbstractString, samples)
     open(path, "w") do io
-        println(io, "elapsed_s,rss_bytes,cpu_cores_used")
+        println(io, "elapsed_s,cpu_cores_used,rss_max_bytes,rss_sum_bytes,cpu_rank0,rss_rank0")
         for s in samples
-            println(io, "$(s.elapsed_s),$(s.rss_bytes),$(s.cpu_cores_used)")
+            println(
+                io,
+                "$(s.elapsed_s),$(s.cpu_cores_used),$(s.rss_bytes),$(s.rss_bytes),$(s.cpu_cores_used),$(s.rss_bytes)",
+            )
         end
     end
+end
+
+function _write_resource_timeseries_mpi(path::AbstractString, samples)
+    comm = MPI.COMM_WORLD
+    rank = MPI.Comm_rank(comm)
+    nranks = MPI.Comm_size(comm)
+    n = Int(MPI.Allreduce(length(samples), MPI.MIN, comm))
+
+    header_parts = String["elapsed_s", "cpu_cores_used", "rss_max_bytes", "rss_sum_bytes"]
+    append!(header_parts, ["cpu_rank$r" for r in 0:(nranks - 1)])
+    append!(header_parts, ["rss_rank$r" for r in 0:(nranks - 1)])
+    header = join(header_parts, ',')
+
+    if n == 0
+        if rank == 0
+            open(path, "w") do io
+                println(io, header)
+            end
+        end
+        return nothing
+    end
+
+    elapsed = Vector{Float64}(undef, n)
+    cpu = Vector{Float64}(undef, n)
+    rss = Vector{Int64}(undef, n)
+    @inbounds for i in 1:n
+        elapsed[i] = samples[i].elapsed_s
+        cpu[i] = samples[i].cpu_cores_used
+        rss[i] = Int64(samples[i].rss_bytes)
+    end
+
+    cpu_flat = MPI.Gather(cpu, 0, comm)
+    rss_flat = MPI.Gather(rss, 0, comm)
+    rank == 0 || return nothing
+
+    cpu_mat = reshape(cpu_flat, n, nranks)
+    rss_mat = reshape(rss_flat, n, nranks)
+
+    open(path, "w") do io
+        println(io, header)
+        @inbounds for i in 1:n
+            cpu_row = @view cpu_mat[i, :]
+            rss_row = @view rss_mat[i, :]
+            cpu_sum = sum(cpu_row)
+            rss_max = maximum(rss_row)
+            rss_sum = sum(rss_row)
+            print(io, elapsed[i], ',', cpu_sum, ',', rss_max, ',', rss_sum)
+            for r in 1:nranks
+                print(io, ',', cpu_mat[i, r])
+            end
+            for r in 1:nranks
+                print(io, ',', rss_mat[i, r])
+            end
+            println(io)
+        end
+    end
+    return nothing
 end
 
 """
@@ -99,8 +176,9 @@ function benchmark_main(id::String,
         Base.invokelatest(model; model_args...)
     end
 
-    # Run the model with benchmarking
-    timeseries_path = rank == 0 ? joinpath(output_dir, "resource_timeseries.csv") : nothing
+    # All ranks pass the same path so MPI sample gather stays collective; only
+    # rank 0 writes the CSV inside `write_resource_timeseries`.
+    timeseries_path = joinpath(output_dir, "resource_timeseries.csv")
     result, benchmark_results = monitor_resources(
         model;
         sample_interval = sample_interval,
@@ -155,7 +233,8 @@ samples are written there as CSV.
 
 When MPI is initialised, wall time is reduced with `MPI.MAX` so every rank
 shares the slowest-rank time as `execution_time_max`. Peak RSS is reduced with
-`MPI.MAX` and `MPI.SUM` for cluster-wide memory figures.
+`MPI.MAX` and `MPI.SUM` for cluster-wide memory figures. The resource CSV is
+likewise gathered across ranks (see `write_resource_timeseries`).
 """
 function monitor_resources(func, args...;
                            sample_interval::Float64 = 0.25,
@@ -176,7 +255,9 @@ function monitor_resources(func, args...;
 
     if timeseries_path !== nothing
         write_resource_timeseries(timeseries_path, mon.samples)
-        @info "Resource time series saved to: $timeseries_path"
+        if !MPI.Initialized() || MPI.Comm_rank(MPI.COMM_WORLD) == 0
+            @info "Resource time series saved to: $timeseries_path"
+        end
     end
 
     t_local = result.time
