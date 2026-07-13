@@ -126,6 +126,40 @@ For allocation profiling, launch Julia with `--track-allocation=user` instead
     run_profile(opts)
 end
 
+"""
+Overlay RSS and CPU time series from one or more `resource_timeseries.csv` files.
+
+Writes a two-panel PNG (RSS and CPU fraction vs elapsed time).
+CPU fraction uses each run's `benchmark_results.json` (`metadata.reference_cores`)
+when needed; pass `--reference-cores` to override for every series.
+
+# Arguments
+
+- `csv_paths`: paths to `resource_timeseries.csv` files
+
+# Options
+
+- `--labels <list>`: comma-separated labels (default: parent folder names)
+- `--reference-cores <n>`: optional override for `cpu_cores_used` normalisation
+- `--output <path>`: output PNG path (default: `benchmarks/output/resource_comparison.png`)
+"""
+@cast function plot(
+    csv_paths::String...;
+    labels::String = "",
+    reference_cores = nothing,
+    output::String = "",
+)
+    labs = isempty(labels) ? String[] : String[strip(s) for s in split(labels, ',') if !isempty(strip(s))]
+    out = isempty(output) ? joinpath(BENCHMARK_OUTPUT_DIR, "resource_comparison.png") : output
+    ref = reference_cores isa Real ? Float64(reference_cores) : nothing
+    plot_resource_timeseries(
+        collect(String, csv_paths);
+        labels = labs,
+        reference_cores = ref,
+        output = out,
+    )
+end
+
 # Initialise Comonicon CLI
 Comonicon.@main
 
