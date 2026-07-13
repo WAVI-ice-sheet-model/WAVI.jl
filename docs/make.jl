@@ -70,6 +70,7 @@ pages = [
     ],
     "Examples" => example_pages,
     "Running on HPC" => "running_on_hpc.md",
+    "Benchmarking" => "benchmarking.md",
     "Physics" => physics_pages,
     "Numerical Implementation" => "numerical_procedure/numerical_procedure.md",
     "Model Specifications" => "model_specifications.md",

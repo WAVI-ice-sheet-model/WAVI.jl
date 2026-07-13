@@ -1,20 +1,103 @@
 # Benchmarking WAVI
 
-WAVI uses `BenchmarkTools.jl` to produce indicative results. 
+Compare wall time, memory, and CPU usage for [`BasicSpec`](./model_specifications.md),
+[`ThreadedSpec`](./model_specifications.md), and [`MPISpec`](./model_specifications.md)
+on the same example driver and grid. The harness lives under `benchmarks/` and does
+not modify `src/`.
 
-To get off the ground, clone the repo and go to the `/benchmarks/` folder. Instantiate the environment and then run any one of the following scripts:
+## Environment setup
 
-* run_sim_benchmarks
+Always use the **benchmarks** Julia project (not the repository root):
 
-## run_sim_benchmarks
+```bash
+cd benchmarks
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+```
 
-At present, we're looking at the change in performance across permutation of the following parameters of a dummy simulation:
+From the repository root, launch with `--project=benchmarks`:
 
-* Threading and distribution strategy
-* Grid densities
+```bash
+julia --project=benchmarks benchmarks/run.jl --help
+```
 
-## schwarz_testing
+For MPI runs, install and configure `mpiexecjl` first, see [MPI setup](./mpi_setup.md).
+On HPC, also see [Running on HPC](./running_on_hpc.md).
 
+## CLI overview
 
+```bash
+julia --project=benchmarks benchmarks/run.jl <subcommand> [args...] [options...]
+```
 
-TODO: indicative real world simulation
+| Subcommand | Purpose |
+|------------|---------|
+| `drivers`  | List registered driver adaptors |
+| `run`      | Timed benchmark with resource telemetry |
+| `profile`  | On-demand CPU profile (`@profile`) |
+| `plot`     | Overlay RSS/CPU time series from one or more runs |
+
+Each subcommand supports `--help`.
+
+## Running timed benchmarks
+
+```bash
+# BasicSpec (serial baseline)
+julia --project=benchmarks -t 1 benchmarks/run.jl run basic mismip_plus
+
+# ThreadedSpec (shared-memory Schwarz; -t ≥ ngridsx × ngridsy)
+julia --project=benchmarks -t 4 benchmarks/run.jl run threaded mismip_plus --ngridsx 2 --ngridsy 2
+
+# MPISpec (one Julia thread per rank)
+mpiexecjl --project=benchmarks -n 4 julia -t 1 benchmarks/run.jl run mpi mismip_plus --px 2 --py 2
+```
+
+Useful `run` options: `--niterations`, `--overlap`, `--sample-interval`,
+`--no-plots`, `--warmup`. See `julia --project=benchmarks benchmarks/run.jl run --help`.
+
+Results are written under `benchmarks/output/<driver_name>/benchmark_<id>_<timestamp>/`
+(`benchmark_results.json`, `resource_timeseries.csv`, a copy of the `<driver_name>.jl` adaptor, and optional plots).
+
+## Drivers
+
+Drivers are thin adaptors in `benchmarks/drivers/`. List them with:
+
+```bash
+julia --project=benchmarks benchmarks/run.jl drivers
+```
+
+To add a driver: create `benchmarks/drivers/<name>.jl` with module name `<name>`,
+point at an example driver, and export `driver_run`, `driver_grid`, and
+`driver_plot_vars`. No modification of the benchmarking code is required, it is
+picked up automatically.
+
+## BLAS and threads
+
+The harness pins BLAS to one thread so OpenBLAS/MKL do not oversubscribe cores
+alongside Julia threads or MPI ranks. Prefer launching with the `-t` counts above,
+and set `OPENBLAS_NUM_THREADS=1` / `MKL_NUM_THREADS=1` in the environment when
+running on HPC.
+
+| Spec         | Julia `-t`             | Notes                               |
+|--------------|------------------------|-------------------------------------|
+| BasicSpec    | `1`                    | Serial baseline                     |
+| ThreadedSpec | `≥ ngridsx × ngridsy`  | Single node only                    |
+| MPISpec      | `1` per rank           | `px × py` must equal MPI world size |
+
+## Telemetry
+
+During `run`, an external sampler records RSS and CPU over time (so sampling still
+works under `julia -t 1`). Each run directory includes:
+
+- `benchmark_results.json` — wall time, peak RSS, allocations, `reference_cores`
+- `resource_timeseries.csv` — elapsed time vs RSS and CPU (including per-processor breakdowns for MPI runs)
+
+Compare series visually:
+
+```bash
+julia --project=benchmarks benchmarks/run.jl plot \
+  benchmarks/output/mismip_plus/benchmark_basic_*/resource_timeseries.csv \
+  benchmarks/output/mismip_plus/benchmark_threaded.*/resource_timeseries.csv \
+  benchmarks/output/mismip_plus/benchmark_mpi.*/resource_timeseries.csv
+```
+
+For MPI runs, the plot will break down memory usage to show Rank 0 vs the average of other processors to help identify bottlenecks.
