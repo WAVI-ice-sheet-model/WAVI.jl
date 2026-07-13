@@ -58,16 +58,39 @@ function benchmark_main(id::String,
                         no_plots::Bool = false,
                         warmup::Bool = false)
 
+    driver_name = get(metadata, "driver", "unknown_driver")
+    timestamp = Dates.format(now(), "yyyymmdd_HHMMSS")
+    if MPI.Initialized()
+        # Ensure all ranks use the exact same timestamp string to prevent
+        # split output directories if rank clocks are slightly desynced
+        timestamp_chars = collect(timestamp)
+        MPI.Bcast!(timestamp_chars, 0, MPI.COMM_WORLD)
+        timestamp = String(timestamp_chars)
+    end
+
     output_dir = joinpath(
         BENCHMARK_OUTPUT_DIR,
-        "benchmark_$(id)_$(Dates.format(now(), "yyyymmdd_HHMMSS"))",
+        driver_name,
+        "benchmark_$(id)_$(timestamp)",
     )
     model_args[:folder] = output_dir
     mkpath(output_dir)
 
+    # Copy the driver adaptor file to the output directory for reproducibility
+    driver_path = joinpath(normpath(@__DIR__, "..", "drivers"), "$(driver_name).jl")
+    if isfile(driver_path) && rank == 0
+        cp(driver_path, joinpath(output_dir, "$(driver_name).jl"); force=true)
+    end
+
     if rank == 0
         @info "JULIA WAVI BENCHMARK SUITE - $(id)"
         @info "Start time: $(now())"
+        if haskey(metadata, "driver")
+            @info "Driver: $(metadata["driver"])"
+        end
+        if haskey(metadata, "command") && !isnothing(metadata["command"])
+            @info "Command: $(metadata["command"])"
+        end
         @info "Executing model with $(model_args)"
     end
 

@@ -475,7 +475,7 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
     end
 
     if model.spec.rank == 0
-        @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+        @debug "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
     end
 
     return converged, global_rel_resid

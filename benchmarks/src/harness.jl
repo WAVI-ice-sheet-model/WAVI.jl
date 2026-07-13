@@ -82,6 +82,7 @@ function benchmark_metadata(opts::BenchmarkOptions; mpi_world_size::Union{Nothin
         "blas_threads" => BLAS.get_num_threads(),
         "sample_interval_s" => opts.sample_interval,
         "reference_cores" => reference_cores(opts; mpi_world_size = mpi_world_size),
+        "command" => BENCHMARK_COMMAND[],
     ), slurm_metadata())
 end
 
@@ -125,7 +126,7 @@ function run_benchmark(opts::BenchmarkOptions)
     mpi_world_size = opts.mode == :mpi ? MPI.Comm_size(MPI.COMM_WORLD) : nothing
     metadata = benchmark_metadata(opts; mpi_world_size = mpi_world_size)
 
-    rank == 0 && !isnothing(BENCHMARK_COMMAND[]) && @info "Command: $(BENCHMARK_COMMAND[])"
+
 
     driver = load_driver(opts.driver)
 
