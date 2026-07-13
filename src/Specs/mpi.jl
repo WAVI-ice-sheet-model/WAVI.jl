@@ -325,7 +325,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
                          output_params::OutputParams,
                          clock::Clock) where {T,N,S<:MPISpec}
     for field in values(output_params.outputs.items)    
-        @info "Registering $(field.path) from outputs"
+        if model.spec.rank == 0
+            @info "Registering $(field.path) from outputs"
+        end
         if field.path[1] == :global_fields
             register_mpi_field!(model.spec.field_collector, field.path)
         end
@@ -336,7 +338,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
     mpi_sync_halos_initial!(model)
 
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
-        @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
+        if model.spec.rank == 0
+            @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
+        end
         timestep!(model, timestepping_params, output_params, clock)
     end
 
@@ -470,7 +474,9 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         end
     end
 
-    @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+    if model.spec.rank == 0
+        @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+    end
 
     return converged, global_rel_resid
 end

@@ -29,7 +29,7 @@ Struct to represent the basic specification for a model
 """
 struct BasicSpec <: AbstractSpec 
     function BasicSpec()
-        @info "Not implementing any parallel computations, running with BasicSpec"
+        @debug "Not implementing any parallel computations, running with BasicSpec"
         return new()
     end
 end

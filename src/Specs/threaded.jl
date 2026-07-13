@@ -25,7 +25,7 @@ end
 
 function update_preconditioner!(model::AbstractModel{T,N,S}) where {T,N,S<:ThreadedSpec}
     @unpack ngridsx, ngridsy, overlap = model.spec
-    @info "Spawning $(ngridsx * ngridsy) threads for preconditioning"
+    @debug "Spawning $(ngridsx * ngridsy) threads for preconditioning"
 
     @sync for igrid = 1:ngridsx
         for jgrid = 1:ngridsy
@@ -59,7 +59,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
     @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.spec
     @unpack solver_params = model
 
-    @info "Preconditioning across the $(ngridsx * ngridsy) threads"
+    @debug "Preconditioning across the $(ngridsx * ngridsy) threads"
     x = get_start_guess(model)  
     op = get_op(model)
     b = get_rhs(model)
@@ -70,7 +70,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
 
     if ! converged
         for iteration = 1:niterations
-            @info "Schwarz iteration $iteration"
+            @debug "Schwarz iteration $iteration"
             @sync for igrid = 1:ngridsx
                 for jgrid = 1:ngridsy
                     Threads.@spawn begin                
@@ -123,7 +123,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
                     end                    
                 end
             end
-            @info ""
+
         end
 
     end
