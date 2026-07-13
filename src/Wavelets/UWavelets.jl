@@ -38,22 +38,33 @@ function UWavelets(;
                     nxuw,
                     nyuw,
                     mask = trues(nxuw,nyuw),
-                    levels)
+                    levels,
+                    storage_only::Bool = false)
      
     (size(mask) == (nxuw,nyuw)) || throw(DimensionMismatch("Sizes of inputs to UWavelets must all be equal to nxuw x nyuw (i.e. $nxuw x $nyuw)"))
 
-    #compute non-inputs 
-    n = Ref(count(mask));  @assert n[] == count(mask)
-    crop = Ref(Diagonal(float(mask[:]))); @assert crop[] == Diagonal(float(mask[:]));
-    samp  = Ref(sparse(1:n[],(1:(nxuw*nyuw))[mask[:]],ones(n[]),n[],nxuw*nyuw)); @assert samp[] == sparse(1:n[],(1:(nxuw*nyuw))[mask[:]],ones(n[]),n[],nxuw*nyuw)
-    spread = Ref(sparse(samp[]')); @assert spread[] == sparse(samp[]')
-    idwt =  wavelet_matrix(nyuw,levels,"reverse" ) ⊗ wavelet_matrix(nxuw,levels,"reverse")
-    idwtᵀ =  sparse(wavelet_matrix(nyuw,levels,"reverse" )') ⊗ sparse(wavelet_matrix(nxuw,levels,"reverse")')
-    wavelets = zeros(nxuw,nyuw); @assert size(wavelets)==(nxuw,nyuw)
-    correction_coarse = Ref(zeros(n[])); @assert length(correction_coarse[]) == n[]
-
     #make sure boolean type rather than bitarray
     mask = convert(Array{Bool,2}, mask)
+    wavelets = zeros(nxuw,nyuw); @assert size(wavelets)==(nxuw,nyuw)
+
+    if storage_only
+        n = Ref(0)
+        crop = Ref(Diagonal(Float64[]))
+        samp = Ref(spzeros(Float64, 0, nxuw * nyuw))
+        spread = Ref(spzeros(Float64, nxuw * nyuw, 0))
+        kron = spzeros(Float64, 1, 1) ⊗ spzeros(Float64, 1, 1)
+        idwt = idwtᵀ = kron
+        correction_coarse = Ref(Float64[])
+    else
+        #compute non-inputs
+        n = Ref(count(mask));  @assert n[] == count(mask)
+        crop = Ref(Diagonal(float(mask[:]))); @assert crop[] == Diagonal(float(mask[:]));
+        samp  = Ref(sparse(1:n[],(1:(nxuw*nyuw))[mask[:]],ones(n[]),n[],nxuw*nyuw)); @assert samp[] == sparse(1:n[],(1:(nxuw*nyuw))[mask[:]],ones(n[]),n[],nxuw*nyuw)
+        spread = Ref(sparse(samp[]')); @assert spread[] == sparse(samp[]')
+        idwt =  wavelet_matrix(nyuw,levels,"reverse" ) ⊗ wavelet_matrix(nxuw,levels,"reverse")
+        idwtᵀ =  sparse(wavelet_matrix(nyuw,levels,"reverse" )') ⊗ sparse(wavelet_matrix(nxuw,levels,"reverse")')
+        correction_coarse = Ref(zeros(n[])); @assert length(correction_coarse[]) == n[]
+    end
 
     return UWavelets(
                     nxuw,

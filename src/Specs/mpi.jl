@@ -253,8 +253,9 @@ function Model(grid::G,
     # Create global mpi_rank field (will be populated during collection)
     global_mpi_rank = zeros(Float64, grid.nx, grid.ny)
 
-    # We provide the full bed as in GridField as it is required for HGrid - this gives us a clean full domain on root
-    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params, mpi_rank=global_mpi_rank)
+    # Global assembly buffers for gather/Bcast only: sized arrays, no IC/operator cost.
+    # (Physics lives on each rank's local GridField; bed is retained for static outputs.)
+    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params, mpi_rank=global_mpi_rank, assembly_buffer=true)
 
     return model
 end

@@ -120,7 +120,8 @@ function HGrid(;
                 basal_melt = zeros(nxh,nyh),
                 θ_ave = zeros(nxh,nyh),
                 preBfactor = ones(nxh,nyh),
-                mpi_rank = -ones(nxh,nyh)
+                mpi_rank = -ones(nxh,nyh),
+                storage_only::Bool = false,
 )
 
     @debug "HGrid input sizes" sizes = (
@@ -144,13 +145,23 @@ function HGrid(;
     (size(mask) == size(h_isfixed) == size(hyd_potential_isfixed) == size(b) == size(h) == size(ηav) == size(grounded_fraction) == size(basal_water_thickness) == size(hydraulic_potential_b) == size(effective_pressure) == size(basal_melt) == size(θ_ave) == size(preBfactor) == size(mpi_rank) == (nxh,nyh)) || throw(DimensionMismatch("Sizes of inputs to HGrid must all be equal to nxh x nyh (i.e. $nxh x $nyh)"))
 
     #construct operators
-    n = count(mask)
-    crop = Diagonal(float(mask[:]))
-    samp = sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
-    spread = sparse(samp')
-    cent_xy = c(nyh-1) ⊗ c(nxh-1)
-    dneghηav = Ref(crop*Diagonal(zeros(nxh*nyh))*crop)
-    dimplicit = Ref(crop*Diagonal(zeros(nxh*nyh))*crop)
+    if storage_only
+        n = zero(nxh)
+        crop = Diagonal(Float64[])
+        samp = spzeros(Float64, 0, nxh * nyh)
+        spread = spzeros(Float64, nxh * nyh, 0)
+        cent_xy = _storage_only_kron()
+        dneghηav = Ref(Diagonal(Float64[]))
+        dimplicit = Ref(Diagonal(Float64[]))
+    else
+        n = count(mask)
+        crop = Diagonal(float(mask[:]))
+        samp = sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
+        spread = sparse(samp')
+        cent_xy = c(nyh-1) ⊗ c(nxh-1)
+        dneghηav = Ref(crop*Diagonal(zeros(nxh*nyh))*crop)
+        dimplicit = Ref(crop*Diagonal(zeros(nxh*nyh))*crop)
+    end
      
     #construct quantities not passed
     s = zeros(nxh,nyh)
@@ -176,7 +187,9 @@ function HGrid(;
     quad_f0 = zeros(nxh,nyh)
     quad_f1 = zeros(nxh,nyh)
     quad_f2 = zeros(nxh,nyh)
-    quad_f2[mask] = h[mask]./(3*ηav[mask])
+    if !storage_only
+        quad_f2[mask] = h[mask]./(3*ηav[mask])
+    end
     σzzsurf=zeros(nxh,nyh) 
     τx_surf=zeros(nxh,nyh) 
     τy_surf=zeros(nxh,nyh) 
@@ -197,11 +210,13 @@ function HGrid(;
     @assert size(mask)==(nxh,nyh); #@assert mask == clip(mask)
     @assert size(h_isfixed)==(nxh,nyh);
     @assert size(hyd_potential_isfixed)==(nxh,nyh);
-    @assert n == count(mask)
-    @assert crop == Diagonal(float(mask[:]))
-    @assert samp == sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
-    @assert spread == sparse(samp')
-    @assert size(cent_xy) == ((nxh-1)*(nyh-1),nxh*nyh)
+    if !storage_only
+        @assert n == count(mask)
+        @assert crop == Diagonal(float(mask[:]))
+        @assert samp == sparse(1:n,(1:(nxh*nyh))[mask[:]],ones(n),n,nxh*nyh)
+        @assert spread == sparse(samp')
+        @assert size(cent_xy) == ((nxh-1)*(nyh-1),nxh*nyh)
+    end
     @assert size(b)==(nxh,nyh)
     @assert size(h)==(nxh,nyh)
     @assert size(s)==(nxh,nyh)

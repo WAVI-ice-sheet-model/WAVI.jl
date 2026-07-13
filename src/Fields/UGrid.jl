@@ -66,58 +66,72 @@ function UGrid(;
                 residual = zeros(nxu,nyu),
                 levels,
                 dx,
-                dy)
+                dy,
+                storage_only::Bool = false)
 
     #check the sizes of inputs
     (size(mask) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to UGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
     (size(u_isfixed) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to UGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
     (size(u) == (nxu,nyu)) || throw(DimensionMismatch("Sizes of inputs to UGrid must all be equal to nxu x nyu (i.e. $nxu x $nyu)"))
 
-    #construct operators
-    n = count(mask)
+    mask = convert(Array{Bool,2}, mask)
+    u_isfixed = convert(Array{Bool,2}, u_isfixed)
     mask_inner = mask .& .! u_isfixed
-    ni = count(mask_inner)
-    crop = Diagonal(float(mask[:]))
-    samp = sparse(1:n,(1:(nxu*nyu))[mask[:]],ones(n),n,nxu*nyu)
-    samp_inner = sparse(1:ni,(1:(nxu*nyu))[mask_inner[:]],ones(ni),ni,nxu*nyu)
-    spread = sparse(samp')
-    spread_inner = sparse(samp_inner')
-    cent =  spI(nyu) ⊗ c(nxu-1)
-    centᵀ =  sparse(spI(nyu)') ⊗ sparse(c(nxu-1)')
-    ∂x =  spI(nyu) ⊗ ∂1d(nxu-1,dx)
-    ∂xᵀ =  sparse(spI(nyu)') ⊗ sparse(∂1d(nxu-1,dx)')
-    ∂y =  ∂1d(nyu-1,dy) ⊗ χ(nxu-2)
-    ∂yᵀ =  sparse(∂1d(nyu-1,dy)') ⊗ sparse(χ(nxu-2)')
-    dωt = wavelet_matrix(nyu,levels,"forward" ) ⊗ wavelet_matrix(nxu,levels,"forward")
+    mask_inner = convert(Array{Bool,2}, mask_inner)
 
     #fields stored on UGrid
     s = zeros(nxu,nyu)
     h = zeros(nxu,nyu)
     grounded_fraction = ones(nxu,nyu)
     βeff = zeros(nxu,nyu)
-    dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
     τsurf=zeros(nxu,nyu)
     us=zeros(nxu,nyu)
 
-    #size assertions
-    @assert n == count(mask)
-    @assert ni == count(mask_inner)
-    @assert crop == Diagonal(float(mask[:]))
-    @assert samp == sparse(1:n,(1:(nxu*nyu))[mask[:]],ones(n),n,nxu*nyu)
-    @assert samp_inner == sparse(1:ni,(1:(nxu*nyu))[mask_inner[:]],ones(ni),ni,nxu*nyu)
-    @assert spread == sparse(samp')
-    @assert spread_inner == sparse(samp_inner')
+    if storage_only
+        n = zero(nxu)
+        ni = zero(nxu)
+        crop = Diagonal(Float64[])
+        samp = spzeros(Float64, 0, nxu * nyu)
+        samp_inner = spzeros(Float64, 0, nxu * nyu)
+        spread = spzeros(Float64, nxu * nyu, 0)
+        spread_inner = spzeros(Float64, nxu * nyu, 0)
+        kron = _storage_only_kron()
+        cent = centᵀ = ∂x = ∂xᵀ = ∂y = ∂yᵀ = dωt = kron
+        dnegβeff = Ref(Diagonal(Float64[]))
+    else
+        #construct operators
+        n = count(mask)
+        ni = count(mask_inner)
+        crop = Diagonal(float(mask[:]))
+        samp = sparse(1:n,(1:(nxu*nyu))[mask[:]],ones(n),n,nxu*nyu)
+        samp_inner = sparse(1:ni,(1:(nxu*nyu))[mask_inner[:]],ones(ni),ni,nxu*nyu)
+        spread = sparse(samp')
+        spread_inner = sparse(samp_inner')
+        cent =  spI(nyu) ⊗ c(nxu-1)
+        centᵀ =  sparse(spI(nyu)') ⊗ sparse(c(nxu-1)')
+        ∂x =  spI(nyu) ⊗ ∂1d(nxu-1,dx)
+        ∂xᵀ =  sparse(spI(nyu)') ⊗ sparse(∂1d(nxu-1,dx)')
+        ∂y =  ∂1d(nyu-1,dy) ⊗ χ(nxu-2)
+        ∂yᵀ =  sparse(∂1d(nyu-1,dy)') ⊗ sparse(χ(nxu-2)')
+        dωt = wavelet_matrix(nyu,levels,"forward" ) ⊗ wavelet_matrix(nxu,levels,"forward")
+        dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
+
+        #size assertions
+        @assert n == count(mask)
+        @assert ni == count(mask_inner)
+        @assert crop == Diagonal(float(mask[:]))
+        @assert samp == sparse(1:n,(1:(nxu*nyu))[mask[:]],ones(n),n,nxu*nyu)
+        @assert samp_inner == sparse(1:ni,(1:(nxu*nyu))[mask_inner[:]],ones(ni),ni,nxu*nyu)
+        @assert spread == sparse(samp')
+        @assert spread_inner == sparse(samp_inner')
+    end
+
     @assert size(s)==(nxu,nyu)
     @assert size(h)==(nxu,nyu)
     @assert size(grounded_fraction)==(nxu,nyu)
     @assert size(βeff)==(nxu,nyu)
     @assert size(τsurf)==(nxu,nyu)
     @assert size(us)==(nxu,nyu)
-
-    #make sure boolean type rather than bitarray
-    mask = convert(Array{Bool,2}, mask)
-    mask_inner = convert(Array{Bool,2}, mask_inner)
-    u_isfixed = convert(Array{Bool,2}, u_isfixed)
 
     return UGrid(
                 nxu,
