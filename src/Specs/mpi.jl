@@ -430,13 +430,20 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         end
 
         if pou
-            # Snapshot current velocities before the local solve.
-            # These are used later to apply Additive Schwarz damping and 
-            # Partition-of-Unity (PoU) weighting during the interface update.
-            u0 = copy(model.fields.gu.u)
-            v0 = copy(model.fields.gv.v)
-            invoke(precondition!, Tuple{AbstractModel}, model)
-            mpi_pou_weighted_prolong_velocities!(model, u0, v0)
+            # Snapshot only needed when damping mixes in the pre-solve velocity.
+            if iszero(model.spec.damping)
+                invoke(precondition!, Tuple{AbstractModel}, model)
+                mpi_pou_weighted_prolong_velocities!(
+                    model,
+                    model.fields.gu.u,  # unused when damping == 0
+                    model.fields.gv.v,
+                )
+            else
+                u0 = copy(model.fields.gu.u)
+                v0 = copy(model.fields.gv.v)
+                invoke(precondition!, Tuple{AbstractModel}, model)
+                mpi_pou_weighted_prolong_velocities!(model, u0, v0)
+            end
         else
             invoke(precondition!, Tuple{AbstractModel}, model)
             halo_exchange!(model; fields=[:u, :v])
