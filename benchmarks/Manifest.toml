@@ -1844,9 +1844,9 @@ version = "10.44.0+1"
 
 [[deps.PackageCompiler]]
 deps = ["Artifacts", "Glob", "LazyArtifacts", "Libdl", "Pkg", "Printf", "RelocatableFolders", "TOML", "UUIDs", "p7zip_jll"]
-git-tree-sha1 = "5193091a937c1e84cab042d55f8071dd2116c6f2"
+git-tree-sha1 = "513193b976208b1b646ad4303323153e8bff0997"
 uuid = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
-version = "2.3.0"
+version = "2.4.0"
 
 [[deps.PaddedViews]]
 deps = ["OffsetArrays"]
@@ -2553,7 +2553,7 @@ uuid = "a44049a8-05dd-5a78-86c9-5fde0876e88c"
 version = "1.3.243+0"
 
 [[deps.WAVI]]
-deps = ["BenchmarkTools", "CFTime", "CSV", "DataStructures", "Dates", "Debugger", "Dierckx", "Documenter", "DocumenterCitations", "DocumenterTools", "Downloads", "Enzyme", "FileIO", "FilePathsBase", "ImageFiltering", "InplaceOps", "Interpolations", "IterativeSolvers", "JLD2", "JSON3", "LatinHypercubeSampling", "LinearAlgebra", "LinearMaps", "MAT", "MPI", "MPIPreferences", "NCDatasets", "NonlinearSolve", "Parameters", "Plots", "PooledArrays", "Profile", "Reexport", "Revise", "SciMLNLSolve", "Setfield", "SparseArrays", "UnPack"]
+deps = ["BenchmarkTools", "CFTime", "CSV", "DataStructures", "Dates", "Debugger", "Dierckx", "Documenter", "DocumenterCitations", "DocumenterTools", "Downloads", "Enzyme", "FileIO", "FilePathsBase", "ImageFiltering", "InplaceOps", "Interpolations", "IterativeSolvers", "JLD2", "JSON3", "LatinHypercubeSampling", "LinearAlgebra", "LinearMaps", "MAT", "MPI", "MPIPreferences", "NCDatasets", "NonlinearSolve", "Parameters", "Plots", "PooledArrays", "PrecompileTools", "Profile", "Reexport", "Revise", "SciMLNLSolve", "Setfield", "SparseArrays", "UnPack"]
 path = ".."
 uuid = "881191c6-26ca-4787-919d-8f98f1c41532"
 version = "0.0.3"

@@ -57,6 +57,25 @@ Useful `run` options: `--niterations`, `--overlap`, `--sample-interval`,
 Results are written under `benchmarks/output/<driver_name>/benchmark_<id>_<timestamp>/`
 (`benchmark_results.json`, `resource_timeseries.csv`, a copy of the `<driver_name>.jl` adaptor, and optional plots).
 
+## Native code caching
+
+WAVI uses [PrecompileTools.jl](https://github.com/JuliaLang/PrecompileTools.jl) so that installing or
+`Pkg.precompile()`ing the package caches native code for a small toy `BasicSpec` /
+`ThreadedSpec` run (and, when MPI allows it during precompile, a single-rank `MPISpec`).
+
+This reduces cold start for core solvers. It does **not** remove all first-use compile on multi-rank
+MPI jobs: methods specialised only for multi-process layouts, and paths the toy workload never hits,
+can still JIT once. After a successful precompile, a harness `--warmup` (or any short first run in
+the same process) is the practical way to finish warming MPI ranks before timed iterations.
+
+To rebuild the cache after pulling large `src/` changes:
+
+```bash
+julia --project=. -e 'using Pkg; Pkg.precompile()'
+```
+
+Set `WAVI_PRECOMPILE_MPI=0` if package precompile hangs on MPI init in your environment.
+
 ## Drivers
 
 Drivers are thin adaptors in `benchmarks/drivers/`. List them with:

@@ -139,6 +139,8 @@ export run_inversion_simulation!
 export Inversion, InversionParams, JKVsteppingParams, DataFields, 
        InversionSimulation, InversionOutput
 
+include("Precompile.jl")
+
 end
 
 
