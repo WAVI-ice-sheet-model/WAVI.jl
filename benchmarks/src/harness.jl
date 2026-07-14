@@ -159,7 +159,7 @@ function run_benchmark(opts::BenchmarkOptions)
             end
 
             grid = Base.invokelatest(driver.grid)
-            spec = MPISpec(px, py, 2, grid; pou = false, niterations = opts.niterations)
+            spec = MPISpec(px, py, 2, grid; pou = true, niterations = opts.niterations)
 
             spec_kwargs[:grid] = grid
             spec_kwargs[:spec] = spec
