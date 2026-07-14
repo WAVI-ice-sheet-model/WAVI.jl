@@ -18,7 +18,7 @@ Configuration for a benchmark run.
 - `mode`: execution mode: `:basic`, `:threaded`, or `:mpi`
 - `driver`: registered adaptor name (e.g. `"mismip_plus"`)
 - `ngridsx`, `ngridsy`, `overlap`, `niterations`: ThreadedSpec / Schwarz parameters
-- `px`, `py`: MPI process grid dimensions (`nothing` defaults to `Comm_size` × 1)
+- `px`, `py`: MPI process grid dimensions (`px == 0` means use `Comm_size`; `py` defaults to `1`)
 - `sample_interval`: seconds between resource samples
 - `no_plots`: skip NetCDF plots if true
 - `warmup`: untimed run before the measured benchmark
@@ -30,8 +30,8 @@ Base.@kwdef struct BenchmarkOptions
     ngridsy::Int = 2
     overlap::Int = 2
     niterations::Int = 2
-    px::Union{Int, Nothing} = nothing
-    py::Union{Int, Nothing} = nothing
+    px::Int = 0
+    py::Int = 1
     sample_interval::Float64 = 0.25
     no_plots::Bool = false
     warmup::Bool = false
@@ -149,8 +149,8 @@ function run_benchmark(opts::BenchmarkOptions)
             comm = MPI.COMM_WORLD
             sz = MPI.Comm_size(comm)
 
-            px = something(opts.px, sz)
-            py = something(opts.py, 1)
+            px = opts.px == 0 ? sz : opts.px
+            py = opts.py
             px * py == sz || error("MPI process grid px×py ($(px)×$(py)) must equal world size ($(sz)).")
 
             slurm_ntasks = tryparse(Int, get(ENV, "SLURM_NTASKS", ""))
@@ -209,8 +209,8 @@ function run_profile(opts::BenchmarkOptions)
 
         elseif opts.mode == :mpi
             sz = MPI.Comm_size(MPI.COMM_WORLD)
-            px = something(opts.px, sz)
-            py = something(opts.py, 1)
+            px = opts.px == 0 ? sz : opts.px
+            py = opts.py
             px * py == sz || error("MPI process grid px×py ($(px)×$(py)) must equal world size ($(sz)).")
 
             slurm_ntasks = tryparse(Int, get(ENV, "SLURM_NTASKS", ""))

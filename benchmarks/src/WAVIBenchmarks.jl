@@ -43,8 +43,8 @@ Run a timed benchmark for the given execution mode and driver adaptor.
 - `--ngridsy <n>`: [ThreadedSpec] y domain decomposition (default: 2)
 - `--overlap <n>`: [ThreadedSpec] Schwarz overlap cells (default: 2)
 
-- `--px <n>`: [MPISpec] process grid x dimension (default: MPI world size)
-- `--py <n>`: [MPISpec] process grid y dimension (default: 1)
+- `--px <n>`: [MPISpec] process grid x (`0` = MPI world size; default: 0)
+- `--py <n>`: [MPISpec] process grid y (default: 1)
 
 - `--sample-interval <s>`: resource sample period in seconds (default: 0.25)
 - `--no-plots`: skip NetCDF plots
@@ -57,8 +57,8 @@ Run a timed benchmark for the given execution mode and driver adaptor.
     ngridsy::Int = 2,
     overlap::Int = 2,
     niterations::Int = 2,
-    px = nothing,
-    py = nothing,
+    px::Int = 0,
+    py::Int = 1,
     sample_interval::Float64 = 0.25,
     no_plots::Bool = false,
     warmup::Bool = false,
@@ -70,8 +70,8 @@ Run a timed benchmark for the given execution mode and driver adaptor.
         ngridsy = ngridsy,
         overlap = overlap,
         niterations = niterations,
-        px = px isa Integer ? Int(px) : nothing,
-        py = py isa Integer ? Int(py) : nothing,
+        px = px,
+        py = py,
         sample_interval = sample_interval,
         no_plots = no_plots,
         warmup = warmup,
@@ -96,8 +96,8 @@ For allocation profiling, launch Julia with `--track-allocation=user` instead
 - `--ngridsx <n>`: [ThreadedSpec] x domain decomposition (default: 2)
 - `--ngridsy <n>`: [ThreadedSpec] y domain decomposition (default: 2)
 - `--overlap <n>`: [ThreadedSpec] Schwarz overlap cells (default: 2)
-- `--px <n>`: [MPISpec] process grid x dimension (default: MPI world size)
-- `--py <n>`: [MPISpec] process grid y dimension (default: 1)
+- `--px <n>`: [MPISpec] process grid x (`0` = MPI world size; default: 0)
+- `--py <n>`: [MPISpec] process grid y (default: 1)
 """
 @cast function profile(
     driver::String;
@@ -106,8 +106,8 @@ For allocation profiling, launch Julia with `--track-allocation=user` instead
     ngridsy::Int = 2,
     overlap::Int = 2,
     niterations::Int = 2,
-    px = nothing,
-    py = nothing,
+    px::Int = 0,
+    py::Int = 1,
 )
     opts = BenchmarkOptions(
         mode;
@@ -116,8 +116,8 @@ For allocation profiling, launch Julia with `--track-allocation=user` instead
         ngridsy = ngridsy,
         overlap = overlap,
         niterations = niterations,
-        px = px isa Integer ? Int(px) : nothing,
-        py = py isa Integer ? Int(py) : nothing,
+        px = px,
+        py = py,
     )
     run_profile(opts)
 end
