@@ -5,16 +5,18 @@ import Base: show
 export Clock, compute_iterations_and_end_time
 
 #mutable clock structure to store time info
-mutable struct Clock{T <: Real, N <: Integer}
+mutable struct Clock{T <: Real, N <: Integer, Y <: Real}
     n_iter::N
     time::T
+    ref_time::Y
 end
 
 #clock constructor
 function Clock(;
                 n_iter = 0,
-                time = 0)
-    return Clock(n_iter, time)
+                time = 0,
+                ref_time = 0)
+    return Clock(n_iter, time, ref_time)
 end
 
 """

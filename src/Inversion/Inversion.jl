@@ -14,6 +14,7 @@ using WAVI.Outputs
 import WAVI.Outputs:    zip_output
 using WAVI.Time
 using WAVI.Utilities
+using WAVI.SurfaceMassBalance: update_accumulation_rate!
 using WAVI.Processes:   update_βeff!,
                         update_βeff_on_uv_grids!,
                         update_rheological_operators!,
@@ -31,7 +32,6 @@ using WAVI.Processes:   update_βeff!,
                         update_geometry_on_uv_grids!,
                         update_height_above_floatation!,
                         update_grounded_fraction_on_huv_grids!,
-                        update_accumulation_rate!,
                         get_rhs_dirichlet!,
                         get_start_guess,
                         set_velocities!

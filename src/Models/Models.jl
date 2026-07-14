@@ -5,7 +5,8 @@ using Setfield
 
 using WAVI: AbstractField, 
             AbstractGrid, 
-            AbstractMeltRate, 
+            AbstractMeltRate,
+            AbstractSurfaceMassBalance, 
             AbstractFracture,
             AbstractSlidingLaw,
             AbstractBasalHydrology,
@@ -15,6 +16,7 @@ using WAVI: AbstractField,
 using WAVI.Fields
 using WAVI.Grids
 using WAVI.MeltRates
+using WAVI.SurfaceMassBalance
 using WAVI.Fracture
 using WAVI.SlidingLaw
 using WAVI.BasalHydrology
@@ -36,6 +38,7 @@ end
 
 struct Model{T,N,S,F,G,
              M<:AbstractMeltRate,
+             SMB<:AbstractSurfaceMassBalance,
              FR<:AbstractFracture,
              SL<:AbstractSlidingLaw,
              BH<:AbstractBasalHydrology,
@@ -47,6 +50,7 @@ struct Model{T,N,S,F,G,
     solver_params :: SolverParams
     spec   ::  S
     shelf_melt_rate :: M
+    surface_mass_balance :: SMB
     fracture :: FR
     sliding_law :: SL
     basal_hydrology :: BH
@@ -67,6 +71,7 @@ function Model(grid::G,
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
                shelf_melt_rate::M = UniformMeltRate(),
+               surface_mass_balance::SMB = AccumulationFromParams(),
                fracture::FR = ConstantDamage(),
                sliding_law::SL = WeertmanSlidingLaw(),
                basal_hydrology::BH = NoHydrology(),
@@ -75,6 +80,7 @@ function Model(grid::G,
                ) where {G<:AbstractGrid, 
                         S<:AbstractSpec, 
                         M<:AbstractMeltRate,
+                        SMB<:AbstractSurfaceMassBalance,
                         FR<:AbstractFracture,
                         SL<:AbstractSlidingLaw,
                         BH<:AbstractBasalHydrology,
@@ -82,19 +88,22 @@ function Model(grid::G,
 
     # FIXME: this all smells, hacking for threading
     bed_array = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
-    #expand scalar parameters onto grid
-    params = Params(params,grid)
+    
+    #expand scalar paramaters onto grid
+    params = reconstruct_on_grid(params,grid)
 
-    #Replace all NaN entries with defaults from params on correct grid
-    initial_conditions = InitialConditions(initial_conditions, params, grid)
+    #Replace all NaN entries with defaults from params on correct grid              
+    initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
 
-    #if sliding_law drag_coefficient is passed as a scalar, replace with a matrix of this value
-    if isa(sliding_law.drag_coefficient, Number)
-        sliding_law = @set sliding_law.drag_coefficient = sliding_law.drag_coefficient*ones(grid.nx,grid.ny)
-    end
-    #check size compatibility of resulting sliding_law drag_coefficient
-    (size(sliding_law.drag_coefficient) == (grid.nx,grid.ny)) || throw(DimensionMismatch("Size of input drag_coefficient ($(size(sliding_law.drag_coefficient))) must match grid size (i.e. $(grid.nx) x $(grid.ny))"))
+    #expand any spatial parameters needed onto correct grid
+    shelf_melt_rate = reconstruct_on_grid(shelf_melt_rate,grid)
+    surface_mass_balance = reconstruct_on_grid(surface_mass_balance,grid)
+    fracture = reconstruct_on_grid(fracture,grid)
+    sliding_law = reconstruct_on_grid(sliding_law,grid)
+    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
+    thermo_dynamics = reconstruct_on_grid(thermo_dynamics,grid)
 
+    
     # TODO: grids are heavily reliant on the use of keyword arguments which do not allow specializations / multiple dispatch to work effectively
 
     # TODO: the passthrough of arguments like this is smelly - Configuration should be a type
@@ -108,6 +117,7 @@ function Model(grid::G,
                solver_params, 
                spec, 
                shelf_melt_rate,
+               surface_mass_balance,
                fracture,
                sliding_law,
                basal_hydrology,
@@ -123,7 +133,7 @@ Model(; grid, bed_elevation, spec = BasicSpec(), kw...) = Model(grid, bed_elevat
 # FIXME: this wasn't required in the original WAVI codebase. 
 #   Model needs to be in a position to have type analysis on it's properties to recreate the instance of it by ConstructionBase, which requires some refactoring
 #   Ref: https://juliaobjects.github.io/ConstructionBase.jl/dev/#type-tips
-Model(g::G, f::F, p::P, sp::SP, s::S, m::M, fr::FR, sl::SL, bh::BH, td::TD, vb::Bool
+Model(g::G, f::F, p::P, sp::SP, s::S, m::M, smb::SMB, fr::FR, sl::SL, bh::BH, td::TD, vb::Bool
     ) where {
     G<:AbstractGrid,
     F<:AbstractField,
@@ -131,22 +141,23 @@ Model(g::G, f::F, p::P, sp::SP, s::S, m::M, fr::FR, sl::SL, bh::BH, td::TD, vb::
     SP<:SolverParams,
     S<:AbstractSpec,
     M<:AbstractMeltRate,
+    SMB<:AbstractSurfaceMassBalance,
     FR<:AbstractFracture,
     SL<:AbstractSlidingLaw,
     BH<:AbstractBasalHydrology,
     TD<:AbstractThermoDynamics
     } = 
-    Model{Float64,Int64,S,F,G,M,FR,SL,BH,TD}(
-                            g, f, p, sp, s, m, fr, sl, bh, td, vb)
+    Model{Float64,Int64,S,F,G,M,SMB,FR,SL,BH,TD}(
+                            g, f, p, sp, s, m, smb, fr, sl, bh, td, vb)
 
 ##
 # Global domain alterations
 #
-Base.propertynames(model::Model{T,N,S,F,G,M,FR,SL,BH,TD}, private::Bool) where {T,N,S,F,G,M,FR,SL,BH,TD} = (fieldnames(typeof(model))..., :global_fields, :global_grid)
+Base.propertynames(model::Model{T,N,S,F,G,M,SMB,FR,SL,BH,TD}, private::Bool) where {T,N,S,F,G,M,SMB,FR,SL,BH,TD} = (fieldnames(typeof(model))..., :global_fields, :global_grid)
 
 # FIXME: this is a sign of a frustration in WAVIs structural layout - too many deep nested structures accessed through high level passing
 #  which inhibits multiple dispatch
-function Base.getproperty(model::Model{T,N,S,F,G,M,FR,SL,BH,TD}, s::Symbol) where {T,N,S,F,G,M,FR,SL,BH,TD}
+function Base.getproperty(model::Model{T,N,S,F,G,M,SMB,FR,SL,BH,TD}, s::Symbol) where {T,N,S,F,G,M,SMB,FR,SL,BH,TD}
     if s == :global_fields
         return getfield(model, :fields)
     elseif s == :global_grid

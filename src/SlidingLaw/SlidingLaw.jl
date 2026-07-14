@@ -1,10 +1,16 @@
 module SlidingLaw
 
-using Parameters
-
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+import WAVI.ClimateForcing: update_climate_forcing!
+export reconstruct_on_grid, reconstruct_on_subdomain,  update_climate_forcing!
 export update_β_using_sliding_law!
 
+using Parameters
+
 using WAVI: AbstractSlidingLaw, AbstractModel
+using WAVI.Grids
+using WAVI.Time
+
 
 #add each of the individual sliding laws
 include("./WeertmanSlidingLaw.jl")

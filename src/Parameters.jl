@@ -1,10 +1,13 @@
 module Parameters
 
-using Parameters
-using WAVI.Time: compute_iterations_and_end_time
-using WAVI: AbstractGrid
-
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+export reconstruct_on_grid, reconstruct_on_subdomain
 export Params, SolverParams, TimesteppingParams
+
+using Parameters
+
+using WAVI.Grids
+using WAVI.Time
 
 struct Params{T, A <: Union{T,Array{T,2}}, G <: Union{T,Array{T,2}}, H <: Union{T,Array{T,2}}, E <: Union{T,Array{T,2}}}
                       dt :: T
@@ -40,7 +43,6 @@ glen_a_activation_energy :: T
    basal_water_thickness :: T
    hydraulic_potential_b :: H
       effective_pressure :: E
-              basal_melt :: T
  default_temperature_ave :: T
       default_preBfactor :: T
 end
@@ -86,7 +88,6 @@ Keyword arguments
 - `basal_water_thickness` : basal water thickness (m)
 - `hydraulic_potential_b` : hydraulic_potential at the bed (Pa)
 - `effective_pressure` : effective pressure (Pa)
-- `basal_melt` : basal melt rate (m/yr)
 - `default_temperature_ave` : depth-averaged temperature (K)
 - `default_preBfactor` : default viscosity enhancement factor (non-dimensional).
 """
@@ -122,7 +123,6 @@ function Params(; g = 9.81,
                   basal_water_thickness = 0.0,
                   hydraulic_potential_b = 0.0,
                   effective_pressure = 1.0e6,
-                  basal_melt = 0.0,
                   default_temperature_ave = 253.15,
                   default_preBfactor = 1.0)
                       
@@ -163,14 +163,14 @@ function Params(; g = 9.81,
                   basal_water_thickness,
                   hydraulic_potential_b,
                   effective_pressure,
-                  basal_melt,
                   default_temperature_ave,
                   default_preBfactor
                   )
 end
 
 #Outer constructor that expands scalars into arrays of approriate size.
-Params(params::Params, grid::AbstractGrid) = Params(
+function reconstruct_on_grid(params::Params, grid::Grid) 
+     return     Params(
                   params.dt, 
                   params.g, 
                   params.density_ice,
@@ -212,13 +212,13 @@ Params(params::Params, grid::AbstractGrid) = Params(
                   isa(params.effective_pressure, Number) ? 
                        params.effective_pressure*ones(grid.nx,grid.ny) : 
                        params.effective_pressure,
-                  params.basal_melt,
                   params.default_temperature_ave,
                   params.default_preBfactor
                   )
+end
 
 #Outer constructor that selects parameters for a specified subdomain from parameters defined on a particular grid
-function Params(params::Params, grid::AbstractGrid, subdomain::NTuple{4,<: Integer})
+function reconstruct_on_subdomain(params::Params, grid::Grid, subdomain::NTuple{4,<: Integer})
     
     x_start,x_end,y_start,y_end = subdomain
 
@@ -255,7 +255,6 @@ function Params(params::Params, grid::AbstractGrid, subdomain::NTuple{4,<: Integ
                     params.basal_water_thickness,
                     params.hydraulic_potential_b[x_start:x_end, y_start:y_end],
                     params.effective_pressure[x_start:x_end, y_start:y_end],
-                    params.basal_melt,
                     params.default_temperature_ave,
                     params.default_preBfactor
                     )
@@ -277,7 +276,7 @@ end
     super_implicitness::T = 1.0
 end
 
-struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
+struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P, Y <: Real}
                         niter0 :: N      #starting iteration number
                             dt :: T      #timestep
     ntimesteps_velocity_update :: N      #number of substeps at which to update the velocity (i.e. the velocity is updated every dt*ntimesteps_velocity_update)
@@ -291,8 +290,9 @@ struct TimesteppingParams{T <: Real, N <: Integer, TO, C, P}
                  n_iter_pchkpt :: P      #number of iterations per permanent checkpoint
                 step_thickness :: Bool   #toggle whether to step the thickness at each timestep or not (coupling control)
                        verbose :: Bool   #toggle whether or not to output when the timestepping have been performed
+ntimesteps_climate_forcing_update :: N   #number of timesteps per update of the climate forcing
+                    ref_time :: Y        #set the reference time of the simulation (e.g. 2015)
 end
-
 
 
 """
@@ -306,7 +306,8 @@ TimesteppingParams(;
                     pchkpt_freq = Inf,
                     chkpt_path = './',
                     step_thickness = true,
-                    verbose = false)
+                    verbose = false, 
+                    ref_time = 0)
 
 Construct a WAVI.jl TimesteppingParams object.
 TimesteppingParams stores information relating to timestepping.
@@ -323,6 +324,8 @@ Keyword arguments
 - 'chkpt_path' : Path to location checkpoint output
 - 'step_thickness': Toggle whether to update the ice thickness (true) or not (false) at each timestep
 - 'verbose': Toggle whether to output when the timestepping have been performed (true) or not (false)
+- 'ntimesteps_climate_forcing_update': set the number of timesteps per update of the climate forcing
+- 'ref_time': set the reference (clock) time
 """
 function TimesteppingParams(;
                         niter0 = 0,
@@ -334,7 +337,9 @@ function TimesteppingParams(;
                         pchkpt_freq = Inf,
                         chkpt_path = "./",
                         step_thickness = true,
-                        verbose = false)
+                        verbose = false, 
+                        ntimesteps_climate_forcing_update = typemax(Int), 
+                        ref_time = 0)
 
     #initialize t0 (really you should read start time from pickup file)
     t0 = niter0 > 0 ? niter0 * dt : 0 
@@ -361,7 +366,7 @@ function TimesteppingParams(;
     end
 
     return TimesteppingParams(niter0, dt, ntimesteps_velocity_update,end_time, t0, chkpt_freq, pchkpt_freq, 
-                            chkpt_path,n_iter_total, n_iter_chkpt, n_iter_pchkpt, step_thickness,verbose)
+                            chkpt_path,n_iter_total, n_iter_chkpt, n_iter_pchkpt, step_thickness,verbose, ntimesteps_climate_forcing_update, ref_time)
 end
 
 end

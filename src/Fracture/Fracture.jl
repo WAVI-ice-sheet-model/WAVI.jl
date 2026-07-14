@@ -1,11 +1,17 @@
 module Fracture
 
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+import WAVI.ClimateForcing: update_climate_forcing!
+export reconstruct_on_grid, reconstruct_on_subdomain,  update_climate_forcing!
 export update_damage!, update_strain_history!
 
-using Parameters
+using Parameters, NCDatasets
 
 using WAVI: AbstractFracture, AbstractModel
 using WAVI.Advection
+using WAVI.Time
+using WAVI.Grids
+
 
 get_fracture(model::AbstractModel{T,N}) where {T,N} = model.fracture
 
@@ -26,6 +32,7 @@ update_strain_history!(model::AbstractModel{T,N};kwargs ...) where {T,N} = updat
 
 include("./ConstantDamage.jl")
 include("./DruckerPragerPhaseField.jl")
+include("./ISMIP7hydrofracture.jl")
 include("./utils.jl")
 
 end

@@ -30,11 +30,13 @@ abstract type AbstractModel{T <: Real,
 #Momentum and thickness solves and simulation control                    
 abstract type AbstractPreconditioner{T <: Real,N <: Integer} end
 abstract type AbstractSimulation end
+abstract type AbstractClimateForcing end
 abstract type AbstractInversionSimulation end
 
 
 #Modular physics
 abstract type AbstractMeltRate end
+abstract type AbstractSurfaceMassBalance end
 abstract type AbstractFracture end
 abstract type AbstractSlidingLaw end
 abstract type AbstractBasalHydrology end
@@ -48,13 +50,15 @@ const MapOrMatrix{T} = Union{LinearMap{T}, AbstractMatrix{T}}
 #include all of the code
 include("Deferred.jl")
 include("Time.jl")
-include("Parameters.jl")
-include("KroneckerProducts.jl")
 include("Grids.jl")
+include("Parameters.jl")
+include("ClimateForcing/ClimateForcing.jl")
+include("KroneckerProducts.jl")
 include("Utilities.jl")
 include("Wavelets/Wavelets.jl")
 include("Fields/Fields.jl")
 include("MeltRates/MeltRates.jl")
+include("SurfaceMassBalance/SurfaceMassBalance.jl")
 include("Advection/Advection.jl")
 include("Fracture/Fracture.jl")
 include("SlidingLaw/SlidingLaw.jl")
@@ -67,7 +71,8 @@ include("Simulations/Simulation.jl")
 include("Specs/Specs.jl")
 include("Inversion/Inversion.jl")
 
-export AbstractField, AbstractGrid, AbstractMeltRate, 
+
+export AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance,
   AbstractFracture, AbstractSlidingLaw , AbstractBasalHydrology,
    AbstractThermoDynamics, AbstractModel, AbstractPreconditioner,
    AbstractSpec
@@ -99,8 +104,10 @@ export GridField, InitialConditions
 using .MeltRates
 export PlumeEmulator, BinfileMeltRate, UniformMeltRate, MISMIPMeltRateOne, PICO, QuadraticMeltRate, 
 QuadraticForcedMeltRate, MeltRateExponentVariation, MeltRateExponentVariationBasins, UniformMeltUnderShelves, 
-UniformMeltUnderShelvesBasins
+UniformMeltUnderShelvesBasins, ISMIP7MeltRate
 
+using .SurfaceMassBalance
+export AccumulationFromParams, BinfileAccumulationRate, UniformAccumulationRate, ISMIP7SMB
 using .Processes
 export update_state!, update_velocities!
 
@@ -123,7 +130,7 @@ using .Specs
 export BasicSpec, ThreadedSpec, MPISpec
 
 using .Fracture
-export ConstantDamage, DruckerPragerPhaseField
+export ConstantDamage, DruckerPragerPhaseField, ISMIP7Hydrofracture
 
 using .SlidingLaw
 export WeertmanSlidingLaw, CoulombSlidingLaw, BuddSlidingLaw, TsaiSlidingLaw, TsaiBuddSlidingLaw, SchoofSlidingLaw, ZoetIversonSlidingLaw
@@ -140,6 +147,9 @@ export Inversion, InversionParams, JKVsteppingParams, DataFields,
        InversionSimulation, InversionOutput
 
 include("Precompile.jl")
+
+using .ClimateForcing 
+export ISMIP7
 
 end
 

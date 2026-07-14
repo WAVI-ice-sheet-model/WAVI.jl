@@ -7,7 +7,8 @@ using Plots
 
 using WAVI.Parameters
 
-import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractFracture, AbstractSlidingLaw, AbstractBasalHydrology, AbstractThermoDynamics, AbstractModel
+import WAVI: AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance, AbstractFracture, AbstractSlidingLaw, 
+                   AbstractBasalHydrology, AbstractThermoDynamics, AbstractModel
 import WAVI.Deferred: Collector, register_item!, field_extractor
 import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, SigmaGrid
 import WAVI.Grids: Grid
@@ -196,6 +197,7 @@ function Model(grid::G,
                params::Params = Params(),
                solver_params::SolverParams = SolverParams(),
                shelf_melt_rate::M = UniformMeltRate(),
+               surface_mass_balance::SMB = AccumulationFromParams(),
                fracture::FR = ConstantDamage(),
                sliding_law::SL = WeertmanSlidingLaw(),
                basal_hydrology::BH = NoHydrology(),
@@ -203,6 +205,7 @@ function Model(grid::G,
                verbose = true)                   where {G<:AbstractGrid, 
                                                         S<:MPISpec, 
                                                         M<:AbstractMeltRate,
+                                                        SMB<:AbstractSurfaceMassBalance,
                                                         FR<:AbstractFracture,
                                                         SL<:AbstractSlidingLaw,
                                                         BH<:AbstractBasalHydrology,
@@ -226,17 +229,33 @@ function Model(grid::G,
     u_grid_size, v_grid_size = (grid.nx+1, grid.ny), (grid.nx, grid.ny+1)
     
     #expand scalar paramaters onto grid
-    params = Params(params,grid)
+    params = reconstruct_on_grid(params,grid)
 
     #Replace all NaN entries with defaults from params on correct grid              
-    initial_conditions = InitialConditions(initial_conditions, params, grid)
+    initial_conditions = reconstruct_on_grid(initial_conditions, params, grid)
+
+    #expand spatial parameters onto grid
+    shelf_melt_rate = reconstruct_on_grid(shelf_melt_rate,grid)
+    surface_mass_balance = reconstruct_on_grid(surface_mass_balance,grid)
+    fracture = reconstruct_on_grid(fracture,grid)
+    sliding_law = reconstruct_on_grid(sliding_law,grid)
+    basal_hydrology = reconstruct_on_grid(basal_hydrology,grid)
+    thermo_dynamics = reconstruct_on_grid(thermo_dynamics,grid)
 
     #trim initial conditions to local domain
-    local_initial_conditions = InitialConditions(initial_conditions, grid, (x_start, x_end, y_start, y_end))
+    local_initial_conditions = reconstruct_on_subdomain(initial_conditions, grid, (x_start, x_end, y_start, y_end))
 
     # dt cannot be copied via the external constructor so we create the structure directly
-    local_params = Params(params,grid,(x_start, x_end, y_start, y_end))
+    local_params = reconstruct_on_subdomain(params,grid,(x_start, x_end, y_start, y_end))
 
+    local_shelf_melt_rate = reconstruct_on_subdomain(shelf_melt_rate,grid,(x_start, x_end, y_start, y_end))
+    local_surface_mass_balance = reconstruct_on_subdomain(surface_mass_balance,grid,(x_start, x_end, y_start, y_end))
+    local_fracture = reconstruct_on_subdomain(fracture,grid,(x_start, x_end, y_start, y_end))
+    local_sliding_law = reconstruct_on_subdomain(sliding_law,grid,(x_start, x_end, y_start, y_end))
+    local_basal_hydrology = reconstruct_on_subdomain(basal_hydrology,grid,(x_start, x_end, y_start, y_end))
+    local_thermo_dynamics = reconstruct_on_subdomain(thermo_dynamics,grid,(x_start, x_end, y_start, y_end))
+
+    
     u_isfixed = grid.u_isfixed[x_start:x_end+1, y_start:y_end]
     v_isfixed = grid.v_isfixed[x_start:x_end, y_start:y_end+1]
     # RAS/Schwarz: Only fix the outermost edge cell - this provides Dirichlet BC from neighbour
@@ -278,8 +297,8 @@ function Model(grid::G,
     local_mpi_rank = fill(Float64(rank), nx_local, ny_local)
 
     fields = GridField(local_grid, bed_array; initial_conditions=local_initial_conditions, params=local_params, solver_params, mpi_rank=local_mpi_rank)
-    model = Model(local_grid, fields, local_params, solver_params, spec, shelf_melt_rate, fracture, sliding_law, basal_hydrology, 
-    thermo_dynamics, verbose)
+    model = Model(local_grid, fields, local_params, solver_params, spec, local_shelf_melt_rate, local_surface_mass_balance, local_fracture, local_sliding_law, local_basal_hydrology, 
+    local_thermo_dynamics, verbose)
 
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     # Create global mpi_rank field (will be populated during collection)
@@ -297,7 +316,7 @@ end
 #
 
 # TODO: remove getproperty, if it's not a global registered field it should be ignored
-function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M}, s::Symbol) where {T,N,F,G,M}
+function Base.getproperty(model::Model{T,N,<:MPISpec,F,G,M,SMB,FR,SL,BH,TD}, s::Symbol) where {T,N,F,G,M,SMB,FR,SL,BH,TD}
     if s == :global_fields
         # TODO: these need to be registered fields, not user-specified
         ## TODO: fields = collate_global_fields(model.fields, model.spec)

@@ -1,10 +1,15 @@
 module MeltRates
 
+import WAVI.Grids: reconstruct_on_grid, reconstruct_on_subdomain
+import WAVI.ClimateForcing: update_climate_forcing!
+export reconstruct_on_grid, reconstruct_on_subdomain,  update_climate_forcing!
 export update_shelf_melt_rate!, UniformMeltRate
 
 using Parameters
 
 using WAVI: AbstractMeltRate
+using WAVI.Time
+using WAVI.Grids
 
 #add each of the individual melt rate models
 #include("./analytic_melt_rate_model.jl")
@@ -18,6 +23,7 @@ include("./uniform_melt_under_shelves.jl")
 include("./uniform_melt_under_shelves_basin_specific.jl")
 include("./melt_rate_exponent_variation.jl")
 include("./melt_rate_exponent_variation_basin_specific.jl")
+include("./ISMIP7_melt_rate.jl")
              
 
 ##### default temperature and salinity profiles #####
@@ -43,21 +49,23 @@ isomip_warm0_temp(z) = two_layer_function(z, v_low =1.2, v_hi = -1.0, d_low = -7
 
 
 struct UniformMeltRate{T <: Real} <: AbstractMeltRate 
-    m :: T #uniform melt rate applied everywhere
+    m_floating :: T #uniform melt rate applied under shelves
 end
 
-UniformMeltRate(; m = 0.0) = UniformMeltRate(m) 
+UniformMeltRate(; m_floating = 0.0) = UniformMeltRate(m_floating) 
 
 """
-    update_shelf_melt_rate(shelf_melt_rate::UniformMeltRate, fields, grid) 
+    update_shelf_melt_rate(shelf_melt_rate::UniformMeltRate, fields, grid, clock) 
 
 Update the melt rate under ice shelves for the UniformMeltRate type
 
 """
-function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltRate, fields, grid, clock) 
-    @unpack shelf_basal_melt = fields.gh
-    shelf_basal_melt .= shelf_melt_rate.m
+function update_shelf_melt_rate!(shelf_melt_rate::UniformMeltRate, fields, grid, clock)
+    @unpack gh = fields
+    gh.shelf_basal_melt[gh.mask] .= shelf_melt_rate.m_floating .* (1. .- gh.grounded_fraction[gh.mask])
     return nothing
 end
+
+
 
 end

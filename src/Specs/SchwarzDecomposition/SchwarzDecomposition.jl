@@ -2,6 +2,7 @@ using WAVI
 import WAVI: AbstractModel
 using WAVI.Models: Model
 using WAVI.Parameters: Params
+using WAVI.Grids
 
 using Parameters
 using Setfield
@@ -158,17 +159,16 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
 
     bed_elevation_g = model.fields.gh.b[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
-    params_g = Params(model.params,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    params_g = reconstruct_on_subdomain(model.params,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
 
-    sliding_law_g = model.sliding_law
-    if isdefined(sliding_law_g, :drag_coefficient)
-        sliding_law_g = @set sliding_law_g.drag_coefficient = sliding_law_g.drag_coefficient[i_start_g:i_stop_g,j_start_g:j_stop_g]
-    end
+    shelf_melt_rate_g = reconstruct_on_subdomain(model.shelf_melt_rate,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    surface_mass_balance_g = reconstruct_on_subdomain(model.surface_mass_balance,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    fracture_g = reconstruct_on_subdomain(model.fracture,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    sliding_law_g = reconstruct_on_subdomain(model.sliding_law,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    basal_hydrology_g = reconstruct_on_subdomain(model.basal_hydrology,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
+    thermo_dynamics_g = reconstruct_on_subdomain(model.thermo_dynamics,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
 
-    basal_hydrology_g = model.basal_hydrology
-    thermo_dynamics_g = model.thermo_dynamics
-
-    solver_params_g=model.solver_params
+    solver_params_g=reconstruct_on_subdomain(model.solver_params,model.grid,(i_start_g,i_stop_g,j_start_g,j_stop_g))
 
     initial_thickness_g = gh.h[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_grounded_fraction_g = gh.grounded_fraction[i_start_g:i_stop_g,j_start_g:j_stop_g]
@@ -181,7 +181,6 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
     initial_basal_water_thickness_g = gh.basal_water_thickness[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_hydraulic_potential_b_g = gh.hydraulic_potential_b[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_effective_pressure_g = gh.effective_pressure[i_start_g:i_stop_g,j_start_g:j_stop_g]
-    initial_basal_melt_g = gh.basal_melt[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_θ_ave_g = gh.θ_ave[i_start_g:i_stop_g,j_start_g:j_stop_g]
     initial_preBfactor_g = gh.preBfactor[i_start_g:i_stop_g,j_start_g:j_stop_g]
 
@@ -197,11 +196,8 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         initial_basal_water_thickness = initial_basal_water_thickness_g,
         initial_hydraulic_potential_b = initial_hydraulic_potential_b_g,
         initial_effective_pressure = initial_effective_pressure_g,
-        initial_basal_melt = initial_basal_melt_g,
         initial_θ_ave = initial_θ_ave_g,
         initial_preBfactor = initial_preBfactor_g)
-
-    shelf_melt_rate_g=model.shelf_melt_rate
 
     spec_g = BasicSpec()
 
@@ -212,6 +208,7 @@ function schwarzModel(model::AbstractModel;igrid=1,jgrid=1,ngridsx=1,ngridsy=1,o
         solver_params = solver_params_g,
         initial_conditions = initial_conditions_g,
         shelf_melt_rate = shelf_melt_rate_g,
+        surface_mass_balance = surface_mass_balance_g,
         spec = spec_g,
         basal_hydrology = basal_hydrology_g,
         sliding_law = sliding_law_g,

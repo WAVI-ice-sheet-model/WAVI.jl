@@ -1,6 +1,6 @@
 export CoulombSlidingLaw
 
-struct CoulombSlidingLaw{T <: Real, C} <: AbstractSlidingLaw 
+struct CoulombSlidingLaw{T <: Real, C <: Union{T,Array{T,2}}} <: AbstractSlidingLaw 
     coulomb_coefficient :: C
     reg_speed :: T
 end
@@ -34,4 +34,22 @@ function update_β_using_sliding_law!(sliding_law::CoulombSlidingLaw, model::Abs
     @unpack gh=model.fields
     gh.β .= (sliding_law.coulomb_coefficient .* gh.effective_pressure) ./ ( sqrt.(gh.bed_speed.^2 .+  sliding_law.reg_speed^2 ) )
     return model
+end
+
+
+function reconstruct_on_grid(sliding_law::CoulombSlidingLaw, grid::Grid)
+    return CoulombSlidingLaw(
+        isa(sliding_law.coulomb_coefficient,Number) ? sliding_law.coulomb_coefficient*ones(grid.nx,grid.ny) : 
+        size(sliding_law.coulomb_coefficient) == (grid.nx,grid.ny) ? sliding_law.coulomb_coefficient :
+        throw(DimensionMismatch("Coulomb Coefficient does not match grid size")),
+        sliding_law.reg_speed)
+end
+
+function reconstruct_on_subdomain(sliding_law::CoulombSlidingLaw, grid::Grid, subdomain::NTuple{4,<: Integer})
+    
+    x_start,x_end,y_start,y_end = subdomain
+
+    return CoulombSlidingLaw(
+          sliding_law.coulomb_coefficient[x_start:x_end, y_start:y_end],
+          sliding_law.reg_speed)
 end

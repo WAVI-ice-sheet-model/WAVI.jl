@@ -4,7 +4,7 @@ Iceberg(n_timesteps)
 Driver routine for GlaDS verification test using WAVI.
 Defines parameters, initialises state, and runs end_time_days/dt_days time steps.
 """
-function GlaDS_test(;dt_days=0.1, end_time_days=5.0, melt_rate=7.93e-11, do_visu)
+function GlaDS_test(;dt_days=0.1, end_time_days=5.0, melt_rate=7.93e-11*(3600*24*365.25), do_visu)
 
 # GlaDS test geometry
 nx, ny = 128, 4;
@@ -26,7 +26,7 @@ bed_elevation = ones(nx,ny) .* z_b;
 
 u_b = 1e-6;            # ice sliding speed       [m/s]
 h_init = 0.05;         # water sheet thickness   [m]
-basal_hydrology = SheetOnlyGlaDS(ncheck=10nx, maxiter=10nx^2, m=melt_rate);
+basal_hydrology = SheetOnlyGlaDS(ncheck=10nx, maxiter=10nx^2);
 
 dt = dt_days/365.25;
 end_time = end_time_days/365.25;
@@ -53,8 +53,9 @@ initial_basal_water_thickness = h_init .* ones(nx, ny);
 initial_conditions = InitialConditions(initial_thickness = h, initial_basal_water_thickness = initial_basal_water_thickness);
 
 sliding_law = WeertmanSlidingLaw();
-thermo_dynamics = NoThermoDynamics();
-shelf_melt_rate = UniformMeltRate();
+thermo_dynamics = NoThermoDynamics(m_grounded = melt_rate);
+shelf_melt_rate = UniformMeltRate(m_floating = melt_rate);
+surface_mass_balance = AccumulationFromParams();
 params = Params(density_ice = 910.0, glen_a_ref=2.5e-25);
 solver_params = SolverParams(maxiter_picard = 1);
 
@@ -66,9 +67,10 @@ model = Model(grid = grid,
             basal_hydrology=basal_hydrology,
             sliding_law = sliding_law,
             shelf_melt_rate = shelf_melt_rate,
+            surface_mass_balance = surface_mass_balance,
             thermo_dynamics = thermo_dynamics);
 
-timestepping_params = TimesteppingParams(dt = dt, end_time = end_time);
+timestepping_params = TimesteppingParams(dt = dt, end_time = end_time, ntimesteps_velocity_update = typemax(Int));
 simulation = Simulation(model = model, timestepping_params = timestepping_params);
 
 t = 0;

@@ -49,13 +49,13 @@ function QuadraticTemperatureApproximation(;
 end
 
 """
-            update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTemperatureApproximation, model::AbstractModel)
+            update_ice_temperature_and_basal_melt_rate!(thermo_dynamics::QuadraticTemperatureApproximation, model::AbstractModel)
 
-use a quadratic temperature approximation to calculate the ice temperature and grounded basal melt rate
+use a quadratic temperature approximation to calculate the ice temperature and basal melt rate
 also updates the stiffness parameter B in Glen flow law.
 """
 
-function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTemperatureApproximation{T}, model::AbstractModel) where {T}
+function update_ice_temperature_and_basal_melt_rate!(thermo_dynamics::QuadraticTemperatureApproximation{T}, model::AbstractModel) where {T}
     @unpack gh,gu,gv,g3d=model.fields
     @unpack params=model
     thermal_diffusivity = thermo_dynamics.thermal_conductivity / (params.density_ice * thermo_dynamics.specific_heat_capacity)
@@ -77,7 +77,9 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
             if gh.mask[i,j] && gh.h[i,j]>params.minimum_thickness
                 # calculate temperature balance terms
                 θ_pressure_melting = thermo_dynamics.kelvin_conversion .- params.density_ice .* params.g .* thermo_dynamics.melting_point_coeff .* (1 .- g3d.σ) .* gh.h[i,j]
-                θ_1_trial = -gh.h[i,j] / thermo_dynamics.thermal_conductivity * (thermo_dynamics.geothermal_heat_flux + gh.τbed[i,j] * (gh.bed_speed[i,j]/params.sec_per_year))
+                θ_1_trial = -gh.h[i,j] / thermo_dynamics.thermal_conductivity * 
+                            (     gh.grounded_fraction[i,j]  * (thermo_dynamics.geothermal_heat_flux + gh.τbed[i,j] * (gh.bed_speed[i,j]/params.sec_per_year)) +
+                             (1 - gh.grounded_fraction[i,j]) * params.density_ice * thermo_dynamics.latent_heat_fusion * (gh.shelf_basal_melt[i,j]/params.sec_per_year))
                 θ_2 = g3d.θ[i,j,end] - g3d.θ[i,j,1] - θ_1_trial
 
                 vertical_heat_flux = thermal_diffusivity * (2. * θ_2 / gh.h[i,j])
@@ -103,22 +105,21 @@ function update_ice_temperature_grounded_melt_rate!(thermo_dynamics::QuadraticTe
 
                 # calculate grounded basal melt rate
                 q_melt = -thermo_dynamics.thermal_conductivity / gh.h[i,j] * (θ_1_trial - θ_1) # W/m²
-                gh.grounded_basal_melt[i,j] = q_melt / (params.density_ice * thermo_dynamics.latent_heat_fusion) * params.sec_per_year # m/yr
-                gh.grounded_basal_melt[i,j] = gh.grounded_basal_melt[i,j] * gh.grounded_fraction[i,j]
+                gh.basal_melt[i,j] = q_melt / (params.density_ice * thermo_dynamics.latent_heat_fusion) * params.sec_per_year # m/yr
                 
                 # calculate ice temperature profile
                 g3d.θ[i,j,:] = min.(θ_pressure_melting,g3d.θ[i,j,1] .+ (θ_1 .* g3d.σ) .+ (θ_2 .* g3d.σ.^2))
             else
-                # set temperatures and grounded melt rate for cells without ice
+                # set temperatures and melt rate for cells without ice
                 g3d.θ[i,j,:] .= params.default_temperature
                 gh.θ_ave[i,j] = params.default_temperature_ave
-                gh.grounded_basal_melt[i,j] = 0.
+                gh.basal_melt[i,j] = 0.
             end
         end
     end
 
-    if minimum(gh.grounded_basal_melt[gh.mask]) < -1.0e-10
-        println("WARNING: minimum grounded melt rate is negative, min=",minimum(gh.grounded_basal_melt[gh.mask]))
+    if minimum(gh.basal_melt[gh.mask]) < -1.0e-10
+        println("WARNING: minimum melt rate is negative, min=",minimum(gh.basal_melt[gh.mask]))
     end
 
     if maximum(gh.θ_ave[gh.mask] .- (thermo_dynamics.kelvin_conversion .- params.density_ice .* params.g .* thermo_dynamics.melting_point_coeff .* gh.h[gh.mask]./2.)) > 0.001
