@@ -10,7 +10,9 @@
 #     --ngridsx 2 --ngridsy 2
 #
 #   mpiexecjl --project=benchmarks -n 4 julia -t 1 benchmarks/run.jl run mpi mismip_plus \
-#     --px 2 --py 2
+#     --px 4 --py 1
+#
+#   (Avoid --px 2 --py 2 on MISMIP+: the y-patches are too thin for efficient PoU.)
 
 # Force GR plotting backend to run headlessly to prevent flashing plot window
 ENV["GKSwstype"] = "100"

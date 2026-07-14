@@ -43,8 +43,8 @@ Run a timed benchmark for the given execution mode and driver adaptor.
 - `--ngridsy <n>`: [ThreadedSpec] y domain decomposition (default: 2)
 - `--overlap <n>`: [ThreadedSpec] Schwarz overlap cells (default: 2)
 
-- `--px <n>`: [MPISpec] process grid x (`0` = MPI world size; default: 0)
-- `--py <n>`: [MPISpec] process grid y (default: 1)
+- `--px <n>`: [MPISpec] process grid x (`0` = MPI world size; default: 0 → `N×1` with `--py 1`)
+- `--py <n>`: [MPISpec] process grid y (default: 1; prefer `1` on narrow domains like MISMIP+)
 
 - `--sample-interval <s>`: resource sample period in seconds (default: 0.25)
 - `--no-plots`: skip NetCDF plots
@@ -97,7 +97,7 @@ For allocation profiling, launch Julia with `--track-allocation=user` instead
 - `--ngridsy <n>`: [ThreadedSpec] y domain decomposition (default: 2)
 - `--overlap <n>`: [ThreadedSpec] Schwarz overlap cells (default: 2)
 - `--px <n>`: [MPISpec] process grid x (`0` = MPI world size; default: 0)
-- `--py <n>`: [MPISpec] process grid y (default: 1)
+- `--py <n>`: [MPISpec] process grid y (default: 1; prefer `1` on narrow domains)
 """
 @cast function profile(
     driver::String;

@@ -18,7 +18,7 @@ Configuration for a benchmark run.
 - `mode`: execution mode: `:basic`, `:threaded`, or `:mpi`
 - `driver`: registered adaptor name (e.g. `"mismip_plus"`)
 - `ngridsx`, `ngridsy`, `overlap`, `niterations`: ThreadedSpec / Schwarz parameters
-- `px`, `py`: MPI process grid dimensions (`px == 0` means use `Comm_size`; `py` defaults to `1`)
+- `px`, `py`: MPI process grid dimensions (`px == 0` means use `Comm_size`; `py` defaults to `1`, i.e. an `N×1` layout)
 - `sample_interval`: seconds between resource samples
 - `no_plots`: skip NetCDF plots if true
 - `warmup`: untimed run before the measured benchmark
@@ -159,7 +159,18 @@ function run_benchmark(opts::BenchmarkOptions)
             end
 
             grid = Base.invokelatest(driver.grid)
-            spec = MPISpec(px, py, 2, grid; pou = true, niterations = opts.niterations)
+            # Narrow domains (e.g. MISMIP+ ny=10) need enough core cells after halo.
+            # Prefer px×1 (default py=1); warn when py>1 leaves a thin y-patch.
+            halo = 2
+            if rank == 0 && py > 1
+                core_y = div(grid.ny, py)
+                if core_y <= 2 * halo
+                    @warn "MPI process grid $(px)×$(py) leaves ~$(core_y) core cells in y " *
+                          "(halo=$halo, ny=$(grid.ny)). Prefer a 1D layout (e.g. --px $sz --py 1) " *
+                          "for PoU on narrow domains such as MISMIP+."
+                end
+            end
+            spec = MPISpec(px, py, halo, grid; pou = true, niterations = opts.niterations)
 
             spec_kwargs[:grid] = grid
             spec_kwargs[:spec] = spec
@@ -219,8 +230,17 @@ function run_profile(opts::BenchmarkOptions)
             end
 
             grid = Base.invokelatest(driver.grid)
+            halo = 2
+            if rank == 0 && py > 1
+                core_y = div(grid.ny, py)
+                if core_y <= 2 * halo
+                    @warn "MPI process grid $(px)×$(py) leaves ~$(core_y) core cells in y " *
+                          "(halo=$halo, ny=$(grid.ny)). Prefer a 1D layout (e.g. --px $sz --py 1) " *
+                          "for PoU on narrow domains such as MISMIP+."
+                end
+            end
             spec_kwargs[:grid] = grid
-            spec_kwargs[:spec] = MPISpec(px, py, 2, grid; pou = false, niterations = opts.niterations)
+            spec_kwargs[:spec] = MPISpec(px, py, halo, grid; pou = false, niterations = opts.niterations)
             run_id = "mpi.$(px)x$(py)_sz$(sz)"
         end
 

@@ -22,6 +22,35 @@ import WAVI.Wavelets: UWavelets, VWavelets
 
 # FIXME: important to realise that this specification has become a complex structure to house many things that should be baked into the model structurally
 #  not least the global grid and fields 
+
+"""
+Reusable PoU weights, velocity workspaces, and strip packs for neighbour prolong.
+Allocated once per local velocity shape; reused across Schwarz iterations.
+"""
+mutable struct MPIPoUScratch{T <: AbstractFloat}
+    ωu::Matrix{T}
+    ωv::Matrix{T}
+    work_u::Matrix{T}
+    work_v::Matrix{T}
+    send_l::Vector{T}
+    recv_l::Vector{T}
+    send_r::Vector{T}
+    recv_r::Vector{T}
+    send_t::Vector{T}
+    recv_t::Vector{T}
+    send_b::Vector{T}
+    recv_b::Vector{T}
+end
+
+function MPIPoUScratch(ωu::Matrix{T}, ωv::Matrix{T}) where {T <: AbstractFloat}
+    empty = T[]
+    return MPIPoUScratch{T}(
+        ωu, ωv, similar(ωu), similar(ωv),
+        copy(empty), copy(empty), copy(empty), copy(empty),
+        copy(empty), copy(empty), copy(empty), copy(empty),
+    )
+end
+
 """
 Struct to represent the MPI parallel specification of a model.
 
@@ -38,6 +67,7 @@ Fields:
     damping: Damping factor for halo exchange (default=0.0)
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
     field_collector: Field collector for the model
+    pou_scratch: Cached PoU weights / strip buffers (filled on first prolong)
 """
 mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGrid} <: AbstractDecompSpec
     # MPI Specification information
@@ -64,6 +94,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     pou::Bool
     damping::T
     niterations::N  # Number of Schwarz iterations per Picard iteration
+    pou_scratch::Union{Nothing, MPIPoUScratch}
 
     @doc """
     Constructor for MPISpec.
@@ -148,7 +179,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             top, right, bottom, left,
             pou,
             damping,
-            niterations
+            niterations,
+            nothing,  # pou_scratch filled on first PoU prolong
             )
     end
 end
@@ -476,14 +508,19 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         converged = global_rel_resid < solver_params.tol_picard
         if converged
             if model.spec.rank == 0
-                @debug "Schwarz converged early at iteration $iteration"
+                # Early exit avoids remaining PoU/RAS prolongs this Picard step.
+                @debug "Schwarz converged early at iteration $iteration / $niterations (rel_resid=$global_rel_resid)"
             end
             break
         end
     end
 
     if model.spec.rank == 0
-        @debug "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+        if converged
+            @debug "Picard Check: Schwarz early-exit OK; Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+        else
+            @debug "Picard Check: used all $niterations Schwarz iterations; Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+        end
     end
 
     return converged, global_rel_resid
