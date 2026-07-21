@@ -16,7 +16,7 @@ import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
-import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_rheological_operators!
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_preconditioner!, update_rheological_operators!
 import WAVI.Simulations: run_simulation!, timestep!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
@@ -69,6 +69,7 @@ Fields:
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
     field_collector: Field collector for the model
     pou_scratch: Cached PoU weights / strip buffers (filled on first prolong)
+    local_spec: Optional intraprocess ThreadedSpec for the rank-local solve (default=nothing to wavelet)
 """
 mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGrid} <: AbstractDecompSpec
     # MPI Specification information
@@ -96,6 +97,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     damping::T
     niterations::N  # Number of Schwarz iterations per Picard iteration
     pou_scratch::Union{Nothing, MPIPoUScratch}
+    local_spec::Union{Nothing, ThreadedSpec}
 
     @doc """
     Constructor for MPISpec.
@@ -106,8 +108,9 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
     pou: Whether to use partition of unity for halo exchange (default=true)
     damping: Damping factor for halo exchange (default=0.0)
+    local_spec: Optional ThreadedSpec for the intraprocess local solve (default=nothing)
     """
-    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5)
+    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5, local_spec::Union{Nothing,ThreadedSpec}=nothing)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
 
@@ -182,6 +185,7 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             damping,
             niterations,
             nothing,  # pou_scratch filled on first PoU prolong
+            local_spec,
             )
     end
 end
@@ -336,6 +340,22 @@ function update_model_velocities!(model::Model{<:Any, <:Any, <:MPISpec})
     return model
 end
 
+function update_preconditioner!(model::Model{<:Any, <:Any, <:MPISpec})
+    ls = model.spec.local_spec
+    ls !== nothing && update_preconditioner!(model, ls)
+    return model
+end
+
+# Rank-local solve: ThreadedSpec when nested, otherwise the default wavelet path.
+function local_precondition!(model::Model{<:Any, <:Any, <:MPISpec})
+    ls = model.spec.local_spec
+    if ls !== nothing
+        precondition!(model, ls)
+    else
+        invoke(precondition!, Tuple{AbstractModel}, model)
+    end
+end
+
 ##
 # Overrides for other functionalities that need restricting to root node
 #
@@ -483,7 +503,7 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         if pou
             # Snapshot only needed when damping mixes in the pre-solve velocity.
             if iszero(model.spec.damping)
-                invoke(precondition!, Tuple{AbstractModel}, model)
+                local_precondition!(model)
                 mpi_pou_weighted_prolong_velocities!(
                     model,
                     model.fields.gu.u,  # unused when damping == 0
@@ -492,11 +512,11 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
             else
                 u0 = copy(model.fields.gu.u)
                 v0 = copy(model.fields.gv.v)
-                invoke(precondition!, Tuple{AbstractModel}, model)
+                local_precondition!(model)
                 mpi_pou_weighted_prolong_velocities!(model, u0, v0)
             end
         else
-            invoke(precondition!, Tuple{AbstractModel}, model)
+            local_precondition!(model)
             halo_exchange!(model; fields=[:u, :v])
         end
 
