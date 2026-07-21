@@ -17,7 +17,7 @@ import WAVI.Models: BasicSpec, Model, get_bed_elevation
 import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_preconditioner!, update_rheological_operators!
-import WAVI.Simulations: run_simulation!, timestep!
+import WAVI.Simulations: run_simulation!, timestep!, update_model_climate_forcing!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
 
@@ -368,6 +368,10 @@ function timestep!(model::AbstractModel{T,N,S},
                    timestepping_params::TimesteppingParams,
                    output_params::OutputParams,
                    clock::Clock) where {T,N,S<:MPISpec}
+    if mod(clock.n_iter, timestepping_params.ntimesteps_climate_forcing_update) == 0
+        update_model_climate_forcing!(model, clock)
+    end
+
     update_state!(model, clock)
 
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
