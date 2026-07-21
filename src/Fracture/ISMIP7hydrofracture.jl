@@ -9,6 +9,9 @@ struct ISMIP7Hydrofracture{CF <: AbstractClimateForcing, T <: Real, CM <: Union{
       partially_floating_cells :: Bool
       ice_shelf_collapse_mask :: CM
       path_to_forcing :: String
+      # Maps local mask indices to global NetCDF indices when on a subdomain.
+      x_indices::Union{Nothing, UnitRange{Int}}
+      y_indices::Union{Nothing, UnitRange{Int}}
 end
 
 """
@@ -17,11 +20,11 @@ ISMIP7Hydrofracture(; <kwargs>)
 
 Keyword arguments
 =================
-- ISMIP7_config             : config file for ISMIP 7
-- damage_value              : damage value of all floating grid cells within the ice shelf collapse mask
-- partially_floating_cells  : consider partially floating cells?
-- ice_shelf_collapse_mask   : mask is 0 when ice shelves are sustainable and 1 when they collapse because excessive amounts of meltwater
-- path_to_forcing           : path to the forcing files folder
+    - ISMIP7_config             : config file for ISMIP 7
+    - damage_value              : damage value of all floating grid cells within the ice shelf collapse mask
+    - partially_floating_cells  : consider partially floating cells?
+    - ice_shelf_collapse_mask   : mask is 0 when ice shelves are sustainable and 1 when they collapse because excessive amounts of meltwater
+    - path_to_forcing           : path to the forcing files folder
 """
 
 function ISMIP7Hydrofracture(;
@@ -29,7 +32,9 @@ function ISMIP7Hydrofracture(;
               damage_value = 0.99,
               partially_floating_cells = false,
               ice_shelf_collapse_mask = nothing,
-              path_to_forcing = "./"
+              path_to_forcing = "./",
+              x_indices = nothing,
+              y_indices = nothing
               )
 
         
@@ -42,12 +47,14 @@ function ISMIP7Hydrofracture(;
               damage_value,
               partially_floating_cells,
               ice_shelf_collapse_mask, 
-              path_to_forcing)
+              path_to_forcing,
+              x_indices,
+              y_indices)
 end
 
 function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid::Grid, clock::Clock)
   @unpack dx = grid
-  @unpack ISMIP7_config, path_to_forcing = fracture
+  @unpack ISMIP7_config, path_to_forcing, ice_shelf_collapse_mask, x_indices, y_indices = fracture
 
 
   #get the year from clock for the forcing files
@@ -58,11 +65,18 @@ function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid::Grid, cloc
   resolution = join([string(Int(dx)), "m"])
   ice_shelf_collapse_mask_filename = joinpath(path_to_forcing, join(["ice_shelf_collapse_mask_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_ismip7_", resolution, "_",  current_time_string,".nc"]))
   ice_shelf_collapse_mask_ncfile   = NCDataset(ice_shelf_collapse_mask_filename)
-  fracture.ice_shelf_collapse_mask .= ice_shelf_collapse_mask_ncfile["mask"][:,:,1]
+  mask_full = ice_shelf_collapse_mask_ncfile["mask"][:,:,1]
 
   println("read in fracture mask file: " * ice_shelf_collapse_mask_filename)
   @info "read in fracture mask file: $ice_shelf_collapse_mask_filename"
 
+  if size(ice_shelf_collapse_mask) == size(mask_full)
+      ice_shelf_collapse_mask .= mask_full
+  else
+      is = isnothing(x_indices) ? (1:size(ice_shelf_collapse_mask, 1)) : x_indices
+      js = isnothing(y_indices) ? (1:size(ice_shelf_collapse_mask, 2)) : y_indices
+      ice_shelf_collapse_mask .= mask_full[is, js]
+  end
 
   return nothing
 end
@@ -91,14 +105,23 @@ function reconstruct_on_grid(fracture::ISMIP7Hydrofracture, grid::Grid)
         isnothing(fracture.ice_shelf_collapse_mask) ? zeros(grid.nx,grid.ny) :
         size(fracture.ice_shelf_collapse_mask) == (grid.nx,grid.ny) ? fracture.ice_shelf_collapse_mask :
         throw(DimensionMismatch("Size of ice shelf collapse_mask is incompatible with grid")),
-        fracture.path_to_forcing)
+        fracture.path_to_forcing,
+        1:grid.nx,
+        1:grid.ny)
 end
 
 function reconstruct_on_subdomain(fracture::ISMIP7Hydrofracture, grid::Grid,subdomain::NTuple{4,<: Integer})
+    x_start, x_end, y_start, y_end = subdomain
+    parent_x = isnothing(fracture.x_indices) ? (1:size(fracture.ice_shelf_collapse_mask, 1)) : fracture.x_indices
+    parent_y = isnothing(fracture.y_indices) ? (1:size(fracture.ice_shelf_collapse_mask, 2)) : fracture.y_indices
+    xs = parent_x[x_start:x_end]
+    ys = parent_y[y_start:y_end]
     return ISMIP7Hydrofracture(
         fracture.ISMIP7_config,
         fracture.damage_value,
         fracture.partially_floating_cells,
         size(fracture.ice_shelf_collapse_mask) == size(grid)[1:2] ? fracture.ice_shelf_collapse_mask[x_start:x_end, y_start:y_end] : fracture.ice_shelf_collapse_mask,
-        fracture.path_to_forcing)
+        fracture.path_to_forcing,
+        xs,
+        ys)
 end
