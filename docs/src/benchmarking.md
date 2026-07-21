@@ -47,9 +47,12 @@ julia --project=benchmarks -t 1 benchmarks/run.jl run basic mismip_plus
 # ThreadedSpec (shared-memory Schwarz; -t ≥ ngridsx × ngridsy)
 julia --project=benchmarks -t 4 benchmarks/run.jl run threaded mismip_plus --ngridsx 2 --ngridsy 2
 
-# MPISpec (one Julia thread per rank)
-mpiexecjl --project=benchmarks -n 4 julia -t 1 benchmarks/run.jl run mpi mismip_plus --px 2 --py 2
+# MPISpec (one Julia thread per rank; prefer a 1D layout on narrow domains like MISMIP+)
+mpiexecjl --project=benchmarks -n 4 julia -t 1 benchmarks/run.jl run mpi mismip_plus --px 4 --py 1
 ```
+
+MISMIP+ has a thin `y` extent, so `--py > 1` leaves too few core cells after halo for efficient PoU.
+Default CLI layout is `N×1` (`--px 0` uses the MPI world size with `--py 1`).
 
 Useful `run` options: `--niterations`, `--overlap`, `--sample-interval`,
 `--no-plots`, `--warmup`. See `julia --project=benchmarks benchmarks/run.jl run --help`.
@@ -78,7 +81,14 @@ Set `WAVI_PRECOMPILE_MPI=0` if package precompile hangs on MPI init in your envi
 
 ## Drivers
 
-Drivers are thin adaptors in `benchmarks/drivers/`. List them with:
+Drivers are thin adaptors in `benchmarks/drivers/`. Current example adaptors include:
+
+| Driver        | Example wrapped                         |
+|---------------|-----------------------------------------|
+| `mismip_plus` | `example_drivers/MISMIP_PLUS/`          |
+| `iceberg`     | `example_drivers/Iceberg/Iceberg.jl`    |
+
+List registered names with:
 
 ```bash
 julia --project=benchmarks benchmarks/run.jl drivers
@@ -88,6 +98,8 @@ To add a driver: create `benchmarks/drivers/<name>.jl` with module name `<name>`
 point at an example driver, and export `driver_run`, `driver_grid`, and
 `driver_plot_vars`. No modification of the benchmarking code is required, it is
 picked up automatically.
+
+Since these cases have very small domain sizes, they are only representative of the approach, and you should utilise larger cases to do full benchmarks.
 
 ## BLAS and threads
 
