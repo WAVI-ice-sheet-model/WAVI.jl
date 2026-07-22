@@ -60,7 +60,7 @@ Useful `run` options: `--niterations`, `--overlap`, `--sample-interval`,
 Results are written under `benchmarks/output/<driver_name>/benchmark_<id>_<timestamp>/`
 (`benchmark_results.json`, `resource_timeseries.csv`, a copy of the `<driver_name>.jl` adaptor, and optional plots).
 
-## Native code caching
+## Native code caching (This is planned behaviour - implementation was removed in latest changes due to CI failure).
 
 WAVI uses [PrecompileTools.jl](https://github.com/JuliaLang/PrecompileTools.jl) so that installing or
 `Pkg.precompile()`ing the package caches native code for a small toy `BasicSpec` /
