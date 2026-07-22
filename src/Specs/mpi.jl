@@ -3,7 +3,6 @@ export MPISpec
 using JLD2
 using MPI
 using Parameters
-using Plots
 
 using WAVI.Parameters
 
