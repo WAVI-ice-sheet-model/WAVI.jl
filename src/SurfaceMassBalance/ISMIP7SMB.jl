@@ -106,7 +106,8 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, cl
     resolution = join([string(Int(dx)), "m"])
     smb_anomaly_filename = joinpath(path_to_forcing,join([smb_anomaly_prefix,  current_time_string,".nc"]))
     smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
-    smb_anomaly .= replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,1] , missing => NaN)
+    smb_anomaly .= replace(replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,1] , missing => NaN), NaN => 0.0) #read in the anomaly and set any NaN to zero
+
     #println("read in smb anomaly forcing file: " * smb_anomaly_filename)
     @info "read in smb anomaly forcing file: $smb_anomaly_filename"
 
@@ -114,7 +115,7 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, cl
     # load in the vertical smb gradient from ISMIP7
     vertical_smb_gradient_anomaly_filename = joinpath(path_to_forcing, join([vertical_smb_gradient_prefix,  current_time_string,".nc"]))
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
-    vertical_smb_gradient .= replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,1], missing => NaN)
+    vertical_smb_gradient .= replace(replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,1], missing => NaN), NaN => 0.0) #read in the SMB gradient and set NaNs to zero
     
     #println("read in vertical smb gradient forcing file: " * vertical_smb_gradient_anomaly_filename)
     @info "read in vertical smb gradient forcing file: $vertical_smb_gradient_anomaly_filename"
