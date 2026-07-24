@@ -105,8 +105,9 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
         relative_residual = norm(residu0) / norm(f1)
         total_iters_u0 = chu0.iters
         true_rel_resid_norm_u0 = norm(residuN)/norm(f1)
-       # println("u0 solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
-
+        if inversion_params.verbose
+          println("u0 solved after $total_iters_u0 iterations, with True Relative Residual Norm = $true_rel_resid_norm_u0")
+        end
         inner_tol = inversion_params.inner_tol
         inner_maxiters=inversion_params.inner_maxiters
         bSchur = similar(f2,size(op_B, 1)) 
@@ -130,19 +131,30 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
 
         if inversion_params.gmres
             for i in 1:num_restarts
-                pD, ch_pD =  gmres!(pD,SchurOp, bSchur, abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=false,log=true)
+                pD, ch_pD =  gmres!(pD,SchurOp, bSchur, abstol=inversion_params.abstol, maxiter=inversion_params.gmres_restart, restart=inversion_params.gmres_restart, Pl=Pl,verbose=true,log=true)
                  total_iters_pD = ch_pD.iters
                 if !@isdefined residpD
                 residpD = similar(bSchur) 
                 end 
                 get_resid!(residpD, pD, SchurOp, bSchur)
+
+                taux_resid_for_plot=zeros(gu.nxu,gu.nyu)
+                taux_resid_for_plot[gudata.mask_inner].=residpD[(1:gudata.ni)]
+                heatmap(taux_resid_for_plot') |> display                
+                tauy_resid_for_plot=zeros(gv.nxv,gv.nyv)
+                tauy_resid_for_plot[gvdata.mask_inner].=residpD[(gudata.ni+1):(gudata.ni+gvdata.ni)]
+                heatmap(tauy_resid_for_plot') |> display
+                sig_resid_for_plot=zeros(gh.nxh,gh.nyh)
+                sig_resid_for_plot[ghdata.mask].=residpD[(gudata.ni+gvdata.ni+1):(gudata.ni+gvdata.ni+ghdata.n)]
+                heatmap(sig_resid_for_plot') |> display
+
                 true_rel_resid_norm_pD = norm(residpD)/norm(bSchur)
                 #compute total number of iterations:
                 iter_total_pD=total_iters_pD+(i-1)*inversion_params.gmres_restart
                  if inversion_params.verbose
                 println("Loop $i : True Relative Residual Norm = $true_rel_resid_norm_pD")
                  end
-                if  true_rel_resid_norm  < inversion_params.reltol
+                if  true_rel_resid_norm_pD  < inversion_params.reltol
                      if inversion_params.verbose
                 println("Stopping early: Relative Residual below tolerance.")
                 println("pD solved after $iter_total_pD iterations, with True Relative Residual Norm = $true_rel_resid_norm_pD")
@@ -152,7 +164,7 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
                 
             end
             elseif inversion_params.cg              
-                pD, ch_pD =  cg!(pD,SchurOp, bSchur,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, Pl=Pl,verbose=false,log=true)
+                pD, ch_pD =  cg!(pD,SchurOp, bSchur,  abstol=inversion_params.abstol, maxiter=inversion_params.maxiter, Pl=Pl,verbose=true,log=true)
                 total_iters = ch_pD.iters
                 if !@isdefined residpD
                 residpD = similar(bSchur) 
@@ -169,7 +181,7 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
 
         brhs = similar(f1, size(op_BT, 1))
         mul!(brhs, op_BT, vec(pD)) 
-        brhs .= f1 .- b 
+        brhs .= f1 .- brhs 
 
         #Solve for Dirichlet velocity
         uD=xD_guess[1:gu.ni+gv.ni]
@@ -178,7 +190,7 @@ function solve_dirichlet_neumann_velocities!(model, inversion,clock)
             residuD = similar(brhs)
         end
         residuD=get_resid!(residuD,uD,op_A,brhs)
-        true_rel_resid_norm_uD = norm(residuD) / norm(b)
+        true_rel_resid_norm_uD = norm(residuD) / norm(brhs)
         total_iters_uD = ch_uD.iters
          if inversion_params.verbose
         println("uD solved after $total_iters_uD iterations, with True Relative Residual Norm = $true_rel_resid_norm_uD")
