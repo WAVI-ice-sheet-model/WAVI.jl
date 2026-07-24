@@ -7,7 +7,7 @@ using Parameters
 using Setfield
 using ImageFiltering: centered, imfilter, reflect, Fill
 
-using WAVI: AbstractModel, AbstractSimulation
+using WAVI: AbstractModel, AbstractSimulation, AbstractSpec
 using WAVI.Outputs: OutputParams, load_checkpoint
 using WAVI.Parameters: TimesteppingParams
 using WAVI.Time
@@ -41,11 +41,14 @@ function Simulation(;
                     output_params::OutputParams = OutputParams())
     isnothing(timestepping_params) && throw(ArgumentError("You must specify a timestepping parameters"))
 
+    @unpack spec = model
+
     #compute number of timesteps per output (should be robust for Inf output frequency)
     output_params = set_n_iter_out!(output_params, timestepping_params.dt, timestepping_params.n_iter_total)
-    pickup_model, pickup_clock = pickup!(timestepping_params, output_params)
+    pickup_model, pickup_clock = pickup!(spec, timestepping_params, output_params)
 
     if ~isnothing(pickup_model)
+        spec == pickup_model.spec || error("Model Spec does not match spec from pickup file")
         model, clock = pickup_model, pickup_clock
     else
         # TODO: is the change from the default relevant - time is now type-variant (Real not Int)
@@ -75,12 +78,12 @@ function set_n_iter_out!(output_params, dt, n_iter_total)
     return output_params
 end
 
-function pickup!(timestepping_params::TimesteppingParams, output_params::OutputParams)::Union{Tuple{Model, Clock}, Tuple{Nothing, Nothing}}
+function pickup!(spec::AbstractSpec,timestepping_params::TimesteppingParams, output_params::OutputParams)::Union{Tuple{Model, Clock}, Tuple{Nothing, Nothing}}
     model, clock = nothing, nothing
     if timestepping_params.niter0 > 0
         @info "detected niter0 > 0 (niter0 = $(timestepping_params.niter0)). Looking for pickup..."
         try
-            model, clock = load_checkpoint(timestepping_params, output_params)
+            model, clock = load_checkpoint(spec,timestepping_params, output_params)
             println("Pickup successful")
         catch e
             @error "Pickup error: $e"

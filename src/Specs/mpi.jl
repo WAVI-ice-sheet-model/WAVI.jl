@@ -14,7 +14,7 @@ import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, Si
 import WAVI.Grids: Grid
 import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
-import WAVI.Outputs: write_outputs, zip_output, OutputParams
+import WAVI.Outputs: write_outputs, zip_output, OutputParams, checkpoint_filename, load_checkpoint, write_checkpoint!, checkpoint_path
 import WAVI.Parameters: TimesteppingParams
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_rheological_operators!
 import WAVI.Simulations: run_simulation!, timestep!
@@ -157,6 +157,7 @@ end
 include("MPI/utils.jl")
 include("MPI/exchanges.jl")
 include("MPI/outputs.jl")
+include("MPI/mpi_checkpoints.jl")
 
 function Model(grid::G,
                bed_elevation::Union{Integer, Function, AbstractArray},
