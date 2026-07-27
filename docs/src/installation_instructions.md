@@ -12,7 +12,7 @@
     * **Add Julia versions** used by WAVI development and CI:
       ```bash
       juliaup add 1.11
-      juliaup add 1.6    # optional: matches older structural-test matrix in CI
+      juliaup add 1.12   # optional: matches structural-test matrix in CI
       juliaup default 1.11
       ```
       Check what is installed:
@@ -27,7 +27,7 @@
       ```
       When working from a git clone, `cd` into the repo and use `--project` (or `--project=test` for tests) so dependencies resolve against that environment.
 
-    WAVI is tested in CI on Julia **1.6** and **1.11** (structural tests); MPI unit tests run on **1.11**. Newer Julia releases (e.g. 1.12) often work but are not guaranteed on every branch.
+    WAVI is tested in CI on Julia **1.11** and **1.12** (structural tests); MPI unit tests run on **1.12**.
 
 ## Overview
 
@@ -65,7 +65,7 @@ julia> Pkg.instantiate()
 ```
 where `BranchName` should be replaced by the name of the branch containing the code you wish to install. 
 
-Note that WAVI is tested in CI on Julia **1.6** and **1.11**; other versions may work but are not guaranteed on every branch.
+Note that WAVI is tested in CI on Julia **1.11** and **1.12**; other versions may work but are not guaranteed on every branch.
 
 At this time, updating should be done with care, as WAVI is under rapid development. While we take care to avoid breaking changes, they may happen during this time. If anything does break, please open an issue and let us know!
 
