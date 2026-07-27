@@ -18,6 +18,9 @@ using WAVI.Utilities
 using WAVI.Wavelets
 
 
+"""Trivial Kronecker product for assembly-buffer grids that never apply operators."""
+_storage_only_kron() = spzeros(Float64, 1, 1) ⊗ spzeros(Float64, 1, 1)
+
 include("UGrid.jl")
 include("VGrid.jl")
 include("HGrid.jl")
@@ -50,6 +53,7 @@ function GridField(grid::AbstractGrid, bed_array;
                    params::Params = Params(),
                    solver_params::SolverParams = SolverParams(),
                    mpi_rank::Array{Float64, 2} = -ones(grid.nx, grid.ny),
+                   assembly_buffer::Bool = false,
                    )
 
    
@@ -62,6 +66,73 @@ function GridField(grid::AbstractGrid, bed_array;
     #Remove all points on u- and v-grids with homogenous Dirichlet conditions.
     u_mask[grid.u_iszero].=false
     v_mask[grid.v_iszero].=false
+
+    # Assembly buffers (e.g. MPISpec global_fields) only need correctly sized writable
+    # arrays for gather/Bcast. Skip IC deepcopies, glen_b fill, and sparse/wavelet operators.
+    if assembly_buffer
+        gh=HGrid(
+            nxh=grid.nx,
+            nyh=grid.ny,
+            mask=h_mask,
+            h_isfixed = grid.h_isfixed,
+            hyd_potential_isfixed = grid.hyd_potential_isfixed,
+            b = bed_array,
+            h = zeros(grid.nx, grid.ny),
+            ηav = zeros(grid.nx, grid.ny),
+            grounded_fraction = zeros(grid.nx, grid.ny),
+            basal_water_thickness = zeros(grid.nx, grid.ny),
+            hydraulic_potential_b = zeros(grid.nx, grid.ny),
+            effective_pressure = zeros(grid.nx, grid.ny),
+            basal_melt = zeros(grid.nx, grid.ny),
+            θ_ave = zeros(grid.nx, grid.ny),
+            preBfactor = ones(grid.nx, grid.ny),
+            mpi_rank = mpi_rank,
+            storage_only = true,
+        )
+        gu=UGrid(
+            nxu=grid.nx+1,
+            nyu=grid.ny,
+            dx=grid.dx,
+            dy=grid.dy,
+            mask=u_mask,
+            u_isfixed=grid.u_isfixed,
+            u=zeros(grid.nx+1, grid.ny),
+            levels=solver_params.levels,
+            storage_only = true,
+        )
+        gv=VGrid(
+            nxv=grid.nx,
+            nyv=grid.ny+1,
+            dx=grid.dx,
+            dy=grid.dy,
+            mask=v_mask,
+            v_isfixed=grid.v_isfixed,
+            v=zeros(grid.nx, grid.ny+1),
+            levels=solver_params.levels,
+            storage_only = true,
+        )
+        gc=CGrid(
+            nxc=grid.nx-1,
+            nyc=grid.ny-1,
+            mask=c_mask,
+            storage_only = true,
+        )
+        g3d=SigmaGrid(
+            nxs=grid.nx,
+            nys=grid.ny,
+            nσs=grid.nσ,
+            σ =grid.σ,
+            η = zeros(grid.nx, grid.ny, grid.nσ),
+            θ = zeros(grid.nx, grid.ny, grid.nσ),
+            Φ = zeros(grid.nx, grid.ny, grid.nσ),
+            strain_history = zeros(grid.nx, grid.ny, grid.nσ),
+            glen_b = zeros(grid.nx, grid.ny, grid.nσ),
+            quadrature_weights = grid.quadrature_weights
+        )
+        wu=UWavelets(nxuw=grid.nx+1,nyuw=grid.ny,levels=solver_params.levels, storage_only=true)
+        wv=VWavelets(nxvw=grid.nx,nyvw=grid.ny+1,levels=solver_params.levels, storage_only=true)
+        return GridField(gh,gu,gv,gc,g3d,wu,wv)
+    end
 
     #h-grid
     #gh=HGrid(grid, params) #uncomment if using the explicit constructor method

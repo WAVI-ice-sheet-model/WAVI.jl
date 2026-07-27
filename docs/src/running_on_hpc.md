@@ -30,9 +30,12 @@ Markdown.MD(Markdown.Code("bash", content))
 
 ## MPI Execution
 
-For large-scale simulations spanning multiple nodes or making use of distributed memory, WAVI.jl supports MPI. You will need to load the appropriate MPI module (e.g., `mpich`) and use `mpiexecjl` to launch the Julia script. 
+For large-scale simulations spanning multiple nodes or making use of distributed memory, WAVI.jl supports MPI via [`MPISpec`](./model_specifications.md#mpispec).
 
-*Note: Ensure that you have `MPI.jl` correctly configured on your cluster to work with the system's MPI binaries.*
+!!! note "Before your first MPI job"
+    Configure MPI.jl, install `mpiexecjl`, and verify with the MPI unit tests. Step-by-step instructions are in [MPI setup](./mpi_setup.md).
+
+On the cluster, load the site MPI module if that was your approach to setting up mpi (e.g. `mpich`) in the batch script, then launch with `mpiexecjl` and the scheduler task count (`$SLURM_NTASKS` below).
 
 ```@eval
 using Markdown

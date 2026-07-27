@@ -1,7 +1,6 @@
 # Derived from test/verification_tests/iceberg_test.jl
 using MPI
 using WAVI
-using Setfield
 
 function Iceberg_Grid(;
         nx::Int = 6,
@@ -99,9 +98,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
     if MPI.Comm_size(MPI.COMM_WORLD) > 1
         # MPI Mode
         grid = Iceberg_Grid()
-        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid)
+        mpi_spec = MPISpec(MPI.Comm_size(MPI.COMM_WORLD), 1, 2, grid; pou=true, niterations=2)
 
         Iceberg(
+            folder = "outputs/iceberg_mpi",
             grid = grid,
             spec = mpi_spec
         )
@@ -114,11 +114,12 @@ if abspath(PROGRAM_FILE) == @__FILE__
         grid = Iceberg_Grid()
         threaded_spec = ThreadedSpec(ngridsx=Threads.nthreads(), ngridsy=1, overlap=2, niterations=2)
         Iceberg(
+            folder = "outputs/iceberg_thread",
             grid = grid,
             spec = threaded_spec,
         )
     else
         # Serial Mode
-        Iceberg()
+        Iceberg(folder = "outputs/iceberg_serial")
     end
 end

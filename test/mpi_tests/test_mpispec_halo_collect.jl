@@ -73,6 +73,25 @@ using WAVI
             @test 11.0 in vals
         end
     end
+
+    # Nested ThreadedSpec local solve should complete a velocity update with finite fields.
+    @testset "MPISpec with nested ThreadedSpec local solve" begin
+        grid = Grid(nx = 12, ny = 8, nσ = 3, dx = 1.0, dy = 1.0)
+        local_spec = ThreadedSpec(ngridsx = 2, ngridsy = 1, overlap = 1, niterations = 1)
+        spec = MPISpec(nprocs, 1, 2, grid; pou = true, niterations = 1, local_spec = local_spec)
+        model = Model(
+            grid = grid,
+            bed_elevation = -500.0 .* ones(grid.nx, grid.ny),
+            params = Params(accumulation_rate = 0.1),
+            solver_params = SolverParams(maxiter_picard = 1),
+            initial_conditions = InitialConditions(initial_thickness = 100.0 .* ones(grid.nx, grid.ny)),
+            spec = spec,
+        )
+        @test model.spec.local_spec isa ThreadedSpec
+        WAVI.Processes.update_model_velocities!(model)
+        @test all(isfinite.(model.fields.gu.u))
+        @test all(isfinite.(model.fields.gv.v))
+    end
 end
 
 MPI.Finalize()

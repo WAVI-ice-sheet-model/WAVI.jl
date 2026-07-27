@@ -144,14 +144,34 @@ end
 """
     mpi_velocity_pou_weights(model::AbstractModel{<:Any,<:Any,<:MPISpec})
 
-Generates 2D partition-of-unity (PoU) weights for the local U and V grids.
+Return partition-of-unity (PoU) weights for the local U and V grids.
+
+Weights are computed once and cached on `model.spec.pou_scratch` (with strip buffers
+and prolong workspaces) for the life of the local velocity arrays.
 """
 function mpi_velocity_pou_weights(model::AbstractModel{<:Any, <:Any, <:MPISpec})
+    scratch = ensure_mpi_pou_scratch!(model)
+    return scratch.ωu, scratch.ωv
+end
+
+"""
+Build or reuse `MPIPoUScratch` on `model.spec` for the current local `u`/`v` sizes.
+"""
+function ensure_mpi_pou_scratch!(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     @unpack gu, gv = model.fields
     spec = model.spec
     @unpack halo, top, right, bottom, left = spec
     mu, nu = size(gu.u)
     mv, nv = size(gv.v)
+    T = eltype(gu.u)
+
+    scratch = spec.pou_scratch
+    if scratch !== nothing &&
+       size(scratch.ωu) == (mu, nu) &&
+       size(scratch.ωv) == (mv, nv) &&
+       eltype(scratch.ωu) === T
+        return scratch
+    end
 
     # Keep weights at 1.0 on true domain boundaries
     leavei1 = left < 0
@@ -163,13 +183,126 @@ function mpi_velocity_pou_weights(model::AbstractModel{<:Any, <:Any, <:MPISpec})
     o = 2 * halo
     ωu = partition_of_unity(mu, nu, leavei1, leaveim, leavej1, leavejn, o, o - 1)
     ωv = partition_of_unity(mv, nv, leavei1, leaveim, leavej1, leavejn, o - 1, o)
-    return ωu, ωv
+    scratch = MPIPoUScratch(Matrix{T}(ωu), Matrix{T}(ωv))
+    spec.pou_scratch = scratch
+    return scratch
+end
+
+@inline function ensure_strip_buf!(buf::Vector{T}, n::Int) where {T}
+    length(buf) < n && resize!(buf, n)
+    return buf
+end
+
+"""
+    mpi_pou_add_neighbour_strips!(field, overlapi, overlapj; scratch, ...)
+
+Additively exchange PoU contribution strips with cardinal neighbours.
+
+`overlapi` and `overlapj` are the Partition-of-Unity (PoU) ramp widths (e.g. `2*halo` or
+`2*halo+1` depending on the staggered axis). This terminology matches `partition_of_unity`.
+
+Communication happens in the X direction first, and the values received are immediately
+added to the `field`. When the Y direction is then exchanged, it propagates
+any diagonal corner contributions without requiring an explicit corner message.
+
+Send/recv packs are reused via `scratch` (`MPIPoUScratch`).
+"""
+function mpi_pou_add_neighbour_strips!(
+    field::AbstractMatrix{T},
+    overlapi::Int,
+    overlapj::Int;
+    left::Int,
+    right::Int,
+    top::Int,
+    bottom::Int,
+    comm,
+    tag_base::Int,
+    scratch::MPIPoUScratch{T},
+) where {T}
+    nx, ny = size(field)
+    (overlapi >= 0 && overlapj >= 0) || throw(ArgumentError("PoU strip depths must be non-negative"))
+    msg = "strip depth must be strictly less than the local array size " *
+          "(prefer a coarser process grid, e.g. px×1 on narrow domains)"
+    (left < 0 || overlapi < nx) || throw(ArgumentError("PoU x-strip depth overlapi=$overlapi too large for nx=$nx; $msg"))
+    (right < 0 || overlapi < nx) || throw(ArgumentError("PoU x-strip depth overlapi=$overlapi too large for nx=$nx; $msg"))
+    (top < 0 || overlapj < ny) || throw(ArgumentError("PoU y-strip depth overlapj=$overlapj too large for ny=$ny; $msg"))
+    (bottom < 0 || overlapj < ny) || throw(ArgumentError("PoU y-strip depth overlapj=$overlapj too large for ny=$ny; $msg"))
+
+    # --- X (left / right): exchange original local contributions ---
+    if overlapi > 0 && (left > -1 || right > -1)
+        requests_x = MPI.RequestSet()
+        n_x = overlapi * ny
+        recv_left_view = recv_right_view = nothing
+        if left > -1
+            send_l = ensure_strip_buf!(scratch.send_l, n_x)
+            recv_l = ensure_strip_buf!(scratch.recv_l, n_x)
+            copyto!(send_l, 1, reshape(@view(field[1:overlapi, :]), n_x), 1, n_x)
+            send_view = @view send_l[1:n_x]
+            recv_left_view = @view recv_l[1:n_x]
+            push!(requests_x, MPI.Isend(send_view, left, tag_base + 0, comm))
+            push!(requests_x, MPI.Irecv!(recv_left_view, left, tag_base + 1, comm))
+        end
+        if right > -1
+            send_r = ensure_strip_buf!(scratch.send_r, n_x)
+            recv_r = ensure_strip_buf!(scratch.recv_r, n_x)
+            copyto!(send_r, 1, reshape(@view(field[(nx - overlapi + 1):nx, :]), n_x), 1, n_x)
+            send_view = @view send_r[1:n_x]
+            recv_right_view = @view recv_r[1:n_x]
+            push!(requests_x, MPI.Isend(send_view, right, tag_base + 1, comm))
+            push!(requests_x, MPI.Irecv!(recv_right_view, right, tag_base + 0, comm))
+        end
+        MPI.Waitall(requests_x)
+        if recv_left_view !== nothing
+            field[1:overlapi, :] .+= reshape(recv_left_view, overlapi, ny)
+        end
+        if recv_right_view !== nothing
+            field[(nx - overlapi + 1):nx, :] .+= reshape(recv_right_view, overlapi, ny)
+        end
+    end
+
+    # --- Y (top / bottom): send strips after X so corners include diagonal donors ---
+    if overlapj > 0 && (top > -1 || bottom > -1)
+        requests_y = MPI.RequestSet()
+        n_y = nx * overlapj
+        recv_top_view = recv_bottom_view = nothing
+        if top > -1
+            send_t = ensure_strip_buf!(scratch.send_t, n_y)
+            recv_t = ensure_strip_buf!(scratch.recv_t, n_y)
+            copyto!(send_t, 1, reshape(@view(field[:, 1:overlapj]), n_y), 1, n_y)
+            send_view = @view send_t[1:n_y]
+            recv_top_view = @view recv_t[1:n_y]
+            push!(requests_y, MPI.Isend(send_view, top, tag_base + 2, comm))
+            push!(requests_y, MPI.Irecv!(recv_top_view, top, tag_base + 3, comm))
+        end
+        if bottom > -1
+            send_b = ensure_strip_buf!(scratch.send_b, n_y)
+            recv_b = ensure_strip_buf!(scratch.recv_b, n_y)
+            copyto!(send_b, 1, reshape(@view(field[:, (ny - overlapj + 1):ny]), n_y), 1, n_y)
+            send_view = @view send_b[1:n_y]
+            recv_bottom_view = @view recv_b[1:n_y]
+            push!(requests_y, MPI.Isend(send_view, bottom, tag_base + 3, comm))
+            push!(requests_y, MPI.Irecv!(recv_bottom_view, bottom, tag_base + 2, comm))
+        end
+        MPI.Waitall(requests_y)
+        if recv_top_view !== nothing
+            field[:, 1:overlapj] .+= reshape(recv_top_view, nx, overlapj)
+        end
+        if recv_bottom_view !== nothing
+            field[:, (ny - overlapj + 1):ny] .+= reshape(recv_bottom_view, nx, overlapj)
+        end
+    end
+
+    return nothing
 end
 
 """
     mpi_pou_weighted_prolong_velocities!(model, u0, v0)
 
-Applies Additive Schwarz with Partition-of-Unity (AS-PoU) prolongation to update the global velocity field.
+Apply Additive Schwarz with Partition-of-Unity (AS-PoU) prolongation.
+
+Each rank forms a local weighted velocity contribution, then exchanges PoU ramp
+strips with cardinal neighbours so overlapping cells hold the summed blended
+field. No mid-solver gather or broadcast of the global grid.
 """
 function mpi_pou_weighted_prolong_velocities!(
     model::AbstractModel{<:Any, <:Any, <:MPISpec},
@@ -177,27 +310,36 @@ function mpi_pou_weighted_prolong_velocities!(
     v0::AbstractMatrix,
 )
     @unpack gu, gv = model.fields
-    d = oftype(gu.u[1], model.spec.damping)
+    @unpack halo, top, right, bottom, left, comm, damping = model.spec
+    d = oftype(gu.u[1], damping)
     od = one(d) - d
 
-    ωu, ωv = mpi_velocity_pou_weights(model)
+    scratch = ensure_mpi_pou_scratch!(model)
+    ωu, ωv = scratch.ωu, scratch.ωv
+    contrib_u, contrib_v = scratch.work_u, scratch.work_v
 
-    # Calculate local damped contributions (matches damping logic in ThreadedSpec's schwarzProlongVelocities!)
-    contrib_u0 = d .* ωu .* u0
-    contrib_v0 = d .* ωv .* v0
-    contrib_u = od .* ωu .* gu.u
-    contrib_v = od .* ωv .* gv.v
+    # Combined local contribution (ThreadedSpec: damp*old*ω + (1-damp)*new*ω)
+    @. contrib_u = od * ωu * gu.u
+    @. contrib_v = od * ωv * gv.v
+    if !iszero(d)
+        @. contrib_u += d * ωu * u0
+        @. contrib_v += d * ωv * v0
+    end
 
-    # Assemble global velocity field on rank 0, then distribute back to all ranks
-    mpi_zero_global_field!(model, [:global_fields, :gu, :u])
-    mpi_zero_global_field!(model, [:global_fields, :gv, :v])
-    mpi_add_local_patch_to_global!(model, [:global_fields, :gu, :u], contrib_u0)
-    mpi_add_local_patch_to_global!(model, [:global_fields, :gv, :v], contrib_v0)
-    mpi_add_local_patch_to_global!(model, [:global_fields, :gu, :u], contrib_u)
-    mpi_add_local_patch_to_global!(model, [:global_fields, :gv, :v], contrib_v)
-    mpi_fill_local_from_global!(model, [:global_fields, :gu, :u], gu.u)
-    mpi_fill_local_from_global!(model, [:global_fields, :gv, :v], gv.v)
+    # Geometric patch overlap (h-overlap = 2*halo), plus one extra face on the
+    # staggered axis so the strip covers the full PoU ramp for that field.
+    o = 2 * halo
+    mpi_pou_add_neighbour_strips!(
+        contrib_u, o + 1, o;
+        left, right, top, bottom, comm, tag_base = 100, scratch,
+    )
+    mpi_pou_add_neighbour_strips!(
+        contrib_v, o, o + 1;
+        left, right, top, bottom, comm, tag_base = 200, scratch,
+    )
 
+    gu.u .= contrib_u
+    gv.v .= contrib_v
     update_velocities_on_h_grid!(model)
     return nothing
 end
