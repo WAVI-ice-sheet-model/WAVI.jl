@@ -30,11 +30,13 @@ driver_updated.jl
 example_drivers/Rosie_examples/relax_driver_10km.jl
 example_drivers/Rosie_examples/save_surf_speeds.jl
 example_drivers/Rosie_examples/PIG_idealised.jl
+example_drivers/Rosie_examples/inversion_driver_*km_ISMIP7.jl
 example_drivers/MISMIP/MISMIP_driver.jl
 gendata.m
 PIG_ideal_bed_plot.m
 Project.toml
 !benchmarks/Project.toml
+ismip_testing/*
 
 #SLURM logging
 *.err

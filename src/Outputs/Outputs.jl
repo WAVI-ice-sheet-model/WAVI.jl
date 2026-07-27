@@ -5,6 +5,7 @@ export OutputParams
 import WAVI.Deferred: clear!, collect!
 using WAVI.Deferred
 using Parameters
+using WAVI: AbstractSpec
 
 #structure that contains outputting info
 struct OutputParams{T<:Real, R<:Real, O<:Collector}
