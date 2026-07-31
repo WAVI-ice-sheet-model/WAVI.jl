@@ -3,8 +3,9 @@ export ISMIP7Hydrofracture
 using WAVI: AbstractClimateForcing
 using NCDatasets
 
-struct ISMIP7Hydrofracture{P <: String, T <: Real, CM <: Union{Array{T,2}, Nothing}} <: AbstractFracture
+struct ISMIP7Hydrofracture{P <: String, V<:String, T <: Real, CM <: Union{Array{T,2}, Nothing}} <: AbstractFracture
       hydrofracture_prefix::P
+      hydrofracture_varname::V
       damage_value :: T
       partially_floating_cells :: Bool
       ice_shelf_collapse_mask :: CM
@@ -21,6 +22,7 @@ ISMIP7Hydrofracture(; <kwargs>)
 Keyword arguments
 =================
 - hydrofracture_prefix      : prefix of the filename for the hydrofracture e.g. "ice_shelf_collapse_mask_CESM2-WACCM_ssp585_ismip7_16000m_"
+- hydrofracture_varname     : variable name for the ice mask (default "mask")
 - damage_value              : damage value of all floating grid cells within the ice shelf collapse mask
 - partially_floating_cells  : consider partially floating cells?
 - ice_shelf_collapse_mask   : mask is 0 when ice shelves are sustainable and 1 when they collapse because excessive amounts of meltwater
@@ -29,6 +31,7 @@ Keyword arguments
 
 function ISMIP7Hydrofracture(;
               hydrofracture_prefix = nothing,
+              hydrofracture_varname = "mask",
               damage_value = 0.99,
               partially_floating_cells = false,
               ice_shelf_collapse_mask = nothing,
@@ -44,6 +47,7 @@ function ISMIP7Hydrofracture(;
 
     return ISMIP7Hydrofracture(
               hydrofracture_prefix,
+              hydrofracture_varname,
               damage_value,
               partially_floating_cells,
               ice_shelf_collapse_mask, 
@@ -54,7 +58,7 @@ end
 
 function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid::Grid, clock::Clock)
   @unpack dx = grid
-  @unpack hydrofracture_prefix, path_to_forcing, ice_shelf_collapse_mask, x_indices, y_indices = fracture
+  @unpack hydrofracture_prefix, path_to_forcing, ice_shelf_collapse_mask, x_indices, y_indices,hydrofracture_varname = fracture
 
 
   #get the year from clock for the forcing files
@@ -65,7 +69,7 @@ function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid::Grid, cloc
   resolution = join([string(Int(dx)), "m"])
   ice_shelf_collapse_mask_filename = joinpath(path_to_forcing, join([hydrofracture_prefix,  current_time_string,".nc"]))
   ice_shelf_collapse_mask_ncfile   = NCDataset(ice_shelf_collapse_mask_filename)
-  mask_full = ice_shelf_collapse_mask_ncfile["mask"][:,:,1]
+  mask_full = ice_shelf_collapse_mask_ncfile[hydrofracture_varname][:,:,1]
 
   println("read in fracture mask file: " * ice_shelf_collapse_mask_filename)
   @info "read in fracture mask file: $ice_shelf_collapse_mask_filename"
@@ -100,6 +104,7 @@ end
 function reconstruct_on_grid(fracture::ISMIP7Hydrofracture, grid::Grid)
     return ISMIP7Hydrofracture(
         fracture.hydrofracture_prefix,
+        fracture.hydrofracture_varname,
         fracture.damage_value,
         fracture.partially_floating_cells,
         isnothing(fracture.ice_shelf_collapse_mask) ? zeros(grid.nx,grid.ny) :
@@ -118,6 +123,7 @@ function reconstruct_on_subdomain(fracture::ISMIP7Hydrofracture, grid::Grid,subd
     ys = parent_y[y_start:y_end]
     return ISMIP7Hydrofracture(
         fracture.hydrofracture_prefix,
+        fracture.hydrofracture_varname,
         fracture.damage_value,
         fracture.partially_floating_cells,
         size(fracture.ice_shelf_collapse_mask) == size(grid)[1:2] ? fracture.ice_shelf_collapse_mask[x_start:x_end, y_start:y_end] : fracture.ice_shelf_collapse_mask,

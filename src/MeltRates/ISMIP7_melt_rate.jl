@@ -3,10 +3,13 @@ export ISMIP7MeltRate
 using WAVI: AbstractClimateForcing
 using NCDatasets 
 
-struct ISMIP7MeltRate{P <: String, T <: Real} <: AbstractMeltRate
+struct ISMIP7MeltRate{P <: String, V<: String, T <: Real} <: AbstractMeltRate
     so_prefix::P                       #Pass the string which is the prefix of the salinity forcing (e.g. "so_AIS_CESM2-WACCM_ssp585_ocean_v3_16000m_")
     tf_prefix::P                       #Pass the string which is the prefix of the thermal forcing (e.g. "tf_AIS_CESM2-WACCM_ssp585_ocean_v3_16000m_")
     thetao_prefix::P                   #Pass the string which is the prefix of the thetao forcing (e.g. "thetao_AIS_CESM2-WACCM_ssp585_ocean_v3_16000m_")
+    so_varname::V                      #Variable name for the salinity in the forcing file (defualt: "so")
+    tf_varname::V                      #Variable name for the thermal forcing in the forcing file (defualt: "tf")
+    thetao_varname::V                  #Variable name for the temperature in the forcing file (defualt: "thetao")
     K::T                                #tuning parameter (see here for info: https://drive.google.com/file/d/1SygMQte-7XgKj4e-Hpyj1tHi6XguShCP/view and https://tc.copernicus.org/articles/16/4931/2022/tc-16-4931-2022.pdf)
     shelf_slope::T                      #average slope of ice shelf base (can be local in ISMIP7, but we're doing with the average)
     ρ_ocean::T                          #density of the ocean
@@ -58,6 +61,9 @@ function ISMIP7MeltRate(;
                         so_prefix = nothing,
                         tf_prefix = nothing,
                         thetao_prefix = nothing,
+                        so_varname = "so",
+                        tf_varname = "tf",
+                        thetao_varname = "thetao",
                         K = 1.0e-5,
                         shelf_slope = 1.e-3,
                         ρ_ocean = 1028.0,
@@ -88,7 +94,7 @@ function ISMIP7MeltRate(;
         z_forcing = replace(z_levels_ncfile["z"][:] , missing => NaN)
     end
     
-    return   ISMIP7MeltRate(so_prefix, tf_prefix, thetao_prefix, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing,x_indices, y_indices)
+    return   ISMIP7MeltRate(so_prefix, tf_prefix, thetao_prefix, so_varname, tf_varname, thetao_varname, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing,x_indices, y_indices)
 end
 
 
@@ -129,7 +135,7 @@ function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid,
 end
 
 function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid::Grid, clock::Clock)
-    @unpack S_loc, T_loc, Tf_loc, z_forcing, path_to_forcing, so_prefix, tf_prefix, thetao_prefix = ISMIP7_melt_rate
+    @unpack S_loc, T_loc, Tf_loc, z_forcing, path_to_forcing, so_prefix, tf_prefix, thetao_prefix, so_varname, tf_varname, thetao_varname = ISMIP7_melt_rate
 
     #get the year from clock for the forcing files
     current_time = clock.time + clock.ref_time
@@ -138,14 +144,14 @@ function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid::Grid, c
     # load in the salinity
     salinity_filename = joinpath(path_to_forcing, join([so_prefix,  current_time_string,".nc"]))
     salinity_ncfile   = NCDataset(salinity_filename)
-    S_loc .= replace(salinity_ncfile["so"][:,:,:] , missing => NaN)
+    S_loc .= replace(salinity_ncfile[so_varname][:,:,:] , missing => NaN)
     #println("read in salinity forcing file: " * salinity_filename)
     @info "read in salinity forcing file: $salinity_filename"
 
     # load in the temperature
     temperature_filename = joinpath(path_to_forcing, join([thetao_prefix,  current_time_string,".nc"]))
     temperature_ncfile   = NCDataset(temperature_filename)
-    T_loc .= replace(temperature_ncfile["thetao"][:,:,:] , missing => NaN)
+    T_loc .= replace(temperature_ncfile[thetao_varname][:,:,:] , missing => NaN)
     #println("read in temperature forcing file: " * temperature_filename)
     @info "read in temperature forcing file: $temperature_filename"
 
@@ -153,9 +159,9 @@ function update_climate_forcing!(ISMIP7_melt_rate::ISMIP7MeltRate, grid::Grid, c
     # load in the thermal forcing
     thermal_forcing_filename = joinpath(path_to_forcing, join([tf_prefix,  current_time_string,".nc"]))
     thermal_forcing_ncfile   = NCDataset(thermal_forcing_filename)
-    Tf_loc .= replace(thermal_forcing_ncfile["tf"][:,:,:] , missing => NaN)
+    Tf_loc .= replace(thermal_forcing_ncfile[tf_varname][:,:,:] , missing => NaN)
     #println("read in thermal-forcing forcing file: " * thermal_forcing_filename)
-    @info "read in thermal-forcing forcing file: $thermal_forcing_filename"
+    @info "read in thermal-forcing forcing file: $thermal_forcing_filename 1111"
 
 
 end
@@ -169,6 +175,9 @@ function reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid)
                 ISMIP7_melt_rate.so_prefix,
                 ISMIP7_melt_rate.tf_prefix,
                 ISMIP7_melt_rate.thetao_prefix,
+                ISMIP7_melt_rate.so_varname,
+                ISMIP7_melt_rate.tf_varname, 
+                ISMIP7_melt_rate.thetao_varname, 
                 ISMIP7_melt_rate.K,
                 ISMIP7_melt_rate.shelf_slope,
                 ISMIP7_melt_rate.ρ_ocean,
@@ -218,6 +227,9 @@ function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,su
                 ISMIP7_melt_rate.so_prefix,
                 ISMIP7_melt_rate.tf_prefix,
                 ISMIP7_melt_rate.thetao_prefix,
+                ISMIP7_melt_rate.so_varname,
+                ISMIP7_melt_rate.tf_varname, 
+                ISMIP7_melt_rate.thetao_varname, 
                 ISMIP7_melt_rate.K,
                 ISMIP7_melt_rate.shelf_slope,
                 ISMIP7_melt_rate.ρ_ocean,
