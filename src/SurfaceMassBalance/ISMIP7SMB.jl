@@ -4,12 +4,13 @@ using WAVI: AbstractClimateForcing
 using NCDatasets
 
 struct ISMIP7SMB{T <: Real,
-                CF <: AbstractClimateForcing,
+                P <: String,
                 RE <: Union{Array{T,2}, Nothing}, 
                 VSG <: Union{Array{T,2}, Nothing},
                 SA <: Union{Array{T,2}, Nothing},
                 RS <: Union{Array{T,2}, Nothing}} <: AbstractSurfaceMassBalance
-    ISMIP7_config::CF
+    smb_anomaly_prefix::P
+    vertical_smb_gradient_prefix::P
     reference_elevation::RE
     vertical_smb_gradient::VSG
     smb_anomaly::SA
@@ -21,7 +22,8 @@ struct ISMIP7SMB{T <: Real,
 end
 
 function ISMIP7SMB(; 
-                ISMIP7_config = nothing,
+                smb_anomaly_prefix = nothing,
+                vertical_smb_gradient_prefix = nothing,
                 reference_elevation = nothing,
                 vertical_smb_gradient = nothing, 
                 smb_anomaly = nothing,           
@@ -30,9 +32,9 @@ function ISMIP7SMB(;
                 x_indices = nothing,
                 y_indices = nothing)
 
-    #check that you've passed an ISMIP config            
-    ~(ISMIP7_config === nothing) || throw(ArgumentError("You must pass an ISMIP7 config file"))
-    #add test that the ISMIP config has the right fields?
+    #check that you've passed a prefix for the smb anomaly and vertical smb gradient          
+    ~(smb_anomaly_prefix === nothing) || throw(ArgumentError("You must pass a prefix for the smb anomaly"))
+    ~(vertical_smb_gradient_prefix === nothing) || throw(ArgumentError("You must pass a prefix for the vertical smb gradient"))
 
     # check that you've passed reference elevation 
     ~(reference_elevation === nothing) || throw(ArgumentError("You must pass a reference elevation file"))
@@ -40,13 +42,14 @@ function ISMIP7SMB(;
     #check that you've passed a vertical smb gradient
     ~(reference_smb === nothing) || throw(ArgumentError("You must pass a reference smb"))
 
-    return ISMIP7SMB(ISMIP7_config,reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb, path_to_forcing, x_indices, y_indices)
+    return ISMIP7SMB(smb_anomaly_prefix,vertical_smb_gradient_prefix,reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb, path_to_forcing, x_indices, y_indices)
 
 end
 
 function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
     return ISMIP7SMB(
-    smb.ISMIP7_config,
+    smb.smb_anomaly_prefix,
+    smb.vertical_smb_gradient_prefix,
     isnothing(smb.reference_elevation) ? zeros(grid.nx,grid.ny) : 
     size(smb.reference_elevation) == (grid.nx,grid.ny) ? smb.reference_elevation :
     throw(DimensionMismatch("Size of reference elevation is incompatible with grid")),
@@ -71,7 +74,8 @@ function reconstruct_on_subdomain(smb::ISMIP7SMB,grid::Grid,subdomain::NTuple{4,
     xs = parent_x[x_start:x_end]
     ys = parent_y[y_start:y_end]
     return ISMIP7SMB(
-    smb.ISMIP7_config,
+    smb.smb_anomaly_prefix,
+    smb.vertical_smb_gradient_prefix,
     size(smb.reference_elevation) == size(grid)[1:2] ? smb.reference_elevation[x_start:x_end, y_start:y_end] : smb.reference_elevation,
     size(smb.vertical_smb_gradient) == size(grid)[1:2] ? smb.vertical_smb_gradient[x_start:x_end, y_start:y_end] : smb.vertical_smb_gradient,
     size(smb.smb_anomaly) == size(grid)[1:2] ? smb.smb_anomaly[x_start:x_end, y_start:y_end] : smb.smb_anomaly,
@@ -104,7 +108,7 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, cl
     @unpack smb_anomaly = surface_mass_balance
     @unpack vertical_smb_gradient = surface_mass_balance
     @unpack dx = grid
-    @unpack ISMIP7_config,path_to_forcing, x_indices, y_indices = surface_mass_balance
+    @unpack smb_anomaly_prefix, vertical_smb_gradient_prefix,path_to_forcing, x_indices, y_indices = surface_mass_balance
 
     #get the year from clock for the forcing files
     current_time = clock.time + clock.ref_time
@@ -113,17 +117,18 @@ function update_climate_forcing!(surface_mass_balance::ISMIP7SMB, grid::Grid, cl
 
     # load in the smb anomaly from ISMIP7
     resolution = join([string(Int(dx)), "m"])
-    smb_anomaly_filename = joinpath(path_to_forcing,join(["acabf-anomaly_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"]))
+    smb_anomaly_filename = joinpath(path_to_forcing,join([smb_anomaly_prefix,  current_time_string,".nc"]))
     smb_anomaly_ncfile   = NCDataset(smb_anomaly_filename)
-    smb_full = replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,1] , missing => NaN)
+    smb_full = replace(replace(smb_anomaly_ncfile["acabf-anomaly"][:,:,1] , missing => NaN), NaN => 0.0) #read in the anomaly and set any NaN to zero
+
     #println("read in smb anomaly forcing file: " * smb_anomaly_filename)
     @info "read in smb anomaly forcing file: $smb_anomaly_filename"
 
 
     # load in the vertical smb gradient from ISMIP7
-    vertical_smb_gradient_anomaly_filename = joinpath(path_to_forcing, join(["dacabfdz_AIS_", ISMIP7_config.gcm, "_ssp", ISMIP7_config.scenario, "_SDBN1-", resolution, "_v2_",  current_time_string,"_yearlyaveraged.nc"]))
+    vertical_smb_gradient_anomaly_filename = joinpath(path_to_forcing, join([vertical_smb_gradient_prefix,  current_time_string,".nc"]))
     vertical_smb_gradient_anomaly_ncfile = NCDataset(vertical_smb_gradient_anomaly_filename)
-    vsg_full = replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,1], missing => NaN)
+    vsg_full = replace(replace(vertical_smb_gradient_anomaly_ncfile["dacabfdz"][:,:,1], missing => NaN), NaN => 0.0) #read in the SMB gradient and set NaNs to zero
     
     #println("read in vertical smb gradient forcing file: " * vertical_smb_gradient_anomaly_filename)
     @info "read in vertical smb gradient forcing file: $vertical_smb_gradient_anomaly_filename"
