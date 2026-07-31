@@ -45,7 +45,7 @@ const _MPI_ICEBERG_RTOL = Dict(:h => 2e-4, :u => 2e-3, :v => 2e-3)
 
     Run a short Iceberg simulation with the given model spec and return the simulation.
     """
-    function build_simulation(spec; end_time = 2.0, maxiter_picard = 5)
+    function build_simulation(spec; end_time = 2.0, maxiter_picard = 5, chkpt_freq = Inf, niter0 = 0)
         grid = iceberg_grid()
         nx, ny = grid.nx, grid.ny
         model = Model(
@@ -56,34 +56,54 @@ const _MPI_ICEBERG_RTOL = Dict(:h => 2e-4, :u => 2e-3, :v => 2e-3)
             initial_conditions = InitialConditions(initial_thickness = 200.0 .* ones(nx, ny)),
             spec = spec,
         )
-        tp = TimesteppingParams(dt = 0.1, end_time = end_time, chkpt_freq = Inf)
+        tp = TimesteppingParams(dt = 0.1, end_time = end_time, chkpt_freq = chkpt_freq, niter0 = niter0)
         sim = Simulation(model = model, timestepping_params = tp, output_params = OutputParams())
         run_simulation!(sim)
         return sim
     end
 
-    grid = iceberg_grid()
-    # Match MPISpec defaults used in Iceberg MPI drivers: PoU + default Schwarz iterations.
-    mpi_spec = MPISpec(nprocs, 1, 2, grid; pou = true, niterations = 5)
-    mpi_sim = build_simulation(mpi_spec)
+    mktempdir() do temporary_directory
+      cd(temporary_directory) do
+        println("Running MPI integration and checkpoint test in directory:",temporary_directory)
 
-    h_mpi = WAVI.Specs.collect_mpi_field!(mpi_sim.model, [:global_fields, :gh, :h])
-    u_mpi = WAVI.Specs.collect_mpi_field!(mpi_sim.model, [:global_fields, :gu, :u])
-    v_mpi = WAVI.Specs.collect_mpi_field!(mpi_sim.model, [:global_fields, :gv, :v])
+        grid = iceberg_grid()
+        # Match MPISpec defaults used in Iceberg MPI drivers: PoU + default Schwarz iterations.
+        mpi_spec = MPISpec(nprocs, 1, 2, grid; pou = true, niterations = 5)
+        mpi_sim = build_simulation(mpi_spec; chkpt_freq = 1.0)
+        mpi_sim_pickup = build_simulation(mpi_spec; chkpt_freq = 1.0, niter0=10)
 
-    if rank == 0
-        basic_sim = build_simulation(BasicSpec())
-        h_basic = basic_sim.model.fields.gh.h
-        u_basic = basic_sim.model.fields.gu.u
-        v_basic = basic_sim.model.fields.gv.v
+        h_mpi = WAVI.Specs.collect_mpi_field!(mpi_sim.model, [:global_fields, :gh, :h])
+        u_mpi = WAVI.Specs.collect_mpi_field!(mpi_sim.model, [:global_fields, :gu, :u])
+        v_mpi = WAVI.Specs.collect_mpi_field!(mpi_sim.model, [:global_fields, :gv, :v])
 
-        @test all(isfinite.(h_mpi))
-        @test all(isfinite.(u_mpi))
-        @test all(isfinite.(v_mpi))
+        h_mpi_pickup = WAVI.Specs.collect_mpi_field!(mpi_sim_pickup.model, [:global_fields, :gh, :h])
+        u_mpi_pickup = WAVI.Specs.collect_mpi_field!(mpi_sim_pickup.model, [:global_fields, :gu, :u])
+        v_mpi_pickup = WAVI.Specs.collect_mpi_field!(mpi_sim_pickup.model, [:global_fields, :gv, :v])
 
-        @test isapprox(h_mpi, h_basic; rtol = _MPI_ICEBERG_RTOL[:h], atol = 1e-6)
-        @test isapprox(u_mpi, u_basic; rtol = _MPI_ICEBERG_RTOL[:u], atol = 1e-6)
-        @test isapprox(v_mpi, v_basic; rtol = _MPI_ICEBERG_RTOL[:v], atol = 1e-6)
+        if rank == 0
+            basic_sim = build_simulation(BasicSpec())
+            h_basic = basic_sim.model.fields.gh.h
+            u_basic = basic_sim.model.fields.gu.u
+            v_basic = basic_sim.model.fields.gv.v
+
+            @test all(isfinite.(h_mpi))
+            @test all(isfinite.(u_mpi))
+            @test all(isfinite.(v_mpi))
+
+            @test isapprox(h_mpi, h_basic; rtol = _MPI_ICEBERG_RTOL[:h], atol = 1e-6)
+            @test isapprox(u_mpi, u_basic; rtol = _MPI_ICEBERG_RTOL[:u], atol = 1e-6)
+            @test isapprox(v_mpi, v_basic; rtol = _MPI_ICEBERG_RTOL[:v], atol = 1e-6)
+
+            @test all(isfinite.(h_mpi_pickup))
+            @test all(isfinite.(u_mpi_pickup))
+            @test all(isfinite.(v_mpi_pickup))
+
+            @test isapprox(h_mpi_pickup, h_basic; rtol = _MPI_ICEBERG_RTOL[:h], atol = 1e-6)
+            @test isapprox(u_mpi_pickup, u_basic; rtol = _MPI_ICEBERG_RTOL[:u], atol = 1e-6)
+            @test isapprox(v_mpi_pickup, v_basic; rtol = _MPI_ICEBERG_RTOL[:v], atol = 1e-6)
+
+        end
+      end
     end
 end
 

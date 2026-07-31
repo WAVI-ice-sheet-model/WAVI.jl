@@ -3,7 +3,6 @@ export MPISpec
 using JLD2
 using MPI
 using Parameters
-using Plots
 
 using WAVI.Parameters
 
@@ -14,15 +13,44 @@ import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, Si
 import WAVI.Grids: Grid
 import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
-import WAVI.Outputs: write_outputs, zip_output, OutputParams
+import WAVI.Outputs: write_outputs, zip_output, OutputParams, checkpoint_filename, load_checkpoint, write_checkpoint!, checkpoint_path
 import WAVI.Parameters: TimesteppingParams
-import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_rheological_operators!
-import WAVI.Simulations: run_simulation!, timestep!
+import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_preconditioner!, update_rheological_operators!
+import WAVI.Simulations: run_simulation!, timestep!, update_model_climate_forcing!
 import WAVI.Time: Clock
 import WAVI.Wavelets: UWavelets, VWavelets
 
 # FIXME: important to realise that this specification has become a complex structure to house many things that should be baked into the model structurally
 #  not least the global grid and fields 
+
+"""
+Reusable PoU weights, velocity workspaces, and strip packs for neighbour prolong.
+Allocated once per local velocity shape; reused across Schwarz iterations.
+"""
+mutable struct MPIPoUScratch{T <: AbstractFloat}
+    ωu::Matrix{T}
+    ωv::Matrix{T}
+    work_u::Matrix{T}
+    work_v::Matrix{T}
+    send_l::Vector{T}
+    recv_l::Vector{T}
+    send_r::Vector{T}
+    recv_r::Vector{T}
+    send_t::Vector{T}
+    recv_t::Vector{T}
+    send_b::Vector{T}
+    recv_b::Vector{T}
+end
+
+function MPIPoUScratch(ωu::Matrix{T}, ωv::Matrix{T}) where {T <: AbstractFloat}
+    empty = T[]
+    return MPIPoUScratch{T}(
+        ωu, ωv, similar(ωu), similar(ωv),
+        copy(empty), copy(empty), copy(empty), copy(empty),
+        copy(empty), copy(empty), copy(empty), copy(empty),
+    )
+end
+
 """
 Struct to represent the MPI parallel specification of a model.
 
@@ -39,6 +67,8 @@ Fields:
     damping: Damping factor for halo exchange (default=0.0)
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
     field_collector: Field collector for the model
+    pou_scratch: Cached PoU weights / strip buffers (filled on first prolong)
+    local_spec: Optional intraprocess ThreadedSpec for the rank-local solve (default=nothing to wavelet)
 """
 mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGrid} <: AbstractDecompSpec
     # MPI Specification information
@@ -65,6 +95,8 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     pou::Bool
     damping::T
     niterations::N  # Number of Schwarz iterations per Picard iteration
+    pou_scratch::Union{Nothing, MPIPoUScratch}
+    local_spec::Union{Nothing, ThreadedSpec}
 
     @doc """
     Constructor for MPISpec.
@@ -75,8 +107,9 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     niterations: Number of Schwarz iterations per Picard iteration (default=5)
     pou: Whether to use partition of unity for halo exchange (default=true)
     damping: Damping factor for halo exchange (default=0.0)
+    local_spec: Optional ThreadedSpec for the intraprocess local solve (default=nothing)
     """
-    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5)
+    function MPISpec(px::Integer, py::Integer, halo::Integer, grid::AbstractGrid; pou::Bool=true, damping::AbstractFloat=0.0, niterations::Integer=5, local_spec::Union{Nothing,ThreadedSpec}=nothing)
         (px < 1 || py < 1 || halo < 0) && 
             throw(ArgumentError("Invalid parameters specified for MPISpec"))
 
@@ -149,7 +182,9 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             top, right, bottom, left,
             pou,
             damping,
-            niterations
+            niterations,
+            nothing,  # pou_scratch filled on first PoU prolong
+            local_spec,
             )
     end
 end
@@ -157,6 +192,7 @@ end
 include("MPI/utils.jl")
 include("MPI/exchanges.jl")
 include("MPI/outputs.jl")
+include("MPI/mpi_checkpoints.jl")
 
 function Model(grid::G,
                bed_elevation::Union{Integer, Function, AbstractArray},
@@ -272,8 +308,9 @@ function Model(grid::G,
     # Create global mpi_rank field (will be populated during collection)
     global_mpi_rank = zeros(Float64, grid.nx, grid.ny)
 
-    # We provide the full bed as in GridField as it is required for HGrid - this gives us a clean full domain on root
-    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params, mpi_rank=global_mpi_rank)
+    # Global assembly buffers for gather/Bcast only: sized arrays, no IC/operator cost.
+    # (Physics lives on each rank's local GridField; bed is retained for static outputs.)
+    model.spec.global_fields = GridField(grid, global_bed; initial_conditions, params, solver_params, mpi_rank=global_mpi_rank, assembly_buffer=true)
 
     return model
 end
@@ -303,6 +340,22 @@ function update_model_velocities!(model::Model{<:Any, <:Any, <:MPISpec})
     return model
 end
 
+function update_preconditioner!(model::Model{<:Any, <:Any, <:MPISpec})
+    ls = model.spec.local_spec
+    ls !== nothing && update_preconditioner!(model, ls)
+    return model
+end
+
+# Rank-local solve: ThreadedSpec when nested, otherwise the default wavelet path.
+function local_precondition!(model::Model{<:Any, <:Any, <:MPISpec})
+    ls = model.spec.local_spec
+    if ls !== nothing
+        precondition!(model, ls)
+    else
+        invoke(precondition!, Tuple{AbstractModel}, model)
+    end
+end
+
 ##
 # Overrides for other functionalities that need restricting to root node
 #
@@ -315,6 +368,10 @@ function timestep!(model::AbstractModel{T,N,S},
                    timestepping_params::TimesteppingParams,
                    output_params::OutputParams,
                    clock::Clock) where {T,N,S<:MPISpec}
+    if mod(clock.n_iter, timestepping_params.ntimesteps_climate_forcing_update) == 0
+        update_model_climate_forcing!(model, clock)
+    end
+
     update_state!(model, clock)
 
     #write solution if at the first timestep (hack for https://github.com/RJArthern/WAVI.jl/issues/46 until synchronicity is fixed)
@@ -344,7 +401,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
                          output_params::OutputParams,
                          clock::Clock) where {T,N,S<:MPISpec}
     for field in values(output_params.outputs.items)    
-        @info "Registering $(field.path) from outputs"
+        if model.spec.rank == 0
+            @info "Registering $(field.path) from outputs"
+        end
         if field.path[1] == :global_fields
             register_mpi_field!(model.spec.field_collector, field.path)
         end
@@ -355,7 +414,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
     mpi_sync_halos_initial!(model)
 
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
-        @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
+        if model.spec.rank == 0
+            @info "Running iteration $(clock.n_iter)/$(timestepping_params.n_iter_total)"
+        end
         timestep!(model, timestepping_params, output_params, clock)
     end
 
@@ -444,15 +505,22 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         end
 
         if pou
-            # Snapshot current velocities before the local solve.
-            # These are used later to apply Additive Schwarz damping and 
-            # Partition-of-Unity (PoU) weighting during the interface update.
-            u0 = copy(model.fields.gu.u)
-            v0 = copy(model.fields.gv.v)
-            invoke(precondition!, Tuple{AbstractModel}, model)
-            mpi_pou_weighted_prolong_velocities!(model, u0, v0)
+            # Snapshot only needed when damping mixes in the pre-solve velocity.
+            if iszero(model.spec.damping)
+                local_precondition!(model)
+                mpi_pou_weighted_prolong_velocities!(
+                    model,
+                    model.fields.gu.u,  # unused when damping == 0
+                    model.fields.gv.v,
+                )
+            else
+                u0 = copy(model.fields.gu.u)
+                v0 = copy(model.fields.gv.v)
+                local_precondition!(model)
+                mpi_pou_weighted_prolong_velocities!(model, u0, v0)
+            end
         else
-            invoke(precondition!, Tuple{AbstractModel}, model)
+            local_precondition!(model)
             halo_exchange!(model; fields=[:u, :v])
         end
 
@@ -483,13 +551,20 @@ function precondition!(model::Model{<:Any, <:Any, <:MPISpec})
         converged = global_rel_resid < solver_params.tol_picard
         if converged
             if model.spec.rank == 0
-                @debug "Schwarz converged early at iteration $iteration"
+                # Early exit avoids remaining PoU/RAS prolongs this Picard step.
+                @debug "Schwarz converged early at iteration $iteration / $niterations (rel_resid=$global_rel_resid)"
             end
             break
         end
     end
 
-    @info "Picard Check: Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+    if model.spec.rank == 0
+        if converged
+            @debug "Picard Check: Schwarz early-exit OK; Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+        else
+            @debug "Picard Check: used all $niterations Schwarz iterations; Global Relative Residual = $global_rel_resid (Tol = $(solver_params.tol_picard))"
+        end
+    end
 
     return converged, global_rel_resid
 end

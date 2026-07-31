@@ -21,7 +21,11 @@ struct ISMIP7MeltRate{P <: String, T <: Real} <: AbstractMeltRate
     Tf_loc::Union{Array{T,3}, Nothing}  #array to hold the 3d thermal forcing, to be read in from ISMIP7 forcing
     z_forcing::Union{Array{T,1}, Nothing} #array to hold the z co-ordinates from the ISMIP7 forcing
     melt_partial_cell::Bool             #Flag for melting applied to partial cells or not
-    path_to_forcing :: String   
+    path_to_forcing :: String
+    # Global-grid index ranges.
+    # Ocean fields stay on the full forcing grid; these map local (i,j) to global.
+    x_indices::Union{Nothing, UnitRange{Int}}
+    y_indices::Union{Nothing, UnitRange{Int}}
 end
 
 """
@@ -68,7 +72,9 @@ function ISMIP7MeltRate(;
                         Tf_loc = nothing, 
                         z_forcing = nothing,
                         melt_partial_cell = false, 
-                        path_to_forcing = "./")
+                        path_to_forcing = "./",
+                        x_indices = nothing,
+                        y_indices = nothing)
 
     #check that you've passed prefixes for the forcing files          
     ~(so_prefix === nothing) || throw(ArgumentError("You must pass a prefix for your salinity"))
@@ -82,22 +88,30 @@ function ISMIP7MeltRate(;
         z_forcing = replace(z_levels_ncfile["z"][:] , missing => NaN)
     end
     
-    return   ISMIP7MeltRate(so_prefix, tf_prefix, thetao_prefix, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing)
+    return   ISMIP7MeltRate(so_prefix, tf_prefix, thetao_prefix, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing,x_indices, y_indices)
 end
 
 
 function update_shelf_melt_rate!(ISMIP7_melt_rate::ISMIP7MeltRate, fields, grid, clock)
 
     @unpack b, shelf_basal_melt, grounded_fraction, h = fields.gh 
-    @unpack K, shelf_slope, ρ_ocean, ρ_ice, c_ocean, L_ice, β_s, g, f, S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell = ISMIP7_melt_rate
+    @unpack K, shelf_slope, ρ_ocean, ρ_ice, c_ocean, L_ice, β_s, g, f, S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, x_indices, y_indices = ISMIP7_melt_rate
     
     #compute the ice draft
     zb = b .* (grounded_fraction .== 1) + - ρ_ice / ρ_ocean .* h .* (grounded_fraction .< 1)
 
+    # Local draft indices into (possibly global) ocean fields
+    nx, ny = size(zb)
+    is = isnothing(x_indices) ? (1:nx) : x_indices
+    js = isnothing(y_indices) ? (1:ny) : y_indices
+    (length(is) == nx && length(js) == ny) || throw(DimensionMismatch(
+        "ISMIP7 melt x/y index ranges ($(length(is)),$(length(js))) do not match local draft size ($nx,$ny)"
+    ))
+
     #compute the local thermal forcing and salinity from the climate forcing and ice draft
     idx = [argmin(abs.(z_forcing .- d)) for d in zb] #gives an nx * ny array indices which are closest depth to z in the forcing.
-    Tf_local_shelf = [Tf_loc[i,j,idx[i,j]] for i in axes(Tf_loc,1), j in axes(Tf_loc,2)] #fills the array of thermal forcing 
-    S_local_shelf = [S_loc[i,j,idx[i,j]] for i in axes(S_loc,1), j in axes(S_loc,2)] #fills the array of thermal forcing 
+    Tf_local_shelf = [Tf_loc[is[i], js[j], idx[i,j]] for i in 1:nx, j in 1:ny] #fills the array of thermal forcing
+    S_local_shelf = [S_loc[is[i], js[j], idx[i,j]] for i in 1:nx, j in 1:ny] #fills the array of thermal forcing
 
 
     #set the shelf melt rate
@@ -175,7 +189,9 @@ function reconstruct_on_grid(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid)
                 ISMIP7_melt_rate.Tf_loc,
                 ISMIP7_melt_rate.z_forcing, 
                 ISMIP7_melt_rate.melt_partial_cell,
-                ISMIP7_melt_rate.path_to_forcing)
+                ISMIP7_melt_rate.path_to_forcing,
+                1:grid.nx,
+                1:grid.ny)
 end
 
 function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,subdomain::NTuple{4,<: Integer}) 
@@ -187,6 +203,16 @@ function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,su
      throw(ArgumentError("Inconsistent size of z_forcing and ocean fields"))    
 
     x_start,x_end,y_start,y_end = subdomain
+
+    # Keep ocean arrays on the full forcing grid and record local to global index maps.
+    # (Slicing 3D ocean fields used to compare size(S_loc)==size(grid)[1:2], which is never
+    # true for (nx,ny,nz) vs (nx,ny), so subdomains kept global arrays and then indexed
+    # them with local zb, causing a BoundsError.)
+    # Compose with any existing map (e.g. Threaded tiles inside an MPI domain).
+    parent_x = isnothing(ISMIP7_melt_rate.x_indices) ? (1:size(ISMIP7_melt_rate.S_loc, 1)) : ISMIP7_melt_rate.x_indices
+    parent_y = isnothing(ISMIP7_melt_rate.y_indices) ? (1:size(ISMIP7_melt_rate.S_loc, 2)) : ISMIP7_melt_rate.y_indices
+    xs = parent_x[x_start:x_end]
+    ys = parent_y[y_start:y_end]
 
     return ISMIP7MeltRate(
                 ISMIP7_melt_rate.so_prefix,
@@ -201,16 +227,12 @@ function reconstruct_on_subdomain(ISMIP7_melt_rate::ISMIP7MeltRate,grid::Grid,su
                 ISMIP7_melt_rate.β_s,
                 ISMIP7_melt_rate.g,
                 ISMIP7_melt_rate.f,
-                size(ISMIP7_melt_rate.S_loc) == size(grid)[1:2] ? 
-                        ISMIP7_melt_rate.S_loc[x_start:x_end, y_start:y_end,:] : 
-                        ISMIP7_melt_rate.S_loc,
-                size(ISMIP7_melt_rate.T_loc) == size(grid)[1:2] ? 
-                        ISMIP7_melt_rate.T_loc[x_start:x_end, y_start:y_end,:] : 
-                        ISMIP7_melt_rate.T_loc,
-                size(ISMIP7_melt_rate.Tf_loc) == size(grid)[1:2] ? 
-                        ISMIP7_melt_rate.Tf_loc[x_start:x_end, y_start:y_end,:] : 
-                        ISMIP7_melt_rate.Tf_loc,
+                ISMIP7_melt_rate.S_loc,
+                ISMIP7_melt_rate.T_loc,
+                ISMIP7_melt_rate.Tf_loc,
                 ISMIP7_melt_rate.z_forcing, 
                 ISMIP7_melt_rate.melt_partial_cell,
-                ISMIP7_melt_rate.path_to_forcing)
+                ISMIP7_melt_rate.path_to_forcing,
+                xs,
+                ys)
 end

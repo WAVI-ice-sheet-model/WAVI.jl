@@ -2,6 +2,7 @@ using JLD2
 
 using WAVI.Parameters: TimesteppingParams
 using WAVI.Time: Clock
+using WAVI: AbstractSpec
 
 """
     checkpoint_path(timestepping_params, output_params)
@@ -62,3 +63,15 @@ function load_checkpoint(timestepping_params::TimesteppingParams, output_params:
     end
     return model, clock
 end
+
+
+# Default behaviour. So that checkpointing can be overloaded by MPISpec.
+
+checkpoint_filename(spec::AbstractSpec,n_iter::Integer) = checkpoint_filename(n_iter::Integer)
+
+write_checkpoint!(spec::AbstractSpec, model, timestepping_params::TimesteppingParams, output_params::OutputParams, clock::Clock) =
+    write_checkpoint!(model, timestepping_params::TimesteppingParams, output_params::OutputParams, clock::Clock)
+
+load_checkpoint(spec::AbstractSpec,timestepping_params::TimesteppingParams, output_params::OutputParams) =
+ load_checkpoint(timestepping_params::TimesteppingParams, output_params::OutputParams)
+

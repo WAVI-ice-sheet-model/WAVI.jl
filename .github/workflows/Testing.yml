@@ -16,17 +16,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     if: '! github.event.pull_request.draft'
+    timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
-        julia-version: ['1.6', '1.11']
+        julia-version: ['1.11', '1.12']
     name: Julia ${{ matrix.julia-version }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+        env:
+          JULIA_PROJECT: test
       - name: Install dependencies
         run: julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Run tests
@@ -35,14 +40,18 @@ jobs:
   mpi-unit-tests:
     runs-on: ubuntu-latest
     if: '! github.event.pull_request.draft'
-    name: MPI unit tests (Julia 1.11)
+    timeout-minutes: 60
+    name: MPI unit tests (Julia 1.12)
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.11'
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+        env:
+          JULIA_PROJECT: test
       - name: Install dependencies
         run: julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Run MPISpec unit tests

@@ -93,7 +93,7 @@ using .Grids
 export Grid
 
 using .Utilities
-export volume_above_floatation, height_above_floatation
+export volume_above_floatation, height_above_floatation, get_c_mask, clip
 
 using .Wavelets
 export Preconditioner 
@@ -144,11 +144,10 @@ export NoThermoDynamics, QuadraticTemperatureApproximation, QuadraticTemperature
 using .Inversions
 export run_inversion_simulation!
 export Inversion, InversionParams, JKVsteppingParams, DataFields, 
-       InversionSimulation, InversionOutput
+       InversionSimulation, InversionOutput, smooth_veloc_data
 
 using .ClimateForcing 
 export ISMIP7
-
 
 end
 

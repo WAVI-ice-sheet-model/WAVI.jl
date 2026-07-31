@@ -2,12 +2,12 @@ module Inversions
 
 export run_inversion_simulation!
 export Inversion, InversionParams, JKVsteppingParams, DataFields, 
-       InversionSimulation, InversionOutput
+       InversionSimulation, InversionOutput, smooth_veloc_data
 
 using LinearAlgebra, SparseArrays, LinearMaps, Parameters,
        IterativeSolvers, Interpolations, BenchmarkTools, 
        NCDatasets, JLD2, Setfield, MAT, ImageFiltering, InplaceOps,
-       NonlinearSolve, SciMLNLSolve
+       NonlinearSolve, SciMLNLSolve, Plots
 
 using WAVI: AbstractModel, AbstractInversionSimulation
 using WAVI.Outputs

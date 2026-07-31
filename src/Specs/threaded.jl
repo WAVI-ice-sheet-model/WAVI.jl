@@ -23,14 +23,14 @@ Struct to represent the shared memory parallel specification of a model.
     schwarzModelArray::Array{AbstractModel,2} = Array{AbstractModel,2}(undef,ngridsx,ngridsy)
 end
 
-function update_preconditioner!(model::AbstractModel{T,N,S}) where {T,N,S<:ThreadedSpec}
-    @unpack ngridsx, ngridsy, overlap = model.spec
-    @info "Spawning $(ngridsx * ngridsy) threads for preconditioning"
+function update_preconditioner!(model::AbstractModel, spec::ThreadedSpec)
+    @unpack ngridsx, ngridsy, overlap = spec
+    @debug "Spawning $(ngridsx * ngridsy) threads for preconditioning"
 
     @sync for igrid = 1:ngridsx
         for jgrid = 1:ngridsy
             Threads.@spawn begin
-                model.spec.schwarzModelArray[igrid,jgrid] = schwarzModel(model;
+                spec.schwarzModelArray[igrid,jgrid] = schwarzModel(model;
                                                                          igrid=igrid,
                                                                          jgrid=jgrid,
                                                                          ngridsx=ngridsx,
@@ -42,9 +42,12 @@ function update_preconditioner!(model::AbstractModel{T,N,S}) where {T,N,S<:Threa
     return model
 end
 
+update_preconditioner!(model::AbstractModel{T,N,S}) where {T,N,S<:ThreadedSpec} =
+    update_preconditioner!(model, model.spec)
+
 
 """
-precondition!(model::AbstractModel,::ThreadedSpec)
+precondition!(model::AbstractModel, spec::ThreadedSpec)
 
 Apply an Additive Schwarz preconditioner with Partition-of-Unity (AS-PoU) weights
 using shared memory parallelism.
@@ -55,11 +58,11 @@ For each Schwarz iteration:
 2. **Local solve**: call `update_state!` on each subdomain independently (in parallel threads).
 3. **Prolong (AS-PoU)**: accumulate weighted subdomain solutions back to the global domain.
 """
-function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
-    @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = model.spec
+function precondition!(model::AbstractModel, spec::ThreadedSpec)
+    @unpack ngridsx, ngridsy, overlap, niterations, schwarzModelArray, damping = spec
     @unpack solver_params = model
 
-    @info "Preconditioning across the $(ngridsx * ngridsy) threads"
+    @debug "Preconditioning across the $(ngridsx * ngridsy) threads"
     x = get_start_guess(model)  
     op = get_op(model)
     b = get_rhs(model)
@@ -70,7 +73,7 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
 
     if ! converged
         for iteration = 1:niterations
-            @info "Schwarz iteration $iteration"
+            @debug "Schwarz iteration $iteration"
             @sync for igrid = 1:ngridsx
                 for jgrid = 1:ngridsy
                     Threads.@spawn begin                
@@ -123,9 +126,12 @@ function precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec})
                     end                    
                 end
             end
-            @info ""
+
         end
 
     end
     return converged, rel_resid
 end
+
+precondition!(model::AbstractModel{<:Any, <:Any, <:ThreadedSpec}) =
+    precondition!(model, model.spec)

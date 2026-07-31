@@ -64,9 +64,13 @@ physics_pages = [
 
 pages = [
     "Home" => "index.md",
-    "Installation instructions" => "installation_instructions.md",
+    "Installation instructions" => [
+        "installation_instructions.md",
+        "MPI setup" => "mpi_setup.md",
+    ],
     "Examples" => example_pages,
     "Running on HPC" => "running_on_hpc.md",
+    "Benchmarking" => "benchmarking.md",
     "Physics" => physics_pages,
     "Numerical Implementation" => "numerical_procedure/numerical_procedure.md",
     "Model Specifications" => "model_specifications.md",

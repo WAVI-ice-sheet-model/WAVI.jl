@@ -52,12 +52,18 @@ As can be seen, the grid is necessarily provided to the MPI specification prior 
 
 #### MPI specific execution
 
-MPI.jl has a dependency on MPIPreferences in order to set up the necessary links to your execution framework. This is outside the scope here to pick up, but you [should follow these instructions](https://juliaparallel.org/MPI.jl/stable/usage/#Julia-wrapper-for-mpiexec) in order to access `mpiexecjl`.
+Configure MPI for your Julia project once per machine (MPIPreferences, `mpiexecjl`, verification). See [MPI setup](./mpi_setup.md) and the [MPI.jl configuration guide](https://juliaparallel.org/MPI.jl/stable/configuration/).
 
-To then run with an `MPISpec`, use the following command: 
+To run a driver with an `MPISpec`:
 
-```julia
-mpiexecjl --project -np <num> julia <path to driver> <driver args...>`
+```bash
+mpiexecjl -n <num> --project=<path-to-project> julia <path-to-driver.jl> <driver args...>
+```
+
+Example (MISMIP+ driver, four ranks):
+
+```bash
+mpiexecjl -n 4 --project=../.. julia example_drivers/MISMIP_PLUS/MISMIP_PLUS.jl
 ```
 
 ## Domain Decomposition
@@ -81,6 +87,12 @@ The MPI specification is used to decompose the global domain of the `Model`. Unl
 The list of methods overridden is not explained in detail here, there are numerous areas of the model that require alteration:
 
 * The underlying `Model` constructor is implemented such that each node contains it's own localised portion of the global domain.
+
+!!! tip "Process Layout Geometry"
+    The geometric layout of the MPI process grid (`px` × `py`) heavily impacts performance and solver convergence. For domains with high aspect ratios (like MISMIP+ which is long and narrow), **favour 1D process layouts** (e.g., `4x1` instead of `2x2`).
+
+    A `2x2` layout on a narrow grid creates subdomains with very few "core" cells compared to the halo size, which drastically increases the relative overhead of Schwarz Partition-of-Unity (`pou`) communication and slows down convergence.
+
 * Velocity solves use overlapping **Schwarz iterations** (multiple local subdomain solves per step). The subdomain boundary treatment is controlled by the `pou` parameter:
     * **`pou=true` (default)**: Uses a **Partition of Unity** approach. Subdomain velocities are smoothly blended together in overlap zones, ensuring physical continuity. This requires a `halo` size of at least `2`.
     * **`pou=false`**: Uses **Restricted Additive Schwarz (RAS)**. Velocities are exchanged directly between neighboring subdomains without blending. This is computationally simpler and allows a smaller `halo` size of `1`.

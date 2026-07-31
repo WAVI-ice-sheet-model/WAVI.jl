@@ -58,9 +58,9 @@ If you would like to use your local WAVI code in another project (i.e. outside o
 ```julia
 julia> ]
 
-(@v1.12) pkg>activate .
+(@v1.12) pkg> activate .
 
-(@v1.12) pkg>develop /git/WAVI.jl
+(@v1.12) pkg> develop /git/WAVI.jl
 ```
 
 This adds WAVI to your current project environment in editable mode, pointing to your local clone. Any changes you make to the code in `/git/WAVI.jl` will take effect immediately — just restart your Julia session or re-include the relevant files to see the updates.

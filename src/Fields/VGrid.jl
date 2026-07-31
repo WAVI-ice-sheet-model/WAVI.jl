@@ -68,59 +68,72 @@ function VGrid(;
         residual = zeros(nxv,nyv),
         levels,
         dx,
-        dy)
+        dy,
+        storage_only::Bool = false)
 
     #check the sizes of inputs
     (size(mask) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to VGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
     (size(v_isfixed) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to VGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
     (size(v) == (nxv,nyv)) || throw(DimensionMismatch("Sizes of inputs to VGrid must all be equal to nxv x nyv (i.e. $nxv x $nyv)"))
 
-    #construct operators
-    n = count(mask)
+    mask = convert(Array{Bool,2}, mask)
+    v_isfixed = convert(Array{Bool,2}, v_isfixed)
     mask_inner = mask .& .! v_isfixed
-    ni = count(mask_inner)
-    crop = Diagonal(float(mask[:]))
-    samp = sparse(1:n,(1:(nxv*nyv))[mask[:]],ones(n),n,nxv*nyv)
-    samp_inner = sparse(1:ni,(1:(nxv*nyv))[mask_inner[:]],ones(ni),ni,nxv*nyv)
-    spread = sparse(samp')
-    spread_inner = sparse(samp_inner')
-    cent = c(nyv-1) ⊗ spI(nxv)
-    centᵀ = sparse(c(nyv-1)') ⊗ sparse(spI(nxv)')
-    ∂x = χ(nyv-2) ⊗ ∂1d(nxv-1,dx)
-    ∂xᵀ = sparse(χ(nyv-2)') ⊗ sparse(∂1d(nxv-1,dx)')
-    ∂y = ∂1d(nyv-1,dy) ⊗ spI(nxv)
-    ∂yᵀ = sparse(∂1d(nyv-1,dy)') ⊗ sparse(spI(nxv)')
-    dωt = wavelet_matrix(nyv,levels,"forward" ) ⊗ wavelet_matrix(nxv,levels,"forward")
+    mask_inner = convert(Array{Bool,2}, mask_inner)
 
-    #fields stored on UGrid
+    #fields stored on VGrid
     s = zeros(nxv,nyv)
     h = zeros(nxv,nyv)
     grounded_fraction = ones(nxv,nyv)
     βeff = zeros(nxv,nyv)
-    dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
     τsurf=zeros(nxv,nyv)
     vs=zeros(nxv,nyv)
 
-    #size assertions
-    @assert n == count(mask)
-    @assert ni == count(mask_inner)
-    @assert crop == Diagonal(float(mask[:]))
-    @assert samp == sparse(1:n,(1:(nxv*nyv))[mask[:]],ones(n),n,nxv*nyv)
-    @assert samp_inner == sparse(1:ni,(1:(nxv*nyv))[mask_inner[:]],ones(ni),ni,nxv*nyv)
-    @assert spread == sparse(samp')
-    @assert spread_inner == sparse(samp_inner')
+    if storage_only
+        n = zero(nxv)
+        ni = zero(nxv)
+        crop = Diagonal(Float64[])
+        samp = spzeros(Float64, 0, nxv * nyv)
+        samp_inner = spzeros(Float64, 0, nxv * nyv)
+        spread = spzeros(Float64, nxv * nyv, 0)
+        spread_inner = spzeros(Float64, nxv * nyv, 0)
+        kron = _storage_only_kron()
+        cent = centᵀ = ∂x = ∂xᵀ = ∂y = ∂yᵀ = dωt = kron
+        dnegβeff = Ref(Diagonal(Float64[]))
+    else
+        #construct operators
+        n = count(mask)
+        ni = count(mask_inner)
+        crop = Diagonal(float(mask[:]))
+        samp = sparse(1:n,(1:(nxv*nyv))[mask[:]],ones(n),n,nxv*nyv)
+        samp_inner = sparse(1:ni,(1:(nxv*nyv))[mask_inner[:]],ones(ni),ni,nxv*nyv)
+        spread = sparse(samp')
+        spread_inner = sparse(samp_inner')
+        cent = c(nyv-1) ⊗ spI(nxv)
+        centᵀ = sparse(c(nyv-1)') ⊗ sparse(spI(nxv)')
+        ∂x = χ(nyv-2) ⊗ ∂1d(nxv-1,dx)
+        ∂xᵀ = sparse(χ(nyv-2)') ⊗ sparse(∂1d(nxv-1,dx)')
+        ∂y = ∂1d(nyv-1,dy) ⊗ spI(nxv)
+        ∂yᵀ = sparse(∂1d(nyv-1,dy)') ⊗ sparse(spI(nxv)')
+        dωt = wavelet_matrix(nyv,levels,"forward" ) ⊗ wavelet_matrix(nxv,levels,"forward")
+        dnegβeff = Ref(crop*Diagonal(-βeff[:])*crop)
+
+        #size assertions
+        @assert n == count(mask)
+        @assert ni == count(mask_inner)
+        @assert crop == Diagonal(float(mask[:]))
+        @assert samp == sparse(1:n,(1:(nxv*nyv))[mask[:]],ones(n),n,nxv*nyv)
+        @assert samp_inner == sparse(1:ni,(1:(nxv*nyv))[mask_inner[:]],ones(ni),ni,nxv*nyv)
+        @assert spread == sparse(samp')
+        @assert spread_inner == sparse(samp_inner')
+    end
+
     @assert size(s)==(nxv,nyv)
     @assert size(h)==(nxv,nyv)
     @assert size(grounded_fraction)==(nxv,nyv)
     @assert size(βeff)==(nxv,nyv)
     @assert size(τsurf)==(nxv,nyv)
     @assert size(vs)==(nxv,nyv)
-
-    #make sure boolean type rather than bitarray
-    mask = convert(Array{Bool,2}, mask)
-    mask_inner = convert(Array{Bool,2}, mask_inner)
-    v_isfixed = convert(Array{Bool,2}, v_isfixed)
-
 
     return VGrid(
                 nxv,
