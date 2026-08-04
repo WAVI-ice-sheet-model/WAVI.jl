@@ -98,9 +98,9 @@ const _MPI_ICEBERG_RTOL = Dict(:h => 2e-4, :u => 2e-3, :v => 2e-3)
             @test all(isfinite.(u_mpi_pickup))
             @test all(isfinite.(v_mpi_pickup))
 
-            @test isapprox(h_mpi_pickup, h_basic; rtol = _MPI_ICEBERG_RTOL[:h], atol = 1e-6)
-            @test isapprox(u_mpi_pickup, u_basic; rtol = _MPI_ICEBERG_RTOL[:u], atol = 1e-6)
-            @test isapprox(v_mpi_pickup, v_basic; rtol = _MPI_ICEBERG_RTOL[:v], atol = 1e-6)
+            @test h_mpi_pickup == h_mpi
+            @test u_mpi_pickup == u_mpi
+            @test v_mpi_pickup == v_mpi
 
         end
       end
