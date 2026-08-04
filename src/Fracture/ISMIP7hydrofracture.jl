@@ -1,6 +1,7 @@
 export ISMIP7Hydrofracture
 
 using WAVI: AbstractClimateForcing
+using WAVI.ClimateForcing
 using NCDatasets
 
 struct ISMIP7Hydrofracture{P <: String, V<:String, T <: Real, CM <: Union{Array{T,2}, Nothing}} <: AbstractFracture
@@ -21,17 +22,17 @@ ISMIP7Hydrofracture(; <kwargs>)
 
 Keyword arguments
 =================
-- hydrofracture_prefix      : prefix of the filename for the hydrofracture e.g. "ice_shelf_collapse_mask_CESM2-WACCM_ssp585_ismip7_16000m_"
-- hydrofracture_varname     : variable name for the ice mask (default "mask")
+- climate_forcing           : decriptor of climate forcing (ISMIP7_ANOMALY, ISMIP7_OCX, or ISMIP7_CONTROL)
 - damage_value              : damage value of all floating grid cells within the ice shelf collapse mask
 - partially_floating_cells  : consider partially floating cells?
 - ice_shelf_collapse_mask   : mask is 0 when ice shelves are sustainable and 1 when they collapse because excessive amounts of meltwater
 - path_to_forcing           : path to the forcing files folder
+- x_indices                 : Maps local field x indices to global NetCDF x indices when on a subdomain.
+- y_indices                 : Maps local field y indices to global NetCDF y indices when on a subdomain.
 """
 
 function ISMIP7Hydrofracture(;
-              hydrofracture_prefix = nothing,
-              hydrofracture_varname = "mask",
+              climate_forcing = nothing,
               damage_value = 0.99,
               partially_floating_cells = false,
               ice_shelf_collapse_mask = nothing,
@@ -41,19 +42,37 @@ function ISMIP7Hydrofracture(;
               )
 
         
-    #check that you've passed a hydrofracture_prefix            
-    ~(hydrofracture_prefix === nothing) || throw(ArgumentError("You must pass an hydrofracture prefix"))
-    #add test that the ISMIP config has the right fields?
+    ~(climate_forcing === nothing) || throw(ArgumentError("You must pass a climate_forcing description"))
 
-    return ISMIP7Hydrofracture(
-              hydrofracture_prefix,
-              hydrofracture_varname,
+    return ISMIP7Hydrofracture(climate_forcing,
               damage_value,
               partially_floating_cells,
               ice_shelf_collapse_mask, 
               path_to_forcing,
               x_indices,
               y_indices)
+end
+
+#Convenience Constructors
+function ISMIP7Hydrofracture(climate_forcing::T,
+              damage_value,
+              partially_floating_cells,
+              ice_shelf_collapse_mask, 
+              path_to_forcing,
+              x_indices,
+              y_indices) where {T <: Union{ISMIP7_ANOMALY,ISMIP7_OCX,ISMIP7_CONTROL}}
+
+    hydrofracture_prefix = "ice_shelf_collapse_mask_"
+    hydrofracture_varname = "mask"
+
+    return ISMIP7Hydrofracture(hydrofracture_prefix,
+                    hydrofracture_varname,
+                    damage_value,
+                    partially_floating_cells,
+                    ice_shelf_collapse_mask, 
+                    path_to_forcing,
+                    x_indices,
+                    y_indices)
 end
 
 function update_climate_forcing!(fracture::ISMIP7Hydrofracture, grid::Grid, clock::Clock)

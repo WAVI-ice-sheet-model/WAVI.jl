@@ -1,6 +1,7 @@
 export ISMIP7MeltRate
 
 using WAVI: AbstractClimateForcing
+using WAVI.ClimateForcing
 using NCDatasets 
 
 struct ISMIP7MeltRate{P <: String, V<: String, T <: Real} <: AbstractMeltRate
@@ -38,9 +39,7 @@ Construct an ISMIP7MeltRate object to prescribe the melt rate in WAVI
 
 Keyword arguments
 =================
-- so_prefix: specifies the prefix for the salinity forcing filename
-- tf_prefix: specifies the prefix for the thermal forcing filename
-- thetao_prefix: specifies the prefix for the temperature filename
+- climate_forcing: decriptor of climate forcing (ISMIP7_ANOMALY, ISMIP7_OCX, or ISMIP7_CONTROL)
 - K: melt rate tuning parameter (see here for info: https://drive.google.com/file/d/1SygMQte-7XgKj4e-Hpyj1tHi6XguShCP/view and https://tc.copernicus.org/articles/16/4931/2022/tc-16-4931-2022.pdf)
 - shelf_slope: average slope of ice shelf base (can be local in ISMIP7, but we're doing with the average)
 - ρ_ocean: density of the ocean water
@@ -56,14 +55,11 @@ Keyword arguments
 - z_forcing: array to hold the z co-ordinates from the ISMIP7 forcing
 - melt_partial_cell: Flag for melting applied to partial cells or not
 - path_to_forcing: path to the forcing files
+- x_indices: Maps local field x indices to global NetCDF x indices when on a subdomain.
+- y_indices: Maps local field y indices to global NetCDF y indices when on a subdomain.
 """
 function ISMIP7MeltRate(; 
-                        so_prefix = nothing,
-                        tf_prefix = nothing,
-                        thetao_prefix = nothing,
-                        so_varname = "so",
-                        tf_varname = "tf",
-                        thetao_varname = "thetao",
+                        climate_forcing = nothing,
                         K = 1.0e-5,
                         shelf_slope = 1.e-3,
                         ρ_ocean = 1028.0,
@@ -82,10 +78,7 @@ function ISMIP7MeltRate(;
                         x_indices = nothing,
                         y_indices = nothing)
 
-    #check that you've passed prefixes for the forcing files          
-    ~(so_prefix === nothing) || throw(ArgumentError("You must pass a prefix for your salinity"))
-    ~(tf_prefix === nothing) || throw(ArgumentError("You must pass a prefix for your thermal forcing"))
-    ~(thetao_prefix === nothing) || throw(ArgumentError("You must pass a prefix for your ocean temperature"))
+    ~(climate_forcing === nothing) || throw(ArgumentError("You must pass a climate_forcing description"))
 
     if isnothing(z_forcing)
         #read in the levels
@@ -94,7 +87,22 @@ function ISMIP7MeltRate(;
         z_forcing = replace(z_levels_ncfile["z"][:] , missing => NaN)
     end
     
-    return   ISMIP7MeltRate(so_prefix, tf_prefix, thetao_prefix, so_varname, tf_varname, thetao_varname, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing,x_indices, y_indices)
+    return   ISMIP7MeltRate(climate_forcing, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing,x_indices, y_indices)
+end
+
+#Convenience Constructors
+function ISMIP7MeltRate(climate_forcing::T, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, 
+                        T_loc, Tf_loc, z_forcing, melt_partial_cell, 
+                        path_to_forcing,x_indices, y_indices) where {T <: Union{ISMIP7_ANOMALY,ISMIP7_OCX,ISMIP7_CONTROL}}
+
+    so_prefix = "so_"
+    tf_prefix = "tf_"
+    thetao_prefix = "thetao_"
+    so_varname = "so"
+    tf_varname = "tf"
+    thetao_varname = "thetao"
+
+    return ISMIP7MeltRate(so_prefix, tf_prefix, thetao_prefix, so_varname, tf_varname, thetao_varname, K, shelf_slope,ρ_ocean, ρ_ice,c_ocean, L_ice,β_s, g,f,S_loc, T_loc, Tf_loc, z_forcing, melt_partial_cell, path_to_forcing,x_indices, y_indices)
 end
 
 

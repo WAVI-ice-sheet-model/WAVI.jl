@@ -75,7 +75,7 @@ include("Inversion/Inversion.jl")
 export AbstractField, AbstractGrid, AbstractMeltRate, AbstractSurfaceMassBalance,
   AbstractFracture, AbstractSlidingLaw , AbstractBasalHydrology,
    AbstractThermoDynamics, AbstractModel, AbstractPreconditioner,
-   AbstractSpec
+   AbstractSpec,AbstractClimateForcing
 
 using .Deferred
 export Collector, clear!, collect!, register_field!
@@ -147,7 +147,7 @@ export Inversion, InversionParams, JKVsteppingParams, DataFields,
        InversionSimulation, InversionOutput, smooth_veloc_data
 
 using .ClimateForcing 
-export ISMIP7
+export ISMIP7_ANOMALY,ISMIP7_CONTROL,ISMIP7_OCX
 
 end
 

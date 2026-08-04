@@ -1,6 +1,7 @@
 export ISMIP7SMB
 
 using WAVI: AbstractClimateForcing
+using WAVI.ClimateForcing
 using NCDatasets
 
 struct ISMIP7SMB{T <: Real,
@@ -24,11 +25,22 @@ struct ISMIP7SMB{T <: Real,
     y_indices::Union{Nothing, UnitRange{Int}}
 end
 
+"""
+ISMIP7SMB(; <kwargs>)
+
+Keyword arguments
+=================
+- climate_forcing: decriptor of climate forcing (ISMIP7_ANOMALY, ISMIP7_OCX, or ISMIP7_CONTROL)
+- reference_elevation: reference elevation used for lapse rate perturbations.
+- vertical_smb_gradient: gradient used for lapse rate perturbations.
+- smb_anomaly: anomaly used for anomaly perturbations.    
+-  reference_smb: reference smb used for anomaly perturbations. 
+- path_to_forcing: path to forcing files
+- x_indices: Maps local field x indices to global NetCDF x indices when on a subdomain.
+- y_indices: Maps local field y indices to global NetCDF y indices when on a subdomain.
+"""
 function ISMIP7SMB(; 
-                smb_anomaly_prefix = nothing,
-                vertical_smb_gradient_prefix = nothing,
-                smb_anomaly_varname = "acabf-anomaly",
-                vertical_smb_gradient_varname = "dacabfdz",
+                climate_forcing = nothing,
                 reference_elevation = nothing,
                 vertical_smb_gradient = nothing, 
                 smb_anomaly = nothing,           
@@ -37,9 +49,7 @@ function ISMIP7SMB(;
                 x_indices = nothing,
                 y_indices = nothing)
 
-    #check that you've passed a prefix for the smb anomaly and vertical smb gradient          
-    ~(smb_anomaly_prefix === nothing) || throw(ArgumentError("You must pass a prefix for the smb anomaly"))
-    ~(vertical_smb_gradient_prefix === nothing) || throw(ArgumentError("You must pass a prefix for the vertical smb gradient"))
+    ~(climate_forcing === nothing) || throw(ArgumentError("You must pass a climate_forcing description"))
 
     # check that you've passed reference elevation 
     ~(reference_elevation === nothing) || throw(ArgumentError("You must pass a reference elevation file"))
@@ -47,8 +57,98 @@ function ISMIP7SMB(;
     #check that you've passed a vertical smb gradient
     ~(reference_smb === nothing) || throw(ArgumentError("You must pass a reference smb"))
 
-    return ISMIP7SMB(smb_anomaly_prefix,vertical_smb_gradient_prefix,smb_anomaly_varname, vertical_smb_gradient_varname, reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb, path_to_forcing, x_indices, y_indices)
+    return ISMIP7SMB(climate_forcing, reference_elevation,vertical_smb_gradient, smb_anomaly,reference_smb, path_to_forcing, x_indices, y_indices)
 
+end
+
+#Convenience Constructors
+function ISMIP7SMB(climate_forcing::ISMIP7_ANOMALY,
+                    reference_elevation,
+                    vertical_smb_gradient, 
+                    smb_anomaly,
+                    reference_smb, 
+                    path_to_forcing, 
+                    x_indices, 
+                    y_indices)
+
+    smb_anomaly_prefix = "acabf-anomaly_"
+    vertical_smb_gradient_prefix = "dacabfdz_"
+    smb_anomaly_varname = "acabf-anomaly"
+    vertical_smb_gradient_varname = "dacabfdz"
+
+    return ISMIP7SMB(smb_anomaly_prefix,
+                    vertical_smb_gradient_prefix,
+                    smb_anomaly_varname,
+                    vertical_smb_gradient_varname,
+                    reference_elevation,
+                    vertical_smb_gradient, 
+                    smb_anomaly,
+                    reference_smb, 
+                    path_to_forcing, 
+                    x_indices, 
+                    y_indices
+                    )
+end
+
+function ISMIP7SMB(climate_forcing::ISMIP7_OCX,
+                    reference_elevation,
+                    vertical_smb_gradient, 
+                    smb_anomaly,
+                    reference_smb, 
+                    path_to_forcing, 
+                    x_indices, 
+                    y_indices)
+
+    smb_anomaly_prefix = "acabf_"
+    vertical_smb_gradient_prefix = "dacabfdz_"
+    smb_anomaly_varname = "acabf"
+    vertical_smb_gradient_varname = "dacabfdz"
+
+    all(iszero.(reference_smb))||error("ISMIP7_OCX climate forcing requires zero for reference_smb")
+
+    return ISMIP7SMB(smb_anomaly_prefix,
+                    vertical_smb_gradient_prefix,
+                    smb_anomaly_varname,
+                    vertical_smb_gradient_varname,
+                    reference_elevation,
+                    vertical_smb_gradient, 
+                    smb_anomaly,
+                    reference_smb, 
+                    path_to_forcing, 
+                    x_indices, 
+                    y_indices
+                    )
+end
+
+
+function ISMIP7SMB(climate_forcing::ISMIP7_CONTROL,
+                    reference_elevation,
+                    vertical_smb_gradient, 
+                    smb_anomaly,
+                    reference_smb, 
+                    path_to_forcing, 
+                    x_indices, 
+                    y_indices)
+
+    smb_anomaly_prefix = "acabf_"
+    vertical_smb_gradient_prefix = "dacabfdz_"
+    smb_anomaly_varname = "acabf"
+    vertical_smb_gradient_varname = "dacabfdz"
+
+    all(iszero.(reference_smb))||error("ISMIP7_CONTROL climate forcing requires zero for reference_smb")
+
+    return ISMIP7SMB(smb_anomaly_prefix,
+                    vertical_smb_gradient_prefix,
+                    smb_anomaly_varname,
+                    vertical_smb_gradient_varname,
+                    reference_elevation,
+                    vertical_smb_gradient, 
+                    smb_anomaly,
+                    reference_smb, 
+                    path_to_forcing, 
+                    x_indices, 
+                    y_indices
+                    )
 end
 
 function reconstruct_on_grid(smb::ISMIP7SMB,grid::Grid) 
