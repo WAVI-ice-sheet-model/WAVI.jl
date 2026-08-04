@@ -1,6 +1,7 @@
 
 using WAVI, NCDatasets, Test, Parameters, Interpolations
 using WAVI.Parameters
+using WAVI.ClimateForcing
 
 
 """
@@ -40,9 +41,9 @@ z_forcing = .- thickness_scale * 0.9 .* [0.0,0.5,1.0]
 #deep enough to ensure floatation
 bed_elevation = -1000*ones(grid.nx,grid.ny)
 
-ISMIP7_config = ISMIP7(gcm = "TEST",scenario = "MOCK")
+climate_forcing = ISMIP7_ANOMALY(gcm = "TEST",scenario = "MOCK")
 
-shelf_melt_rate = ISMIP7MeltRate(;ISMIP7_config,z_forcing)
+shelf_melt_rate = ISMIP7MeltRate(climate_forcing=climate_forcing,z_forcing = z_forcing)
 
 #Just to get default parameters for later
 @unpack K, shelf_slope, ρ_ocean, ρ_ice, c_ocean, L_ice, β_s, g, f, melt_partial_cell = shelf_melt_rate 
@@ -56,59 +57,59 @@ reference_elevation = reference_thickness * delta
 reference_smb = rand(grid.nx,grid.ny)
 
 mask = Int8.(rand(Bool,grid.nx,grid.ny,2))
-NCDataset("ice_shelf_collapse_mask_TEST_sspMOCK_ismip7_5000m_0.nc","c") do ds
+NCDataset("ice_shelf_collapse_mask_0.nc","c") do ds
     defVar(ds,"mask",mask[:,:,1],("x","y","t"))
 end
-NCDataset("ice_shelf_collapse_mask_TEST_sspMOCK_ismip7_5000m_1.nc","c") do ds
+NCDataset("ice_shelf_collapse_mask_1.nc","c") do ds
     defVar(ds,"mask",mask[:,:,2],("x","y","t"))
 end
 acabf_anomaly = rand(Float32,grid.nx,grid.ny,2)
-NCDataset("acabf-anomaly_AIS_TEST_sspMOCK_SDBN1-5000m_v2_0_yearlyaveraged.nc","c") do ds
+NCDataset("acabf-anomaly_0.nc","c") do ds
     defVar(ds,"acabf-anomaly",acabf_anomaly[:,:,1],("x","y","t"))
 end
-NCDataset("acabf-anomaly_AIS_TEST_sspMOCK_SDBN1-5000m_v2_1_yearlyaveraged.nc","c") do ds
+NCDataset("acabf-anomaly_1.nc","c") do ds
     defVar(ds,"acabf-anomaly",acabf_anomaly[:,:,2],("x","y","t"))
 end
 dacabfdz = rand(Float32,grid.nx,grid.ny,2)
-NCDataset("dacabfdz_AIS_TEST_sspMOCK_SDBN1-5000m_v2_0_yearlyaveraged.nc","c") do ds
+NCDataset("dacabfdz_0.nc","c") do ds
     defVar(ds,"dacabfdz",dacabfdz[:,:,1],("x","y","t"))
 end
-NCDataset("dacabfdz_AIS_TEST_sspMOCK_SDBN1-5000m_v2_1_yearlyaveraged.nc","c") do ds
+NCDataset("dacabfdz_1.nc","c") do ds
     defVar(ds,"dacabfdz",dacabfdz[:,:,2],("x","y","t"))
 end
 
 salinity_floor = 0.1
 so = rand(Float32,grid.nx,grid.ny,nzforcing,2) .+ salinity_floor
-NCDataset("so_AIS_TEST_sspMOCK_ocean_v3_5000m_0.nc","c") do ds
+NCDataset("so_0.nc","c") do ds
     defVar(ds,"so",so[:,:,:,1],("x","y","z","t"))
 end
 
-NCDataset("so_AIS_TEST_sspMOCK_ocean_v3_5000m_1.nc","c") do ds
+NCDataset("so_1.nc","c") do ds
     defVar(ds,"so",so[:,:,:,2],("x","y","z","t"))
 end
 
 thetao = rand(Float32,grid.nx,grid.ny,nzforcing,2)
-NCDataset("thetao_AIS_TEST_sspMOCK_ocean_v3_5000m_0.nc","c") do ds
+NCDataset("thetao_0.nc","c") do ds
     defVar(ds,"thetao",thetao[:,:,:,1],("x","y","z","t"))
 end
-NCDataset("thetao_AIS_TEST_sspMOCK_ocean_v3_5000m_1.nc","c") do ds
+NCDataset("thetao_1.nc","c") do ds
     defVar(ds,"thetao",thetao[:,:,:,2],("x","y","z","t"))
 end
 
 #tf = rand(Float32,grid.nx,grid.ny,nzforcing,2)
 #Choose tf to match manufactured melt solution.
 tf = abs.(manufactured_melt_solution./(C_melt*so)).^-0.5.*(manufactured_melt_solution./(C_melt*so))
-NCDataset("tf_AIS_TEST_sspMOCK_ocean_v3_5000m_0.nc","c") do ds
+NCDataset("tf_0.nc","c") do ds
     defVar(ds,"tf",tf[:,:,:,1],("x","y","z","t"))
 end
-NCDataset("tf_AIS_TEST_sspMOCK_ocean_v3_5000m_1.nc","c") do ds
+NCDataset("tf_1.nc","c") do ds
     defVar(ds,"tf",tf[:,:,:,2],("x","y","z","t"))
 end
 
 
 
-surface_mass_balance = ISMIP7SMB(;ISMIP7_config,reference_elevation,reference_smb)
-fracture = ISMIP7Hydrofracture(;ISMIP7_config)
+surface_mass_balance = ISMIP7SMB(climate_forcing = climate_forcing,reference_elevation=reference_elevation,reference_smb=reference_smb)
+fracture = ISMIP7Hydrofracture(climate_forcing = climate_forcing)
 
 initial_conditions = InitialConditions(initial_thickness = reference_thickness)
 
