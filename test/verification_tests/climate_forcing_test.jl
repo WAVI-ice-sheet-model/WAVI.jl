@@ -29,7 +29,8 @@ end
 
 function climate_forcing_test(grid)
 
-params = Params()
+default_damage = 0.12345 #some arbitrary non-zero number, just for testing
+params = Params(default_damage=default_damage)
 
 #random thickness iceberg, but not too thin
 thickness_scale = 500.0
@@ -169,7 +170,9 @@ damage2 = load("outfile0000000020.jld2")["damage"]
 @test ds["ice_shelf_collapse_mask"][:,:,2] == mask[:,:,2]
 
 @test all(damage1[findall(Bool.(ds["ice_shelf_collapse_mask"][:,:,1] .!= 0.0)),:] .== fracture.damage_value)
-@test all(damage2[findall(Bool.(ds["ice_shelf_collapse_mask"][:,:,2] .!= 0.0)),:] .== fracture.damage_value)
+@test all(damage1[findall(.!(Bool.(ds["ice_shelf_collapse_mask"][:,:,1] .!= 0.0))),:] .== default_damage)
+@test all(damage2[findall(Bool.(ds["ice_shelf_collapse_mask"][:,:,2] .!= 0.0) .|| Bool.(ds["ice_shelf_collapse_mask"][:,:,1] .!= 0.0)),:] .== fracture.damage_value)
+@test all(damage2[findall(.!(Bool.(ds["ice_shelf_collapse_mask"][:,:,2] .!= 0.0) .|| Bool.(ds["ice_shelf_collapse_mask"][:,:,1] .!= 0.0))),:] .== default_damage)
 
 so_from_model1 = load("outfile0000000010.jld2")["so"]
 so_from_model2 = load("outfile0000000020.jld2")["so"]

@@ -108,9 +108,9 @@ function update_damage!(fracture::ISMIP7Hydrofracture,model::AbstractModel{T,N};
   @unpack gh,g3d = model.fields
 
   if fracture.partially_floating_cells
-    g3d.Φ .= fracture.ice_shelf_collapse_mask .* (1 .- gh.grounded_fraction) .* fracture.damage_value
+    g3d.Φ .= max.(g3d.Φ,fracture.ice_shelf_collapse_mask .* (1 .- gh.grounded_fraction) .* fracture.damage_value)
   else
-    g3d.Φ .= fracture.ice_shelf_collapse_mask .* (gh.grounded_fraction .== 0.0) .* fracture.damage_value
+    g3d.Φ .= max.(g3d.Φ,fracture.ice_shelf_collapse_mask .* (gh.grounded_fraction .== 0.0) .* fracture.damage_value)
   end
 
   return model
