@@ -13,7 +13,7 @@ First let's make sure we have all required packages installed. We're also going 
 
 ```julia
 using Pkg
-Pkg.add("https://github.com/WAVI-ice-sheet-model/WAVI.jl")
+Pkg.add(PackageSpec(url="https://github.com/WAVI-ice-sheet-model/WAVI.jl.git", rev = "main"))
 using WAVI, Downloads, Plots
 ```
 
@@ -22,7 +22,7 @@ First, let's define our grid sizes and origin. We have a grid with 164 cells in 
 
 ```julia
 nx = 164        #number of x grid points
-ny = 192        #number of y grid pointd
+ny = 192        #number of y grid points
 nσ = 12         #number of sigma grid points
 x0 = -1802500.0 #origin of the grid in x
 y0 = -847500.0  #origin of the grid in y
@@ -43,18 +43,18 @@ We need the first three of these before we can build a grid:
 ```julia
 h_mask=Array{Float64}(undef,nx,ny); #initialize mask array
 read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_h_mask_clip_BedmachineV3.bin"),h_mask); #download the file and populate the h_mask array (can ignore the filename)
-hm = ntoh.(h_mask); #set to big endian
-hm = map.(Bool, round.(Int, hm)); #map everything to a boolean
+hm = ntoh.(h_mask); # convert from big-endian to little-endian
+hm = Bool.(round.(Int, hm)); #map everything to a boolean
 
 u_iszero=Array{Float64}(undef,nx+1,ny);
 read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_uiszero_clip_BedmachineV3.bin"),u_iszero);
 u_iszero.=ntoh.(u_iszero);
-u_iszero = map.(Bool, round.(Int, u_iszero));
+u_iszero = Bool.(round.(Int, u_iszero));
 
 v_iszero=Array{Float64}(undef,nx,ny+1);
 read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_viszero_clip_BedmachineV3.bin"),v_iszero);
 v_iszero.=ntoh.(v_iszero);
-v_iszero = map.(Bool, round.(Int, v_iszero));
+v_iszero = Bool.(round.(Int, v_iszero));
 ```
 
 Now that we have these, we can build a grid:
@@ -73,7 +73,7 @@ Plots.spy(hm)
 
 Those familiar with it will recognise the ice fronts of Pine Island, Thwaites and Smith ice shelves and the drainage basins of their glaciers. For those not familiar, trust me: this is a rough outline of the Amundsen sea sector of West Antarctica! 
 
-Next up: the bed, which will be passed to a model via the `bed_elevation` keyword article:
+Next up: the bed, which will be passed to a model via the `bed_elevation` keyword argument:
 ```julia
 bed=Array{Float64}(undef,nx,ny);
 read!(Downloads.download("https://github.com/alextbradley/WAVI_example_data/raw/main/WAIS/Inverse_5km_bed_clip_noNan_BedmachineV3.bin"),bed);
@@ -88,7 +88,7 @@ plt = Plots.heatmap(grid.xxh[:,1]/1e3, grid.yyh[1,:]/1e3, bed',
                     colorbar_title = "\n bed elevation (m)",
                     right_margin = 4Plots.mm,                 #set the margin so that the colorbar title isn't cut off
                     title = "West Antarctica bed elevation",
-                    framestyle = "box")
+                    framestyle = :box)
 ```
 ```@raw html
 <center><img src="../../assets/example-plots/WAIS/WAIS_bed.png" alt="" title="" style="max-width: 100%" /></center>
@@ -135,7 +135,7 @@ plt = Plots.heatmap(grid.xxh[:,1]/1e3, grid.yyh[1,:]/1e3, model.fields.gh.av_spe
                     ylabel = "y (km)",
                     colorbar_title = "\n ice speed (m/yr)",
                     title = "West Antarctica ice speed",
-                    framestyle = "box",
+                    framestyle = :box,
                     right_margin = 4Plots.mm,                 
                     clim=(0,4000))
 ```
