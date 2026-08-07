@@ -45,9 +45,8 @@ h = ntoh.(h);
 
 Now we make an InitialConditions object to store this ice thickness
 ```julia
-global initial_conditions = InitialConditions(initial_thickness = h);
+initial_conditions = InitialConditions(initial_thickness = h);
 ```
-(We make this a global variable because we'll use it in a loop later.)
 
 ## Melt Rate Models  
 We'll loop over each of the melt rate models mentioned above. For each, we'll produce a map of the melt rate in the MISMIP+ geometry that we just downloaded.
@@ -78,7 +77,7 @@ In this case, the normalization coefficent is named $\alpha$, and has a slightly
 
 Finally, a binary file melt rate, in which the melt rate is read in from a binary file. First, we'll create such a file, which will set the melt rate to be uniform on the shelf.
 ```julia
-isfloat = (h .< -918.0/1028.0 .* bed.(grid.xxh, grid.yyh)) #indices of floating elements
+isfloat = (h .< -1028.0/918.0 .* bed.(grid.xxh, grid.yyh)) #indices of floating elements
 m = zeros(nx,ny);
 m[isfloat] .= 10.0; #set everywhere floating to 10m/a
 folder = "melt_rate_parametrizations";
@@ -94,9 +93,9 @@ Now we instantiate out melt rate opject, pointing it to this file we just create
 binfile_melt = BinfileMeltRate(input_filename = joinpath(folder,"melt.bin"))
 ```
 
-It's useful to put these into a dictionary, so we can iterate over them. Again, we use a global variable to facilitate this
+It's useful to put these into a dictionary, so we can iterate over them.
 ```julia
-global melt_rates = Dict("Quadratic" => melt_quad, "PME" => melt_PME, "PICO" => melt_PICO, "Binary file" => binfile_melt)
+melt_rates = Dict("Quadratic" => melt_quad, "PME" => melt_PME, "PICO" => melt_PICO, "Binary file" => binfile_melt)
 ```
 
 ## Visualization
@@ -114,20 +113,19 @@ for (key, melt) in melt_rates
     update_state!(model);
 
     #extract the melt rate, remove any grounded entries and saturate the melt rate to 50 m/a
-    mcopy= deepcopy(model.fields.gh.basal_melt)
-    mcopy[model.fields.gh.grounded_fraction .== 1.] .= NaN
-    msat = deepcopy(mcopy)
-    msat[msat .> 50] .= 50
+    mcopy = copy(model.fields.gh.basal_melt)
+    mcopy[model.fields.gh.grounded_fraction .== 1.0] .= NaN
+    mcopy[mcopy .> 50] .= 50
 
     #plot the melt rate
-    plt = Plots.heatmap(model.grid.xxh[:,1]/1e3, model.grid.yyh[1,:]/1e3, msat', 
+    plt = Plots.heatmap(model.grid.xxh[:,1]/1e3, model.grid.yyh[1,:]/1e3, mcopy', 
                         xlabel = "x (km)", 
                         ylabel = "y (km)",
                         colorbar_title = "melt rate (m/yr)",
                         title = key,
-                        framestyle = "box")
-    xlims!((420, 640))
-    plot!(size = (500,300))
+                        framestyle = :box)
+    Plots.xlims!((420, 640))
+    Plots.plot!(size = (500,300))
 
     # save the figure
     savefig(plt, joinpath(folder, "$key.png"))
@@ -167,7 +165,9 @@ We'll follow the steps above: first, we create a file to store the code. For thi
 
 Next we define a structure, which stores parameters related to the melt rate model. Note that the melt rate model does not "own" the melt rate, the `model` does (and stores it in model.fields.gh.basal_melt, see below)
 
-```julia 
+The following three code blocks show the contents of `src/MeltRate/mismip_melt_rate.jl` — this file already exists inside WAVI and does not need to be created or run. We're showing it so you can see how a melt model is built.
+```julia
+# --- in src/MeltRate/mismip_melt_rate.jl ---
 struct MISMIPMeltRateOne{T <: Real} <: AbstractMeltRate 
     α  :: T
     ρi :: T
@@ -178,6 +178,7 @@ In this case, the parameters are: a normalization coefficient $\alpha$, and the 
 
 Now we define our "constructor", a function that defines how to create one of these structures:
 ```julia
+# --- in src/MeltRate/mismip_melt_rate.jl ---
 MISMIPMeltRateOne(; α = 1.0, ρi = 918.0, ρw = 1028.0) = MISMIPMeltRateOne(α,ρi, ρw)
 ```
 
@@ -188,7 +189,8 @@ The final step is to define a function `update_melt_rate!(melt_rate::TYPE, field
 Note that the arguments of this function must be as mentioned here, so that the multiple dispatch capability of julia can be leveraged!  Effectively, what we're doing is defining another method (think: function) named `update_melt_rate!`, which sets the melt rate according to this function when the input melt rate is of type "TYPE". Each of the melt rate models listed above has one of these functions. 
 
 ```julia
-function update_melt_rate!(melt_rate::MISMIPMeltRateOne, fields, grid) 
+# --- in src/MeltRate/mismip_melt_rate.jl ---
+function update_melt_rate!(melt_rate::MISMIPMeltRateOne, fields, grid, clock) 
     draft = -(melt_rate.ρi / melt_rate.ρw) .* fields.gh.h
     cavity_thickness = draft .- fields.gh.b
     cavity_thickness = max.(cavity_thickness, 0)
@@ -208,19 +210,18 @@ model = Model(grid = grid,
             melt_rate = MISMIPMeltRateOne());
 
 update_state!(model);
-m = deepcopy(model.fields.gh.basal_melt)
+m = copy(model.fields.gh.basal_melt)
 m[model.fields.gh.grounded_fraction .== 1.] .= NaN
-msat = deepcopy(m)
-msat[msat .> 50] .= 50
+m[m .> 50] .= 50
 
-plt = Plots.heatmap(model.grid.xxh[:,1]/1e3, model.grid.yyh[1,:]/1e3, msat', 
+plt = Plots.heatmap(model.grid.xxh[:,1]/1e3, model.grid.yyh[1,:]/1e3, m', 
             xlabel = "x (km)", 
             ylabel = "y (km)",
             colorbar_title = "melt rate (m/yr)",
             title = "MISMIP melt rate",
-            framestyle = "box")
-xlims!((420, 640))
-plot!(size = (500,300))
+            framestyle = :box)
+Plots.xlims!((420, 640))
+Plots.plot!(size = (500,300))
 #display(plt)
 ```
 
