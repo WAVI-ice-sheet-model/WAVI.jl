@@ -48,7 +48,7 @@ plt =  Plots.heatmap(x/1e3, y/1e3, mismip_plus_bed.(xx,yy)',
                     ylabel = "y (km)",
                     colorbar_title = "\n bed depth (m)",
                     right_margin = 4Plots.mm)
-plot!(size = (600,400))
+Plots.plot!(size = (600,400))
 ```
 ```@raw html
 <center><img src="../../assets/example-plots/MISMIP/mismip_bed.png" alt="" title="" style="max-width: 100%" /></center>
@@ -67,7 +67,7 @@ Velocity boundary conditions are controlled by specifying zeros in appropriate e
 ```julia
 u_iszero = falses(nx+1,ny); #build x-direction velocity boundary condition matrix with no zero boundary conditions anywhere 
 u_iszero[1,:].=true;        #set the x-direction velocity to zero at x = 0.
-v_iszero=falses(nx,ny+1);   #build x-direction velocity boundary condition matrix with no zero boundary conditions anywhere 
+v_iszero=falses(nx,ny+1);   #build y-direction velocity boundary condition matrix with no zero boundary conditions anywhere 
 v_iszero[:,1].=true;        #set the y-direction velocity to zero at y = 0 (free slip)
 v_iszero[:,end].=true;       #set the y-direction velocity to zero at y = 84km (free slip)
 v_iszero[1,:].=true;         #set the y-direction velocity to zero at x = 0km (no slip in combination with u_iszero)
@@ -157,7 +157,7 @@ Plots.contour!(simulation.model.grid.xxh[:,1]/1e3,
             levels = [0.5,0.5],
             linecolor = :blue,
             linewidth = 2)
-plot!(size = (600,400))
+Plots.plot!(size = (600,400))
 ```
 
 You can see, by comparing with the plot of the bed earlier, that the grounding line sits on an overdeepened section of the bed! You can also compare it with the other MISMIP submissions (figure 3 in [Cornford et al., 2020](https://tc.copernicus.org/articles/14/2283/2020/)) and see that the grounding line position agrees pretty well with other models, despite being lower resolution.
@@ -169,11 +169,9 @@ You can see, by comparing with the plot of the bed earlier, that the grounding l
 Finally, let's check that it's in steady state, by looking at the evolution of the volume above floatation:
 ```julia
 filename = joinpath(folder, "outfile.nc");
-<<<<<<< HEAD
 
 ds = NCDataset(filename, "r") do ds
     h_data = ds["h"][:, :, :]
-    grfrac_data = ds["grfrac"][:, :, :]
     time_data = ds["TIME"][:]
 
     #compute the volume above floatation
@@ -191,18 +189,7 @@ end
 
 time, vaf = ds
 
-Plots.plot(time, vaf[:]/1e9,
-=======
-h = ncread(filename, "h");
-grfrac = ncread(filename, "grfrac");
-tm = ncread(filename, "TIME");
-#compute the volume above floatation
-vaf = zeros(1,length(tm))
-for i = 1:length(tm)
-    vaf[i] = volume_above_floatation(h[:,:,i], simulation.model.fields.gh.b, Ref(simulation.model.params), simulation.model.grid )
-end
 Plots.plot(tm, vaf[:]/1e9,
->>>>>>> f78657e349634950e3aeebd5b278a0bf6b94d87b
              marker = true, 
              label = :none,
              xlabel = "time (years)",
