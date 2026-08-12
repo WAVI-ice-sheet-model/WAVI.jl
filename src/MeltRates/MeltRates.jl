@@ -10,6 +10,7 @@ using Parameters
 using WAVI: AbstractMeltRate
 using WAVI.Time
 using WAVI.Grids
+using WAVI.ClimateForcing
 
 #add each of the individual melt rate models
 #include("./analytic_melt_rate_model.jl")
