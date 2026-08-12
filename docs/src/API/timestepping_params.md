@@ -3,7 +3,7 @@
 ## Overview
 A `TimesteppingParams` structure is used to pass information relating to [timestepping](../numerical_procedure/numerical_procedure.md) to the simulation. The following parameters are specified by passing appropriate keyword arguments to the `TimesteppingParams` constructor:
 
-- `niter0`: the iteration number at which the simulation starts. Set `niter0` to `0` to initialize a new simulation, or to a positive integer to pick up from a checkpoint written at that iteration (see [Checkpoints and pickups](#Checkpoints-and-pickups) below).
+- `niter0`: the iteration number at which the simulation starts. Set `niter0` to `0` to initialise a new simulation, or to a positive integer to pick up from a checkpoint written at that iteration (see [Checkpoints and pickups](#Checkpoints-and-pickups) below).
 - `dt`: the simulation timestep
 - `end_time`: the clock time at which the simulation should terminate
 - `n_iter_total`: the total number of timesteps to be performed. **NB**: you must specify at least one of `end_time` and `n_iter_total` (the simulation must know when it is going to finish!); specifying both is possible, but they must be compatible (i.e. `end_time` must equal `n_iter_total * dt`).
@@ -58,9 +58,14 @@ output_params = OutputParams(..., output_path = folder)
 ### Pickups
 To continue from a checkpoint, set `niter0` to the iteration number in the filename you want to load. For example, to pick up from `Chkpt_0000001000.jld2`, use `niter0 = 1000`.
 
-When `niter0 > 0`, `Simulation` loads `Chkpt_<niter0>.jld2` from the checkpoint directory (see above), and replaces the passed-in `model` and initial clock with the `model` and `clock` stored in that file. The run then continues from iteration `niter0 + 1` up to the new `n_iter_total`.
+When `niter0 > 0`, `Simulation` loads `Chkpt_<niter0>.jld2` from the checkpoint directory (see above). For `BasicSpec` / `ThreadedSpec`, the passed-in `model` is replaced by the loaded model and clock. The run then continues from iteration `niter0 + 1` up to the new `n_iter_total`.
 
 You must still pass a `model` to `Simulation` when picking up (to construct the simulation object), but the state used for time stepping comes from the checkpoint.
 
 !!! note
-    After a pickup, **`model` and `clock` come from the checkpoint file**. **`TimesteppingParams` and `OutputParams` come from the arguments you pass to the new `Simulation`**—for example, a new `end_time` or `n_iter_total` controls how much further the run continues, and `output_params` controls where and how subsequent field output is written. Ensure the checkpoint file exists at the resolved checkpoint path before starting a pickup run.
+    After a pickup, **`clock` (and for serial/threaded runs, `model`) come from the checkpoint file**. **`TimesteppingParams` and `OutputParams` come from the arguments you pass to the new `Simulation`**. For example, a new `end_time` or `n_iter_total` controls how much further the run continues, and `output_params` controls where and how subsequent field output is written. Ensure the checkpoint file exists at the resolved checkpoint path before starting a pickup run.
+
+### MPISpec checkpoints
+`MPISpec` writes the same `Chkpt_*.jld2` files as a full-domain serial (`BasicSpec`) snapshot. Ranks gather the restart fields (thickness, grounded fraction, velocities, viscosity, temperature, damage, strain history, basal water, hydraulic potential, effective pressure, `θ_ave`, `preBfactor`) plus global-grid parameters and physics. Root saves one serial model with no `MPI.Comm` in the file.
+
+On pickup, pass a freshly built `MPISpec` `Model`. WAVI copies the snapshot into each rank's local fields, so `px`/`py` need not match the run that wrote the file. The same file can also be picked up under `BasicSpec` by replacing the model from the file as usual. MPI pickup keeps the physics objects from the driver-built model. Climate-forcing state is rebuilt on the first forcing update after pickup.

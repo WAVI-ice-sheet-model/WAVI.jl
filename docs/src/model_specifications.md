@@ -112,6 +112,7 @@ There are elements of MPISpec still under development at time of writing:
 
 * [Outputs only can be taken from `model.global_fields`](https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/111) - therefore melt rates, parameters and other fields are not accessible as outputs (though `model.mpi_rank` is now available).
 * Non-2D fields (e.g., 3D temperature) are not yet accessible as distributed outputs.
+* Checkpointing writes a portable full-domain `BasicSpec` snapshot (restart fields); see [Checkpoints](./API/timestepping_params.md#mpispec-checkpoints).
 
 ## Specifications API
 

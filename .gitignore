@@ -39,3 +39,4 @@ Project.toml
 #SLURM logging
 *.err
 *.out
+tmp/

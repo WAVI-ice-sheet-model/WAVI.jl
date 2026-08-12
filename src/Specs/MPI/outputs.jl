@@ -48,7 +48,7 @@ function write_outputs(model::M,
                        output_params::OutputParams, 
                        clock::Clock) where {M<:AbstractModel{<:Any, <:Any, <:MPISpec}}
     if should_write_checkpoint(timestepping_params, clock)
-        @root write_checkpoint!(model, timestepping_params, output_params, clock)
+        write_mpi_checkpoint!(model, timestepping_params, output_params, clock)
     end
 
     #check if we have hit an output timestep
