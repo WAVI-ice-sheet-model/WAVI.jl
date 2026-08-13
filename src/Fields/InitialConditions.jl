@@ -55,6 +55,29 @@ Keyword arguments
     initial_preBfactor::Array{T,2} = fill!(Array{Float64}(undef,1,1),NaN)
 end
 
+"""
+    initial_conditions_from_fields(fields)
+
+Copy the usual restart arrays from a `GridField` into an `InitialConditions`
+object. Used when writing an MPI checkpoint as a serial snapshot.
+"""
+function initial_conditions_from_fields(fields)
+    return InitialConditions(
+        initial_thickness = copy(fields.gh.h),
+        initial_grounded_fraction = copy(fields.gh.grounded_fraction),
+        initial_u_veloc = copy(fields.gu.u),
+        initial_v_veloc = copy(fields.gv.v),
+        initial_viscosity = copy(fields.g3d.η),
+        initial_temperature = copy(fields.g3d.θ),
+        initial_damage = copy(fields.g3d.Φ),
+        initial_strain_history = copy(fields.g3d.strain_history),
+        initial_basal_water_thickness = copy(fields.gh.basal_water_thickness),
+        initial_hydraulic_potential_b = copy(fields.gh.hydraulic_potential_b),
+        initial_effective_pressure = copy(fields.gh.effective_pressure),
+        initial_θ_ave = copy(fields.gh.θ_ave),
+        initial_preBfactor = copy(fields.gh.preBfactor),
+    )
+end
 
 function reconstruct_on_grid(initial_conditions::InitialConditions, params::Params, grid::Grid)
 

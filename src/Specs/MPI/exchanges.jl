@@ -519,15 +519,16 @@ end
 """
     mpi_fill_local_from_global!(model, path, local_field)
 
-Copy each rank's patch from the assembled field on `global_fields` (rank 0).
+Fill this rank's local array from the matching global field on root.
 
-The full global array is broadcast from rank 0; each rank then indexes its own
-`mpi_global_field_origin` slice.
+Root holds the full-domain values. Those are broadcast to every rank, then each
+rank copies its own patch, including halo cells. Works for 2D fields and for 3D
+fields (each vertical level is handled as a 2D slice).
 """
 function mpi_fill_local_from_global!(
     model::AbstractModel{T,N,S},
     path::Vector{Symbol},
-    local_field::AbstractMatrix,
+    local_field::AbstractArray,
 ) where {T,N,S<:MPISpec}
     @unpack comm, global_fields = model.spec
     path[1] == :global_fields || error("path must start with :global_fields")
@@ -535,7 +536,38 @@ function mpi_fill_local_from_global!(
     for p in path[2:end]
         global_field = getproperty(global_field, p)
     end
-    MPI.Bcast!(global_field, comm)
+    if ndims(local_field) == 3
+        for k in 1:size(local_field, 3)
+            mpi_fill_local_from_global_slice!(model, view(local_field, :, :, k), view(global_field, :, :, k))
+        end
+    elseif ndims(local_field) == 2
+        mpi_fill_local_from_global_slice!(model, local_field, global_field)
+    else
+        error("mpi_fill_local_from_global! supports 2D or 3D fields only")
+    end
+    return local_field
+end
+
+"""
+    mpi_fill_local_from_global_slice!(model, local_field, global_field)
+
+Broadcast one 2D global slice from root, then copy this rank's local patch.
+"""
+function mpi_fill_local_from_global_slice!(
+    model::AbstractModel{T,N,S},
+    local_field::AbstractMatrix,
+    global_field::AbstractMatrix,
+) where {T,N,S<:MPISpec}
+    @unpack comm = model.spec
+    # Dense arrays are fine for MPI.Bcast!. A non-contiguous SubArray may need a
+    # temporary copy on some MPI backends.
+    if global_field isa SubArray && !Base.iscontiguous(global_field)
+        buf = copy(global_field)
+        MPI.Bcast!(buf, comm)
+        global_field .= buf
+    else
+        MPI.Bcast!(global_field, comm)
+    end
     gx0, gy0 = mpi_global_field_origin(model.spec)
     nx, ny = size(local_field)
     local_field .= global_field[gx0:(gx0+nx-1), gy0:(gy0+ny-1)]
@@ -620,12 +652,36 @@ function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) w
         local_field = getproperty(local_field, path_el)
     end
 
+    # 3D fields: gather each vertical level as a 2D field.
+    if ndims(local_field) == 3
+        for k in 1:size(local_field, 3)
+            collect_mpi_field_slice!(
+                model, path, view(local_field, :, :, k), view(global_field, :, :, k)
+            )
+        end
+        return global_field
+    elseif ndims(local_field) != 2
+        error("Trying to exchange a field ", join(string.(path), "."), " that is not 2D or 3D, this is not possible")
+    end
+
+    return collect_mpi_field_slice!(model, path, local_field, global_field)
+end
+
+"""
+    collect_mpi_field_slice!(model, path, local_field, global_field)
+
+Gather one 2D field (or one vertical level of a 3D field) onto root.
+"""
+function collect_mpi_field_slice!(
+    model::AbstractModel{T,N,S},
+    path::Vector{Symbol},
+    local_field::AbstractMatrix,
+    global_field::AbstractMatrix,
+) where {T,N,S<:MPISpec}
+    @unpack comm, global_size, rank = model.spec
+
     # Establish the local grid information, with full grid information available already from global_grid
     th, rh, bh, lh = get_halos(model.spec)
-    # We only handle 2D fields!
-    if length(size(local_field)) != 2
-        error("Trying to exchange a field ",join(string.(path), ".")," that is not 2D, this is not possible")
-    end
     x_sz, y_sz = size(local_field)
     x_start, x_end, y_start, y_end = get_bounds(model.spec)
 

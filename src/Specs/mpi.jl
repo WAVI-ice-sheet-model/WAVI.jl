@@ -13,7 +13,7 @@ import WAVI.Fields: GridField, InitialConditions, HGrid, UGrid, VGrid, CGrid, Si
 import WAVI.Grids: Grid
 import WAVI.MeltRates: UniformMeltRate
 import WAVI.Models: BasicSpec, Model, get_bed_elevation
-import WAVI.Outputs: write_outputs, zip_output, OutputParams, checkpoint_filename, load_checkpoint, write_checkpoint!, checkpoint_path
+import WAVI.Outputs: write_outputs, zip_output, OutputParams
 import WAVI.Parameters: TimesteppingParams
 import WAVI.Processes: update_state!, update_model_velocities!, update_velocities!, update_velocities_on_h_grid!, inner_update!, precondition!, update_preconditioner!, update_rheological_operators!
 import WAVI.Simulations: run_simulation!, timestep!, update_model_climate_forcing!
@@ -97,6 +97,9 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
     niterations::N  # Number of Schwarz iterations per Picard iteration
     pou_scratch::Union{Nothing, MPIPoUScratch}
     local_spec::Union{Nothing, ThreadedSpec}
+    # Keep full-domain physics for portable checkpoint writes (local copies are
+    # only the size of this rank's subdomain).
+    global_physics::Union{Nothing, NamedTuple}
 
     @doc """
     Constructor for MPISpec.
@@ -185,14 +188,15 @@ mutable struct MPISpec{N <: Integer, T <: Number, M <: MPI.Comm, G <: AbstractGr
             niterations,
             nothing,  # pou_scratch filled on first PoU prolong
             local_spec,
+            nothing,  # global_physics is set later in Model()
             )
     end
 end
 
 include("MPI/utils.jl")
 include("MPI/exchanges.jl")
+include("MPI/checkpoints.jl")
 include("MPI/outputs.jl")
-include("MPI/mpi_checkpoints.jl")
 
 function Model(grid::G,
                bed_elevation::Union{Integer, Function, AbstractArray},
@@ -304,6 +308,19 @@ function Model(grid::G,
     model = Model(local_grid, fields, local_params, solver_params, spec, local_shelf_melt_rate, local_surface_mass_balance, local_fracture, local_sliding_law, local_basal_hydrology, 
     local_thermo_dynamics, verbose)
 
+    # Keep full-domain physics for portable checkpoint writes. The local copies
+    # on each rank only cover that rank's subdomain.
+    model.spec.global_physics = (
+        params = params,
+        solver_params = solver_params,
+        shelf_melt_rate = shelf_melt_rate,
+        surface_mass_balance = surface_mass_balance,
+        fracture = fracture,
+        sliding_law = sliding_law,
+        basal_hydrology = basal_hydrology,
+        thermo_dynamics = thermo_dynamics,
+    )
+
     global_bed = typeof(bed_elevation) <: AbstractArray ? bed_elevation : get_bed_elevation(bed_elevation, grid)
     # Create global mpi_rank field (will be populated during collection)
     global_mpi_rank = zeros(Float64, grid.nx, grid.ny)
@@ -411,7 +428,9 @@ function run_simulation!(model::AbstractModel{T,N,S},
 
     # TODO: we potentially register other fields here too, but currently concentrating on outputs (update_thickness might want to exploit this mechanism)
 
-    mpi_sync_halos_initial!(model)
+    # New runs need a one-time halo sync. After a checkpoint pickup the halos
+    # are already filled, so skip that step.
+    clock.n_iter == 0 && mpi_sync_halos_initial!(model)
 
     for i = (clock.n_iter+1):timestepping_params.n_iter_total
         if model.spec.rank == 0

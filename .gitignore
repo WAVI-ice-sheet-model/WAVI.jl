@@ -41,3 +41,4 @@ ismip_testing/*
 #SLURM logging
 *.err
 *.out
+tmp/
