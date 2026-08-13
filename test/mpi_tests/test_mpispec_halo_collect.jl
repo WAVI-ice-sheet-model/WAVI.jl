@@ -92,6 +92,56 @@ using WAVI
         @test all(isfinite.(model.fields.gu.u))
         @test all(isfinite.(model.fields.gv.v))
     end
+
+    # 3D halo exchange: each vertical level of a 3D field should be updated by the exchange.
+    @testset "halo_exchange! updates halos of 3D fields (all levels)" begin
+        model = build_model(halo = 1, pou = false)
+        th, rh, bh, lh = WAVI.Specs.get_halos(model.spec)
+
+        # g3d.η is a genuine (nx × ny × nσ) field.
+        # Fill the whole field with a known background value, then write a unique
+        # value into each rank's core for each vertical level so we can verify
+        # that the halo exchange copies the correct data from each neighbour.
+        η = model.fields.g3d.η
+        nσ = size(η, 3)
+        η .= -99.0
+        for k in 1:nσ
+            η[(1 + lh):(end - rh), (1 + th):(end - bh), k] .= (rank + 1.0) * (k + 10.0)
+        end
+
+        WAVI.Specs.halo_exchange!(model; fields = [:η])
+
+        # Rank that has a left neighbour: its left halo should hold that neighbour's core value.
+        if model.spec.left > -1 && lh > 0
+            for k in 1:nσ
+                expected = (model.spec.left + 1.0) * (k + 10.0)
+                @test all(η[1:lh, :, k] .≈ expected)
+            end
+        end
+    end
+
+    # 3D global collect: collect_mpi_field! must assemble all vertical levels onto root.
+    @testset "collect_mpi_field! assembles both rank patches for a 3D field" begin
+        model = build_model(halo = 1, pou = false)
+        th, rh, bh, lh = WAVI.Specs.get_halos(model.spec)
+
+        η = model.fields.g3d.η
+        nσ = size(η, 3)
+        η .= -1.0
+        for k in 1:nσ
+            η[(1 + lh):(end - rh), (1 + th):(end - bh), k] .= (rank + 1.0) * (k + 10.0)
+        end
+
+        gathered = WAVI.Specs.collect_mpi_field!(model, [:global_fields, :g3d, :η])
+        if rank == 0
+            # Every (rank, level) sentinel must appear somewhere in the global slice.
+            for k in 1:nσ
+                @test any(gathered[:, :, k] .≈ (1.0) * (k + 10.0))  # rank-0 contribution
+                @test any(gathered[:, :, k] .≈ (2.0) * (k + 10.0))  # rank-1 contribution
+            end
+        end
+    end
+
 end
 
 MPI.Finalize()

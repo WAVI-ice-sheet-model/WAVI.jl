@@ -111,7 +111,7 @@ The topology of an individual ranks grid (in this case rank zero) is also releva
 There are elements of MPISpec still under development at time of writing: 
 
 * [Outputs only can be taken from `model.global_fields`](https://github.com/WAVI-ice-sheet-model/WAVI.jl/issues/111) - therefore melt rates, parameters and other fields are not accessible as outputs (though `model.mpi_rank` is now available).
-* Non-2D fields (e.g., 3D temperature) are not yet accessible as distributed outputs.
+* 3D fields (e.g., thermodynamic variables with a vertical dimension `nσ`) are supported in both halo exchange and output collection; each vertical level is handled as an independent 2D exchange.
 
 ## Specifications API
 

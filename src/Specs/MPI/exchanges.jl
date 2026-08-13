@@ -344,127 +344,170 @@ function mpi_pou_weighted_prolong_velocities!(
     return nothing
 end
 
+"""
+    halo_exchange_field!(local_field, spec; off_x, off_y, W_left, W_right, W_top, W_bottom)
+
+Perform a halo exchange on a 2D (`nx x ny`) or 3D (`nx x ny x nσ`) field.
+
+For 3D fields all vertical levels are packed into one MPI message per direction,
+regardless of the number of vertical levels. After communication, blending is
+applied locally for each level.
+
+2D fields are normalised to a trivial 3D view (`nσ = 1`) so the same code path
+handles both cases.
+
+`off_x` / `off_y` account for staggered-grid offsets (U-grid: `off_x=1`, V-grid: `off_y=1`).
+"""
+function halo_exchange_field!(
+    local_field::AbstractArray,
+    spec::MPISpec;
+    off_x::Int = 0,
+    off_y::Int = 0,
+    W_left::AbstractVector,
+    W_right::AbstractVector,
+    W_top::AbstractMatrix,
+    W_bottom::AbstractMatrix,
+)
+    @unpack halo, comm, top, right, bottom, left = spec
+    th, rh, bh, lh = get_halos(spec)
+    field_nx, field_ny = size(local_field, 1), size(local_field, 2)
+    T = eltype(local_field)
+
+    # Normalise to 3D so all slicing is uniform; reshape is a zero-copy view.
+    field_3d = ndims(local_field) == 2 ? reshape(local_field, field_nx, field_ny, 1) : local_field
+    nσ = size(field_3d, 3)
+    L0 = copy(field_3d)
+
+    # Helper: post a non-blocking send+recv pair and return the recv buffer.
+    function isend_irecv!(requests, data, neighbour, n, tag_send, tag_recv)
+        buf = zeros(T, n)
+        push!(requests, MPI.Isend(copy(reshape(data, n)), neighbour, tag_send, comm))
+        push!(requests, MPI.Irecv!(buf, neighbour, tag_recv, comm))
+        return buf
+    end
+
+    top_send_tag    = 1
+    right_send_tag  = 2
+    bottom_send_tag = 3
+    left_send_tag   = 4
+
+    # X-Direction Exchange (Left/Right)
+    requests_x = MPI.RequestSet()
+    n_x = halo * field_ny * nσ
+
+    recv_left_flat = nothing
+    if left > -1
+        send_data = field_3d[lh+1+off_x:lh+halo+off_x, :, :]
+        recv_left_flat = isend_irecv!(
+            requests_x, send_data, left, n_x, left_send_tag, right_send_tag
+        )
+    end
+
+    recv_right_flat = nothing
+    if right > -1
+        send_data = field_3d[field_nx-rh-halo+1-off_x:field_nx-rh-off_x, :, :]
+        recv_right_flat = isend_irecv!(
+            requests_x, send_data, right, n_x, right_send_tag, left_send_tag
+        )
+    end
+
+    MPI.Waitall(requests_x)
+    recv_left_3d  = recv_left_flat  === nothing ? nothing :
+                    reshape(recv_left_flat,  halo, field_ny, nσ)
+    recv_right_3d = recv_right_flat === nothing ? nothing :
+                    reshape(recv_right_flat, halo, field_ny, nσ)
+
+    # Y-Direction Exchange (Top/Bottom)
+    requests_y = MPI.RequestSet()
+    n_y = field_nx * halo * nσ
+
+    recv_top_flat = nothing
+    if top > -1
+        send_data = field_3d[:, th+1+off_y:th+halo+off_y, :]
+        recv_top_flat = isend_irecv!(
+            requests_y, send_data, top, n_y, top_send_tag, bottom_send_tag
+        )
+    end
+
+    recv_bottom_flat = nothing
+    if bottom > -1
+        send_data = field_3d[:, field_ny-bh-halo+1-off_y:field_ny-bh-off_y, :]
+        recv_bottom_flat = isend_irecv!(
+            requests_y, send_data, bottom, n_y, bottom_send_tag, top_send_tag
+        )
+    end
+
+    MPI.Waitall(requests_y)
+    recv_top_3d    = recv_top_flat    === nothing ? nothing :
+                     reshape(recv_top_flat,    field_nx, halo, nσ)
+    recv_bottom_3d = recv_bottom_flat === nothing ? nothing :
+                     reshape(recv_bottom_flat, field_nx, halo, nσ)
+
+    # Local Blending: loop over vertical levels
+    for k in 1:nσ
+        apply_halo_exchange_blends!(
+            view(field_3d, :, :, k), view(L0, :, :, k),
+            recv_left_3d   === nothing ? nothing : view(recv_left_3d,   :, :, k),
+            recv_right_3d  === nothing ? nothing : view(recv_right_3d,  :, :, k),
+            recv_top_3d    === nothing ? nothing : view(recv_top_3d,    :, :, k),
+            recv_bottom_3d === nothing ? nothing : view(recv_bottom_3d, :, :, k),
+            W_left, W_right, W_top, W_bottom,
+            lh, rh, th, bh, field_nx, field_ny, left, right, top, bottom,
+        )
+    end
+    return nothing
+end
+
+"""
+    halo_exchange!(model; fields)
+
+Synchronise halo regions for all requested fields.
+
+Supports both 2D (`nx × ny`) and 3D (`nx × ny × nσ`) arrays.  For 3D fields all
+vertical levels are packed into a single MPI message per direction; see
+[`halo_exchange_field!`](@ref) for details.
+"""
 function halo_exchange!(model::AbstractModel{<:Any, <:Any, <:MPISpec}; fields::Vector{Symbol}=[:h, :u, :v])
     @unpack halo, rank, comm, top, right, bottom, left = model.spec
-    @unpack gh, gu, gv = model.fields
+    @unpack gh, gu, gv, g3d = model.fields
 
     if halo == 0
         rank == 0 && @warn "No halo exchange to take place, returning"
         return
     end
 
-    th, rh, bh, lh = get_halos(model.spec)
-
-    # Tags for friendly neighbourhood messaging
-    top_send_tag = 1
-    right_send_tag = 2
-    bottom_send_tag = 3
-    left_send_tag = 4
-    
-    # Build field list based on dynamically checking which grid holds the requested fields
+    # Build field list based on dynamically checking which grid holds the requested fields.
     exchange_pairs = Tuple{Any, Symbol}[]
     for f in fields
-        hasproperty(gh, f) && push!(exchange_pairs, (gh, f))
-        hasproperty(gu, f) && push!(exchange_pairs, (gu, f))
-        hasproperty(gv, f) && push!(exchange_pairs, (gv, f))
+        hasproperty(gh,  f) && push!(exchange_pairs, (gh,  f))
+        hasproperty(gu,  f) && push!(exchange_pairs, (gu,  f))
+        hasproperty(gv,  f) && push!(exchange_pairs, (gv,  f))
+        hasproperty(g3d, f) && push!(exchange_pairs, (g3d, f))
     end
 
-    # Synchronise halo regions. 
+    # Synchronise halo regions.
     # If damping > 0, this blends the newly received neighbour values with the old local halo values.
     # If damping = 0, it simply overwrites the local halo with the neighbour's values (standard RAS).
     @unpack damping = model.spec
-    W_left = fill(damping, halo)
-    W_right = fill(damping, halo)
-    W_top = fill(damping, 1, halo)
+    W_left   = fill(damping, halo)
+    W_right  = fill(damping, halo)
+    W_top    = fill(damping, 1, halo)
     W_bottom = fill(damping, 1, halo)
 
-    # Exchange requested fields
     for (field_data, attribute) in exchange_pairs
         local_field = getproperty(field_data, attribute)
 
-        # We can only perform halo exchange on 2D arrays
-        length(size(local_field)) != 2 && continue
-
-        field_nx, field_ny = size(local_field)
-        L0 = copy(local_field)
-
-        # --- Phase 1: X-Direction Exchange (Left/Right) ---
-        requests_x = MPI.RequestSet()
-
-        # Adjust for U-staggering (nx is +1)
-        # We need to skip the shared interface face to avoid 1-index shift
+        # Staggered-grid offsets: U-grid has an extra face in x; V-grid in y.
         off_x = (field_data === gu) ? 1 : 0
-
-        T = eltype(local_field)
-        recv_left_flat = recv_right_flat = nothing
-        if left > -1
-            send_left = local_field[lh+1+off_x:lh+halo+off_x, :]
-            send_left_flat = copy(reshape(send_left, prod(size(send_left))))
-            recv_left_flat = zeros(T, prod(size(send_left)))
-            push!(requests_x, MPI.Isend(send_left_flat, left, left_send_tag, comm))
-            push!(requests_x, MPI.Irecv!(recv_left_flat, left, right_send_tag, comm))
-        end
-        if right > -1
-            send_right = local_field[field_nx-rh-halo+1-off_x:field_nx-rh-off_x, :]
-            send_right_flat = copy(reshape(send_right, prod(size(send_right))))
-            recv_right_flat = zeros(T, prod(size(send_right)))
-            push!(requests_x, MPI.Isend(send_right_flat, right, right_send_tag, comm))
-            push!(requests_x, MPI.Irecv!(recv_right_flat, right, left_send_tag, comm))
-        end
-
-        MPI.Waitall(requests_x)
-
-        recv_left = recv_left_flat === nothing ? nothing : reshape(recv_left_flat, halo, field_ny)
-        recv_right = recv_right_flat === nothing ? nothing : reshape(recv_right_flat, halo, field_ny)
-
-        # --- Phase 2: Y-Direction Exchange (Top/Bottom) ---
-        requests_y = MPI.RequestSet()
-
         off_y = (field_data === gv) ? 1 : 0
 
-        recv_top_flat = recv_bottom_flat = nothing
-        if top > -1
-            send_top = local_field[:, th+1+off_y:th+halo+off_y]
-            send_top_flat = copy(reshape(send_top, prod(size(send_top))))
-            recv_top_flat = zeros(T, prod(size(send_top)))
-            push!(requests_y, MPI.Isend(send_top_flat, top, top_send_tag, comm))
-            push!(requests_y, MPI.Irecv!(recv_top_flat, top, bottom_send_tag, comm))
+        kwargs = (off_x=off_x, off_y=off_y, W_left=W_left, W_right=W_right, W_top=W_top, W_bottom=W_bottom)
+
+        if ndims(local_field) in (2, 3)
+            halo_exchange_field!(local_field, model.spec; kwargs...)
+        else
+            @debug "halo_exchange!: skipping field $(attribute) with $(ndims(local_field)) dimensions"
         end
-        if bottom > -1
-            send_bottom = local_field[:, field_ny-bh-halo+1-off_y:field_ny-bh-off_y]
-            send_bottom_flat = copy(reshape(send_bottom, prod(size(send_bottom))))
-            recv_bottom_flat = zeros(T, prod(size(send_bottom)))
-            push!(requests_y, MPI.Isend(send_bottom_flat, bottom, bottom_send_tag, comm))
-            push!(requests_y, MPI.Irecv!(recv_bottom_flat, bottom, top_send_tag, comm))
-        end
-
-        MPI.Waitall(requests_y)
-
-        recv_top = recv_top_flat === nothing ? nothing : reshape(recv_top_flat, field_nx, halo)
-        recv_bottom = recv_bottom_flat === nothing ? nothing : reshape(recv_bottom_flat, field_nx, halo)
-
-        apply_halo_exchange_blends!(
-            local_field,
-            L0,
-            recv_left,
-            recv_right,
-            recv_top,
-            recv_bottom,
-            W_left,
-            W_right,
-            W_top,
-            W_bottom,
-            lh,
-            rh,
-            th,
-            bh,
-            field_nx,
-            field_ny,
-            left,
-            right,
-            top,
-            bottom,
-        )
     end
 end
 
@@ -605,41 +648,46 @@ function mpi_init_global_core_field!(
     return nothing
 end
 
+"""
+    collect_mpi_field!(model, path)
+
+Gather a 2D or 3D field onto root in a single collective operation.
+
+Both 2D (`nx x ny`) and 3D (`nx x ny x nσ`) fields are handled uniformly by
+normalising to a 3D view before packing. For 2D fields this is a zero-copy
+reshape to `(nx, ny, 1)`; for 3D fields all vertical levels are packed into
+one `Gatherv!` call, keeping the number of collective operations at O(1)
+regardless of the number of vertical levels.
+"""
 function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) where {T,N,S<:MPISpec}
-    @unpack comm, coords, global_fields, global_size, rank = model.spec
+    @unpack comm, global_fields, global_size, rank = model.spec
 
-    # Get the full field we want to collect into from the spec, and the equivalent local field on this member
     if path[1] != :global_fields
-        error("$(path) should be referring to a global field, so the first symbol should be global_fields")
+        error("$(path) should be referring to a global field, so the first symbol should be :global_fields")
     end
 
-    global_field = global_fields # Not named correctly
-    local_field = model.fields
-    for path_el in path[2:end] 
+    global_field = global_fields
+    local_field  = model.fields
+    for path_el in path[2:end]
         global_field = getproperty(global_field, path_el)
-        local_field = getproperty(local_field, path_el)
+        local_field  = getproperty(local_field,  path_el)
     end
 
-    # Establish the local grid information, with full grid information available already from global_grid
+    if ndims(local_field) ∉ (2, 3)
+        error("Field $(join(path, '.')) must be 2D or 3D.")
+    end
+
     th, rh, bh, lh = get_halos(model.spec)
-    # We only handle 2D fields!
-    if length(size(local_field)) != 2
-        error("Trying to exchange a field ",join(string.(path), ".")," that is not 2D, this is not possible")
-    end
-    x_sz, y_sz = size(local_field)
+    x_sz = size(local_field, 1)
+    y_sz = size(local_field, 2)
     x_start, x_end, y_start, y_end = get_bounds(model.spec)
-
-    @debug "[$(rank+1)/$(global_size)", join(string.(path), "."), "$((x_sz, y_sz, x_start, x_end, y_start, y_end))"
 
     # Determine global placement for this field's core region (field-aware for staggered grids).
     grid_sym = length(path) >= 2 ? path[2] : :gh
-    # Start and end indices for the global field in x
     sx = x_start + lh
-    ex = x_end - rh
-    # Start and end indices for the global field in y
+    ex = x_end   - rh
     sy = y_start + th
-    ey = y_end - bh
-    # Adjust the end indices for staggered grids
+    ey = y_end   - bh
     if grid_sym == :gu
         ex += 1
     elseif grid_sym == :gv
@@ -649,33 +697,39 @@ function collect_mpi_field!(model::AbstractModel{T,N,S}, path::Vector{Symbol}) w
         ey -= 1
     end
 
-    # Send/Gather the remote copies from the other nodes into the full field.
-    # We provide the local core size and positioning in the target global field.
-    field_sz = MPI.Gather(((x_sz - lh - rh, y_sz - th - bh), sx, ex, sy, ey), 0, comm)
-    
+    x_core, y_core = x_sz - lh - rh, y_sz - th - bh
+
+    # Normalise to 3D so all indexing is uniform; reshape is a zero-copy view.
+    local_3d  = ndims(local_field)  == 2 ? reshape(local_field,  x_sz, y_sz, 1) : local_field
+    global_3d = ndims(global_field) == 2 ? reshape(global_field, size(global_field)..., 1) : global_field
+    nσ = size(local_3d, 3)
+
+    # Gather per-rank metadata (core XY size + global placement) in one collective.
+    field_sz = MPI.Gather(((x_core, y_core), sx, ex, sy, ey), 0, comm)
+
+    # Each rank sends its core region (all levels) as one flat buffer.
+    local_core = local_3d[1+lh:end-rh, 1+th:end-bh, :]
+
     if rank == 0
-        # We calculate the global grid coordinates for all ranks 
-        # based on the received sizes of their core domain (ie. no halo)
-        count_sizes = map(x -> prod(x[1]), field_sz)
-        field_type = eltype(local_field)
-        recv_data = Vector{field_type}(undef, sum(count_sizes))
-        recv_buffer = MPI.VBuffer(recv_data, count_sizes)
-        @debug "[$(rank+1)/$(global_size) ", join(string.(path), "."), "] Gathering field $((1+lh, size(local_field)[1]-rh, 1+th, size(local_field)[2]-bh)) to buffer $(size(recv_data))"
-        MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], recv_buffer, comm)
+        count_sizes = [prod(m[1]) * nσ for m in field_sz]
+        recv_data   = Vector{eltype(local_field)}(undef, sum(count_sizes))
+        MPI.Gatherv!(vec(local_core), MPI.VBuffer(recv_data, count_sizes), comm)
 
-        idxer = collect(cumsum(count_sizes))
-
-        for proc_rank in 0:(global_size-1)
+        # Write each rank's patch into the correct location in the global field.
+        idxer = cumsum(count_sizes)
+        for proc_rank in 0:(global_size - 1)
             offset = proc_rank == 0 ? 0 : idxer[proc_rank]
-            proc_data = recv_data[offset+1:offset + count_sizes[proc_rank+1]]
-            sx, ex, sy, ey = field_sz[proc_rank+1][2:end]
-            global_field[sx:ex, sy:ey] = reshape(proc_data, field_sz[proc_rank + 1][1])
+            core_x, core_y = field_sz[proc_rank + 1][1]
+            proc_sx, proc_ex, proc_sy, proc_ey = field_sz[proc_rank + 1][2:end]
+
+            proc_data = recv_data[offset+1 : offset+count_sizes[proc_rank+1]]
+            global_3d[proc_sx:proc_ex, proc_sy:proc_ey, :] = reshape(proc_data, core_x, core_y, nσ)
         end
     else
-        @debug "[$(rank+1)/$(global_size)] Sending ", join(string.(path), "."), " data"
-        MPI.Gatherv!(local_field[1+lh:end-rh, 1+th:end-bh], nothing, comm)
+        MPI.Gatherv!(vec(local_core), nothing, comm)
     end
 
     MPI.Barrier(comm)
     return global_field
 end
+
