@@ -39,12 +39,12 @@ grid80 = grid_L(L = L)
 This grid object contains information about the location of grid points. We use this to construct an array defining the bed from the bed function `z_b` defined earlier (we don't need this step for the solver, but we do to visualize!). We'll choose the period of the bumps so that we have one peak and one trough in both directions (via the `ω` parameter)
 ```julia
 z_b80 = z_b.(grid80.xxh,grid80.yyh; α = 0.5, ω = 2π/L );
-plt = Plots.heatmap(grid80.xxh[:,1]/1e3, grid80.yyh[1,:]/1e3, z_b80, 
+plt = Plots.heatmap(grid80.xxh[:,1]/1e3, grid80.yyh[1,:]/1e3, z_b80', 
                         xlabel = "x (km)", 
                         ylabel = "y (km)",
                         colorbar_title = "\n bed depth (m)",
                         right_margin = 4Plots.mm)
-plot!(size = (600,400))
+Plots.plot!(size = (600,400))
 ```
 
 ```@raw html
@@ -78,7 +78,7 @@ Plots.heatmap(model80.grid.xxh[:,1]/1e3, model80.grid.yyh[1,:]/1e3, model80.fiel
                         ylabel = "y (km)",
                         right_margin = 4Plots.mm,
                         colorbar_title = "\n ice velocity in x-direction (m/yr)")
-plot!(size = (600,400))
+Plots.plot!(size = (600,400))
 ```
 
 ```@raw html
@@ -105,18 +105,19 @@ for (count,L) in enumerate(L_values) ;
                 bed_elevation = z_bL,
                 initial_conditions = initial_conditions);  #build model
     update_state!(model); #get the velocity assoiciated with geometry
-    grid_flowline[:, count] .= model.grid.xxh[:, round(Int, gridL.nx/4)]; #extract coordinates along line
-    U_flowline[:,count] .= model.fields.gh.u[:, round(Int, gridL.nx/4)]; #get velocity along line
+    grid_flowline[:, count] .= model.grid.xxh[:, round(Int, gridL.ny/4)]; #extract coordinates along line
+    U_flowline[:,count] .= model.fields.gh.u[:, round(Int, gridL.ny/4)]; #get velocity along line
 end
 ```
 
 And make the plot:
 ```julia
-p = plot()
+p = Plots.plot()
 #first normalize the co-ordinates
-normalized_grid_flowline = zeros(size(grid_flowline))
+normalized_grid_flowline = grid_flowline ./ (L_values' .* 1e3)   # broadcast: divide each column i by L_values[i]
+
 for i = 1:(size(L_values)[1])
-    plot!(grid_flowline[:,i]./L_values[i]/1e3,
+    Plots.plot!(normalized_grid_flowline[:,i],
     U_flowline[:,i], 
     framestyle = :box, 
     xlabel = "x/L (km)", 
@@ -124,7 +125,7 @@ for i = 1:(size(L_values)[1])
     label = L_values[i])
 end
 display(p)
-plot!(size = (1000,550))
+Plots.plot!(size = (1000,550))
 ```
 ```@raw html
 <center><img src="../../assets/example-plots/bumpy/velocity_diffL.png" alt="" title="" style="max-width: 100%" /></center>
