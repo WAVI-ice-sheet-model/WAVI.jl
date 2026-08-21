@@ -1,5 +1,5 @@
 # MISMIP+ example (part 2)
-In this example, we demonstrate the retreat experiments performed in the Marine Ice Sheet Model Intercomparison (MISMIP) (doi: 10.5194/tc-14-2283-2020). There experiments are as follows: starting from a steady state determined in MISMIP+ part 1, we enforce melt induced for 100 years (this is called the ice1r experiment in MISMIP+) followed by no melting for 100 years.
+In this example, we demonstrate the retreat experiments performed in the Marine Ice Sheet Model Intercomparison (MISMIP) (doi: 10.5194/tc-14-2283-2020). These experiments are as follows: starting from a steady state determined in MISMIP+ part 1, we enforce melt induced for 100 years (this is called the ice1r experiment in MISMIP+) followed by no melting for 100 years.
 
 This example demonstrates how to:
     * apply simple parametrizations of ice shelf basal melting
@@ -24,7 +24,7 @@ nx = round(Int, 640*1e3/dx);
 ny = round(Int, 80*1e3/dx); #fix the number of grid-cells in the x and y directions to match set extents
 u_iszero = falses(nx+1,ny); #build x-direction velocity boundary condition matrix with no zero boundary conditions anywhere 
 u_iszero[1,:].=true;        #set the x-direction velocity to zero at x = 0.
-v_iszero=falses(nx,ny+1);   #build x-direction velocity boundary condition matrix with no zero boundary conditions anywhere 
+v_iszero=falses(nx,ny+1);   #build y-direction velocity boundary condition matrix with no zero boundary conditions anywhere 
 v_iszero[:,1].=true;        #set the y-direction velocity to zero at y = 0 (free slip)
 v_iszero[:,end].=true;       #set the y-direction velocity to zero at y = 84km (free slip)
 v_iszero[1,:].=true;         #set the y-direction velocity to zero at x = 0km (no slip in combination with u_iszero)
@@ -89,14 +89,10 @@ Let's plot the volume above floatation through time (volume above floatation is 
 ```julia
 filename = joinpath(folder, "outfile.nc");
 
-# Declare variables so they can be used globally
-local h, grfrac, time_array, vaf
-
 # Open the NetCDF file
-Dataset(filename, "r") do ds
+time_array, vaf = NCDataset(filename, "r") do ds
     # Read variables
     h = ds["h"][:, :, :]
-    grfrac = ds["grfrac"][:]
     time_array = ds["TIME"][:]
 
     # Initialize vaf array
@@ -113,6 +109,8 @@ Dataset(filename, "r") do ds
              xlabel = "time (years)",
              ylabel = "volume above floatation (km^3)",
              framestyle = :box)
+    
+    return tim_array, vaf
 end
 ```
 
@@ -154,10 +152,8 @@ Let's work out the volume above floatation evolution for this phase and add it t
 ```julia
 filename = joinpath(folder_advance, "outfile.nc");
 
-local time_adv, vaf_adv
-Dataset(filename, "r") do ds_advance
+time_adv, vaf_adv = NCDataset(filename, "r") do ds_advance
     h_adv = ds_advance["h"][:, :, :]
-    grfrac_adv = ds_advance["grfrac"][:]
     time_adv = ds_advance["TIME"][:]
 
     time_adv = time_adv .+ time_array[end] #shift the time by the final entry of the retreat phase
@@ -168,6 +164,8 @@ Dataset(filename, "r") do ds_advance
     for i = 1:length(time_adv)
         vaf_adv[i] = volume_above_floatation(h_adv[:,:,i], simulation_advance.model.fields.gh.b, Ref(simulation_advance.model.params), simulation_advance.model.grid )
     end
+
+    return time_adv, vaf_adv
 end
 
 Plots.plot(time_array, vaf[:]/1e9,
