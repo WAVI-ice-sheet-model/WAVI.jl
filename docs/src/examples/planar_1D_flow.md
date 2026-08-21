@@ -63,7 +63,7 @@ update_state!(model)
 Now let's plot the ice profile and ice velocity, starting with the bed. We'll use julia's [Plots.jl](https://docs.juliaplots.org/stable/) package to plot. Note that we make plot objects sequentially, and then use the `display` command to show them.
 
 ```julia
-ice_plot = plot(model.grid.xxh[:,1]/1e3, model.fields.gh.b[:,1], 
+ice_plot = Plots.plot(model.grid.xxh[:,1]/1e3, model.fields.gh.b[:,1], 
                 linewidth = 2,
                 linecolor = :brown,
                 label = "bed",
@@ -73,7 +73,7 @@ ice_plot = plot(model.grid.xxh[:,1]/1e3, model.fields.gh.b[:,1],
 Then we add the ice surface...
 
 ```julia
-plot!(ice_plot, model.grid.xxh[:,1]/1e3, model.fields.gh.s[:,1],
+Plots.plot!(ice_plot, model.grid.xxh[:,1]/1e3, model.fields.gh.s[:,1],
                 linewidth = 2,
                 linecolor = :blue,
                 label = "ice surface");
@@ -81,7 +81,7 @@ plot!(ice_plot, model.grid.xxh[:,1]/1e3, model.fields.gh.s[:,1],
 
 ...and finally the ice base
 ```julia
-plot!(ice_plot, model.grid.xxh[:,1]/1e3, model.fields.gh.s[:,1] .- model.fields.gh.h[:,1],
+Plots.plot!(ice_plot, model.grid.xxh[:,1]/1e3, model.fields.gh.s[:,1] .- model.fields.gh.h[:,1],
                 linewidth = 2,
                 linecolor = :red,
                 label = "ice base");
@@ -93,12 +93,12 @@ display(ice_plot)
 <center><img src="../../assets/example-plots/planar_1D_flow/ice-profile.png" style="max-width: 100%" /></center>
 ```
 
-We see that the ice shelf goes afloat when the ice base is approximately 270m below sea level, which fits which Archimedean floatation principles: 270m is the product of the ratio of the densities of ice (about 900 km/m^3) and ocean (about 1000 kg/m^3) with the ice thickness (300m).
+We see that the ice shelf goes afloat when the ice base is approximately 270m below sea level, which fits with Archimedean floatation principles: 270m is the product of the ratio of the densities of ice (about 900 kg/m^3) and ocean (about 1000 kg/m^3) with the ice thickness (300m).
 
 Now lets have a look at the velocity in the ice. We'll make a new plot for this:
 
 ```julia
-vel_plot = plot(model.grid.xxh[:,1]/1e3, model.fields.gh.u[:,1],
+vel_plot = Plots.plot(model.grid.xxh[:,1]/1e3, model.fields.gh.u[:,1],
                 linewidth = 2,
                 label = "ice velocity",
                 xlabel = "x (km)",
@@ -139,10 +139,9 @@ Our simulation ran successfully, but we don't have any information about what ha
 
 ```julia
 folder = "planar_one_dimensional_flow" # the name of the directory
-mkdir(folder) #make the folder
 ```
 
-What to output and when to output it is specified by an instance of an `OutputParams` objects. Let's set one up so that the ice thickness, (unchanging) bed, ice surface and ice velocity is output every year, including at the first timestep:
+What to output and when to output it is specified by an instance of an `OutputParams` objects. Let's set one up so that the ice thickness, (unchanging) bed, ice surface and ice velocity is output every 10 years, including at the first timestep:
 
 ```julia
 output_params = OutputParams(outputs = (h = model.fields.gh.h,u = model.fields.gh.u, b = model.fields.gh.b,s = model.fields.gh.s), #which fields to output
@@ -198,10 +197,4 @@ Plots.plot!(pl,simulation.model.grid.xxh[:,1], base_out, legend = :none, linecol
 As time proceeds, the ice sheet accelerates, causing thinning. 
 ```@raw html
 <center><img src="../../assets/example-plots/planar_1D_flow/ice-evolution.png" alt="" title="" style="max-width: 100%" /></center>
-```
-
-
-Finally, we clear up the files we just outputted
-```julia
-rm(folder, force = true, recursive = true);
 ```
